@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ספר אנשי קשר</title>
+
+<style>
+body { font-family: Arial; direction: rtl; padding: 20px; background: #f5f5f5; }
+input, select { padding: 10px; margin: 5px; width: 250px; }
+.contact { background: white; border-radius: 10px; padding: 12px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
+#login { max-width: 300px; margin: auto; text-align: center; }
+</style>
+
+</head>
+<body>
+
+<div id="login">
+  <h3>כניסה למערכת</h3>
+  <input type="text" id="phoneInput" placeholder="הכנס מספר טלפון">
+  <br>
+  <button onclick="login()">כניסה</button>
+</div>
+
+<div id="app" style="display:none;">
+
+<h2>📇 ספר אנשי קשר</h2>
+
+
+<input type="text" id="searchInput" placeholder="חיפוש..." onkeyup="search()">
+
+<select onchange="filterByDept(this.value)">
+  <option value="">כל המחלקות</option>
+</select>
+
+<div id="list"></div>
+
+</div>
+
+<script>
+
+let contacts = [];
+
+async function loadContacts() {
+  let res = await fetch("https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts");
+  let data = await res.json();
+
+  contacts = data.map((row, index) => ({
+    id: index,
+    first: row.first_name_he || "",
+    last: row.last_name_he || "",
+    name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
+    role: row.role || "",
+    dept: row.department || "",
+    phone: row.phone || "",
+    email: (row.email || "").toString().replace(/\u200E/g, "").trim()
+  }));
+
+  populateDepartments();
+}
+
+function normalizePhone(p) {
+  return (p || "").replace(/\D/g, "").replace(/^0/, "972");
+}
+
+function login() {
+  let input = document.getElementById("phoneInput").value;
+  let normalized = normalizePhone(input);
+
+  let found = contacts.find(c =>
+    normalizePhone(c.phone) === normalized
+  );
+
+  if (found) {
+    localStorage.setItem("userPhone", normalized);
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    show(contacts);
+  } else {
+    alert("מספר לא נמצא במערכת");
+  }
+}
+
+function autoLogin() {
+  let saved = localStorage.getItem("userPhone");
+  if (!saved) return;
+
+  let found = contacts.find(c =>
+    normalizePhone(c.phone) === saved
+  );
+
+  if (found) {
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    show(contacts);
+  }
+}
+
+function show(list) {
+  let html = "";
+
+  list.forEach(c => {
+    let cleanPhone = (c.phone || "").replace("+", "");
+
+    html += `
+      <div class="contact">
+        <b>${c.name}</b><br>
+        ${c.role}<br>
+        ${c.dept}<br>
+
+        📞 <a href="tel:${c.phone}">${c.phone}</a><br>
+
+        ${c.email 
+          ? `📧 <a href="mailto:${c.email}">${c.email}</a><br>` 
+          : `📧 אין מייל<br>`
+        }
+
+        💬 <a href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a><br><br>
+
+        <button onclick="downloadContact(${c.id})">הוסף לאנשי קשר</button>
+      </div>
+    `;
+  });
+
+  document.getElementById("list").innerHTML = html;
+}
+
+function search() {
+  let q = document.getElementById("searchInput").value.toLowerCase().trim();
+
+  let filtered = contacts.filter(c =>
+    c.name.toLowerCase().includes(q) ||
+    c.role.toLowerCase().includes(q) ||
+    c.dept.toLowerCase().includes(q)
+  );
+
+  show(filtered);
+}
+
+function filterByDept(dept) {
+  if (!dept) {
+    show(contacts);
+    return;
+  }
+
+  let filtered = contacts.filter(c => c.dept === dept);
+  show(filtered);
+}
+
+function populateDepartments() {
+  let depts = [...new Set(contacts.map(c => c.dept).filter(Boolean))];
+  let select = document.querySelector("select");
+
+  depts.sort().forEach(d => {
+    let option = document.createElement("option");
+    option.value = d;
+    option.textContent = d;
+    select.appendChild(option);
+  });
+}
+
+function downloadContact(id) {
+  let c = contacts.find(x => x.id === id);
+
+  let vcard = `BEGIN:VCARD
+VERSION:3.0
+N;CHARSET=UTF-8:${c.last};${c.first};;;
+FN;CHARSET=UTF-8:${c.name}
+ORG;CHARSET=UTF-8:${c.dept}
+TITLE;CHARSET=UTF-8:${c.role}
+TEL;TYPE=CELL:${c.phone}
+EMAIL:${c.email}
+END:VCARD`;
+
+  let blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+  let url = URL.createObjectURL(blob);
+
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = c.name + ".vcf";
+  a.click();
+}
+
+loadContacts().then(() => autoLogin());
+
+</script>
+
+</body>
+</html>
