@@ -12,10 +12,50 @@
 
 <style>
 body { font-family: Arial; direction: rtl; padding: 20px; background: #f5f5f5; }
-input, select { padding: 10px; margin: 5px; width: 250px; }
-.contact { background: white; border-radius: 10px; padding: 12px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+input, select {
+  padding: 12px;
+  margin: 5px;
+  width: 260px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+.contact {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 10px 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
 button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
+
 #login { max-width: 300px; margin: auto; text-align: center; }
+
+#hint {
+  text-align: center;
+  color: #777;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+#logo {
+  display: block;
+  margin: 15px auto;
+  width: 90px;
+  opacity: 0.9;
+}
+
+@media (max-width: 600px) {
+  input, select {
+    width: 100%;
+  }
+
+  #logo {
+    width: 80px;
+  }
+}
 </style>
 
 </head>
@@ -34,15 +74,17 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
 <h2>📇 ספר אנשי קשר</h2>
 <div id="userInfo" style="margin-bottom:10px;color:#444;"></div>
 
+<div id="hint">🔍 התחילו להקליד כדי לחפש איש קשר</div>
+
 <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
 
 <select onchange="filterByDept(this.value)">
   <option value="">כל המחלקות</option>
 </select>
 
-<div id="list">
-  <div class="contact">התחילו להקליד כדי לחפש 🔍</div>
-</div>
+<img id="logo" src="icon.png">
+
+<div id="list"></div>
 
 </div>
 
@@ -108,9 +150,9 @@ function login() {
     document.getElementById("app").style.display = "block";
 
     document.getElementById("userInfo").textContent =
-      "מחובר/ת כ " + (found.name || found.phone);
+      "מחובר/ת כ: " + (found.name || found.phone);
 
-    show([]); // לא מציגים הכל בהתחלה
+    show([]);
   } else {
     alert("מספר לא נמצא במערכת");
   }
@@ -129,16 +171,15 @@ function autoLogin() {
     document.getElementById("app").style.display = "block";
 
     document.getElementById("userInfo").textContent =
-      "מחובר/ת כ " + (found.name || found.phone);
+      "מחובר/ת כ: " + (found.name || found.phone);
 
-    show([]); // לא מציגים הכל בהתחלה
+    show([]);
   }
 }
 
 function show(list) {
   if (!list.length) {
-    document.getElementById("list").innerHTML =
-      "<div class='contact'>התחילו להקליד כדי לחפש 🔍</div>";
+    document.getElementById("list").innerHTML = "";
     return;
   }
 
