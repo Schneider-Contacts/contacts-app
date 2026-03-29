@@ -11,30 +11,45 @@
 <title>ספר אנשי קשר</title>
 
 <style>
-body { font-family: Arial; direction: rtl; padding: 20px; background: #f5f5f5; }
+body {
+  font-family: Arial;
+  direction: rtl;
+  padding: 20px;
+  background: #f5f5f5;
+  text-align: center;
+}
 
 input, select {
   padding: 12px;
-  margin: 5px;
+  margin: 6px;
   width: 260px;
   border-radius: 10px;
   border: 1px solid #ccc;
+  text-align: center;
 }
 
 .contact {
   background: white;
   border-radius: 12px;
   padding: 14px;
-  margin: 10px 0;
+  margin: 10px auto;
+  max-width: 320px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  text-align: right;
 }
 
-button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
+button {
+  margin-top: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
 
-#login { max-width: 300px; margin: auto; text-align: center; }
+#login {
+  max-width: 300px;
+  margin: auto;
+}
 
 #hint {
-  text-align: center;
   color: #777;
   margin-bottom: 10px;
   font-size: 14px;
@@ -44,7 +59,13 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
   display: block;
   margin: 15px auto;
   width: 90px;
-  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.hidden {
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 600px) {
@@ -52,8 +73,8 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
     width: 100%;
   }
 
-  #logo {
-    width: 80px;
+  .contact {
+    max-width: 100%;
   }
 }
 </style>
@@ -91,7 +112,6 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
 <script>
 
 const APP_PASSWORD = "mhfc1913";
-
 let contacts = [];
 
 async function loadContacts() {
@@ -116,15 +136,8 @@ async function loadContacts() {
 function normalizePhone(p) {
   if (!p) return "";
   let num = p.replace(/\D/g, "");
-
-  if (num.startsWith("0")) {
-    num = "972" + num.slice(1);
-  }
-
-  if (!num.startsWith("972")) {
-    num = "972" + num;
-  }
-
+  if (num.startsWith("0")) num = "972" + num.slice(1);
+  if (!num.startsWith("972")) num = "972" + num;
   return "+" + num;
 }
 
@@ -213,11 +226,15 @@ function show(list) {
 
 function search() {
   let q = document.getElementById("searchInput").value.toLowerCase().trim();
+  let logo = document.getElementById("logo");
 
   if (q.length < 2) {
+    logo.classList.remove("hidden");
     show([]);
     return;
   }
+
+  logo.classList.add("hidden");
 
   let filtered = contacts.filter(c =>
     c.name.toLowerCase().includes(q) ||
@@ -229,10 +246,15 @@ function search() {
 }
 
 function filterByDept(dept) {
+  let logo = document.getElementById("logo");
+
   if (!dept) {
+    logo.classList.remove("hidden");
     show([]);
     return;
   }
+
+  logo.classList.add("hidden");
 
   let filtered = contacts.filter(c => c.dept === dept);
   show(filtered);
