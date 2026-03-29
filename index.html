@@ -106,7 +106,7 @@ function login() {
     document.getElementById("app").style.display = "block";
 
     document.getElementById("userInfo").textContent =
-      "מחובר כ: " + (found.name || found.phone);
+      "מחובר/ת כ" + (found.name || found.phone);
 
     show(contacts);
   } else {
@@ -127,7 +127,7 @@ function autoLogin() {
     document.getElementById("app").style.display = "block";
 
     document.getElementById("userInfo").textContent =
-      "מחובר כ: " + (found.name || found.phone);
+      "מחובר/ת כ" + (found.name || found.phone);
 
     show(contacts);
   }
