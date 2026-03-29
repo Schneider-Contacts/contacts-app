@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="he">
-<head> <link rel="apple-touch-icon" href="icon.png">
+<head>
+<link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -30,7 +31,7 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
 <div id="app" style="display:none;">
 
 <h2>📇 ספר אנשי קשר</h2>
-
+<div id="userInfo" style="margin-bottom:10px;color:#444;"></div>
 
 <input type="text" id="searchInput" placeholder="חיפוש..." onkeyup="search()">
 
@@ -54,18 +55,30 @@ async function loadContacts() {
     id: index,
     first: row.first_name_he || "",
     last: row.last_name_he || "",
+    title: row.title_prefix || "",
     name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
     role: row.role || "",
     dept: row.department || "",
-    phone: row.phone || "",
+    phone: normalizePhone(row.phone || ""),
     email: (row.email || "").toString().replace(/\u200E/g, "").trim()
-  }));
+  })).filter(c => c.phone); // רק עם טלפון תקין
 
   populateDepartments();
 }
 
 function normalizePhone(p) {
-  return (p || "").replace(/\D/g, "").replace(/^0/, "972");
+  if (!p) return "";
+  let num = p.replace(/\D/g, "");
+
+  if (num.startsWith("0")) {
+    num = "972" + num.slice(1);
+  }
+
+  if (!num.startsWith("972")) {
+    num = "972" + num;
+  }
+
+  return "+" + num;
 }
 
 function login() {
@@ -78,8 +91,13 @@ function login() {
 
   if (found) {
     localStorage.setItem("userPhone", normalized);
+
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
+
+    document.getElementById("userInfo").textContent =
+      "מחובר כ: " + (found.name || found.phone);
+
     show(contacts);
   } else {
     alert("מספר לא נמצא במערכת");
@@ -97,6 +115,10 @@ function autoLogin() {
   if (found) {
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
+
+    document.getElementById("userInfo").textContent =
+      "מחובר כ: " + (found.name || found.phone);
+
     show(contacts);
   }
 }
@@ -105,7 +127,7 @@ function show(list) {
   let html = "";
 
   list.forEach(c => {
-    let cleanPhone = (c.phone || "").replace("+", "");
+    let cleanPhone = normalizePhone(c.phone).replace("+", "");
 
     html += `
       <div class="contact">
