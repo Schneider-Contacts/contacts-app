@@ -24,6 +24,7 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
 <div id="login">
   <h3>כניסה למערכת</h3>
   <input type="text" id="phoneInput" placeholder="הכנס מספר טלפון">
+  <input type="password" id="passwordInput" placeholder="הכנס סיסמה">
   <br>
   <button onclick="login()">כניסה</button>
 </div>
@@ -45,6 +46,8 @@ button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
 
 <script>
 
+const APP_PASSWORD = "mhfc1913";
+
 let contacts = [];
 
 async function loadContacts() {
@@ -61,7 +64,7 @@ async function loadContacts() {
     dept: row.department || "",
     phone: normalizePhone(row.phone || ""),
     email: (row.email || "").toString().replace(/\u200E/g, "").trim()
-  })).filter(c => c.phone); // רק עם טלפון תקין
+  })).filter(c => c.phone);
 
   populateDepartments();
 }
@@ -83,6 +86,13 @@ function normalizePhone(p) {
 
 function login() {
   let input = document.getElementById("phoneInput").value;
+  let password = document.getElementById("passwordInput").value;
+
+  if (password !== APP_PASSWORD) {
+    alert("סיסמה שגויה");
+    return;
+  }
+
   let normalized = normalizePhone(input);
 
   let found = contacts.find(c =>
