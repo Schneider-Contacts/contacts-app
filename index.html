@@ -11,70 +11,220 @@
 <title>ספר אנשי קשר</title>
 
 <style>
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Arial;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   direction: rtl;
-  padding: 20px;
-  background: #f5f5f5;
+  padding: 18px 14px 28px;
+  background: #f3f6fb;
   text-align: center;
+  color: #1f2937;
 }
 
-input, select {
-  padding: 12px;
-  margin: 6px;
-  width: 260px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-  text-align: center;
+h2, h3 {
+  margin-top: 0;
 }
 
-.contact {
-  background: white;
-  border-radius: 12px;
-  padding: 14px;
-  margin: 10px auto;
-  max-width: 320px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  text-align: right;
+h2 {
+  font-size: 28px;
+  margin-bottom: 10px;
+  font-weight: 700;
+  color: #1f2a44;
 }
 
-button {
-  margin-top: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
+h3 {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: #1f2a44;
+}
+
+#login,
+#app {
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 #login {
-  max-width: 300px;
-  margin: auto;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 22px 18px 20px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e7edf5;
+  margin-top: 28px;
+}
+
+input, select {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  margin: 10px 0;
+  border-radius: 14px;
+  border: 1px solid #d6dfeb;
+  background: #ffffff;
+  text-align: center;
+  font-size: 16px;
+  color: #1f2937;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus, select:focus {
+  border-color: #7aa7ff;
+  box-shadow: 0 0 0 4px rgba(122, 167, 255, 0.16);
+  background: #fcfdff;
+}
+
+button {
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform 0.08s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+#login button {
+  width: 100%;
+  margin-top: 6px;
+  padding: 14px 16px;
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.22);
+}
+
+#login button:hover {
+  opacity: 0.96;
+}
+
+#userInfo {
+  margin: 0 auto 12px;
+  color: #42526b;
+  font-size: 14px;
+  background: #eef4ff;
+  border: 1px solid #dbe7ff;
+  border-radius: 12px;
+  padding: 10px 12px;
 }
 
 #hint {
-  color: #777;
-  margin-bottom: 10px;
+  color: #6b7280;
+  margin: 0 0 10px;
   font-size: 14px;
+  line-height: 1.5;
+}
+
+#searchInput,
+select {
+  background: #ffffff;
 }
 
 #logo {
   display: block;
-  margin: 15px auto;
-  width: 90px;
-  transition: opacity 0.3s ease;
+  margin: 18px auto 12px;
+  width: 96px;
+  transition: opacity 0.3s ease, height 0.3s ease, margin 0.3s ease;
 }
 
 .hidden {
   opacity: 0;
   height: 0;
+  margin: 0 auto;
   overflow: hidden;
 }
 
+.contact {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px 16px 14px;
+  margin: 12px auto;
+  max-width: 420px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+  border: 1px solid #e7edf5;
+  text-align: right;
+  line-height: 1.7;
+}
+
+.contact b {
+  display: block;
+  font-size: 18px;
+  color: #172033;
+  margin-bottom: 4px;
+}
+
+.contact a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.contact a:hover {
+  text-decoration: underline;
+}
+
+.contact button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  border: 1px solid #d9e6ff;
+}
+
+.contact button:hover {
+  background: #e6efff;
+}
+
+#list {
+  margin-top: 8px;
+}
+
 @media (max-width: 600px) {
+  body {
+    padding: 14px 12px 24px;
+  }
+
+  h2 {
+    font-size: 25px;
+  }
+
+  h3 {
+    font-size: 20px;
+  }
+
+  #login {
+    margin-top: 20px;
+    padding: 20px 14px 16px;
+    border-radius: 18px;
+  }
+
   input, select {
-    width: 100%;
+    font-size: 16px;
+    padding: 14px;
   }
 
   .contact {
     max-width: 100%;
+    padding: 15px 14px 13px;
+    border-radius: 16px;
+  }
+
+  .contact b {
+    font-size: 17px;
+  }
+
+  #logo {
+    width: 88px;
   }
 }
 </style>
