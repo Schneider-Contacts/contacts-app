@@ -178,14 +178,10 @@ select {
   border-radius: 28px;
   overflow: hidden;
   object-fit: cover;
-  transition: opacity 0.3s ease, height 0.3s ease, margin 0.3s ease;
 }
 
 .hidden {
-  opacity: 0;
-  height: 0;
-  margin: 0 auto;
-  overflow: hidden;
+  display: none !important;
 }
 
 .statusMessage {
@@ -403,7 +399,6 @@ select {
 </div>
 
 <script>
-
 const APP_PASSWORD = "mhfc1913";
 let contacts = [];
 let isLoadingContacts = false;
@@ -591,6 +586,33 @@ function deduplicateContacts(list) {
   return mergedContacts;
 }
 
+function getSearchPriority(contact, q, qNoHyphen) {
+  let name = (contact.name || "").toLowerCase();
+  let role = (contact.role || "").toLowerCase();
+  let dept = (contact.dept || "").toLowerCase();
+  let phoneIntl = (contact.phone || "").toLowerCase();
+  let phoneLocal = getPhoneSearchValue(contact.phone);
+
+  if (name === q) return 1;
+  if (name.startsWith(q)) return 2;
+  if (name.includes(q)) return 3;
+
+  if (role === q) return 4;
+  if (role.startsWith(q)) return 5;
+  if (role.includes(q)) return 6;
+
+  if (dept === q) return 7;
+  if (dept.startsWith(q)) return 8;
+  if (dept.includes(q)) return 9;
+
+  if (phoneLocal.startsWith(qNoHyphen)) return 10;
+  if (phoneLocal.includes(qNoHyphen)) return 11;
+  if (phoneIntl.startsWith(q)) return 12;
+  if (phoneIntl.includes(q)) return 13;
+
+  return null;
+}
+
 function login() {
   if (isLoadingContacts) {
     setLoginStatus("טוען אנשי קשר...", "loading");
@@ -776,15 +798,21 @@ function search() {
 
   logo.classList.add("hidden");
 
-  let filtered = contacts.filter(c =>
-    c.name.toLowerCase().includes(q) ||
-    c.role.toLowerCase().includes(q) ||
-    c.dept.toLowerCase().includes(q) ||
-    c.phone.toLowerCase().includes(q) ||
-    getPhoneSearchValue(c.phone).includes(qNoHyphen)
-  );
+  let ranked = contacts
+    .map(c => ({
+      contact: c,
+      priority: getSearchPriority(c, q, qNoHyphen)
+    }))
+    .filter(item => item.priority !== null)
+    .sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      return a.contact.name.localeCompare(b.contact.name, "he");
+    })
+    .map(item => item.contact);
 
-  show(filtered);
+  show(ranked);
 }
 
 function filterByDept(dept) {
@@ -864,7 +892,6 @@ function downloadContact(id) {
 }
 
 loadContacts().then(() => autoLogin());
-
 </script>
 
 </body>
