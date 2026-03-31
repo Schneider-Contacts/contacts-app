@@ -191,37 +191,89 @@ select {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
   border: 1px solid #e7edf5;
   text-align: right;
-  line-height: 1.7;
 }
 
-.contact b {
+.contactHeader {
+  margin-bottom: 10px;
+}
+
+.contactName {
   display: block;
   font-size: 18px;
+  font-weight: 700;
   color: #172033;
-  margin-bottom: 4px;
+  line-height: 1.35;
 }
 
-.contact a {
+.contactMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.contactMetaRow {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.contactMetaRow.phoneRow {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.contactMetaRow a {
   color: #2563eb;
   text-decoration: none;
-  font-weight: 500;
   word-break: break-word;
 }
 
-.contact a:hover {
+.contactMetaRow a:hover {
   text-decoration: underline;
 }
 
-.contact button {
+.contactActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+  margin-bottom: 12px;
+}
+
+.actionChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fbff;
+  border: 1px solid #d9e6ff;
+  color: #1d4ed8;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1 1 calc(33.333% - 6px);
+  min-width: 92px;
+}
+
+.actionChip:hover {
+  background: #eef5ff;
+}
+
+.addContactBtn {
   width: 100%;
-  margin-top: 12px;
-  padding: 12px 14px;
+  margin-top: 0;
+  padding: 13px 14px;
   background: #eef4ff;
   color: #1d4ed8;
   border: 1px solid #d9e6ff;
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.contact button:hover {
+.addContactBtn:hover {
   background: #e6efff;
 }
 
@@ -259,8 +311,12 @@ select {
     border-radius: 16px;
   }
 
-  .contact b {
+  .contactName {
     font-size: 17px;
+  }
+
+  .actionChip {
+    flex: 1 1 calc(50% - 4px);
   }
 
   #logo {
@@ -527,22 +583,55 @@ function show(list) {
     let cleanPhone = normalizePhone(c.phone).replace("+", "");
     let displayPhone = formatPhoneForDisplay(c.phone);
 
+    let metaRows = "";
+    let actionChips = "";
+
+    if (c.role) {
+      metaRows += `<div class="contactMetaRow">${c.role}</div>`;
+    }
+
+    if (c.dept) {
+      metaRows += `<div class="contactMetaRow">${c.dept}</div>`;
+    }
+
+    metaRows += `
+      <div class="contactMetaRow phoneRow">
+        📞 <a href="tel:${c.phone}">${displayPhone}</a>
+      </div>
+    `;
+
+    actionChips += `
+      <a class="actionChip" href="tel:${c.phone}">חיוג</a>
+      <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a>
+    `;
+
+    if (c.email) {
+      metaRows += `
+        <div class="contactMetaRow">
+          📧 <a href="mailto:${c.email}">${c.email}</a>
+        </div>
+      `;
+
+      actionChips += `
+        <a class="actionChip" href="mailto:${c.email}">מייל</a>
+      `;
+    }
+
     html += `
       <div class="contact">
-        <b>${c.name}</b><br>
-        ${c.role}<br>
-        ${c.dept}<br>
+        <div class="contactHeader">
+          <span class="contactName">${c.name}</span>
+        </div>
 
-        📞 <a href="tel:${c.phone}">${displayPhone}</a><br>
+        <div class="contactMeta">
+          ${metaRows}
+        </div>
 
-        ${c.email
-          ? `📧 <a href="mailto:${c.email}">${c.email}</a><br>`
-          : `📧 אין מייל<br>`
-        }
+        <div class="contactActions">
+          ${actionChips}
+        </div>
 
-        💬 <a href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a><br><br>
-
-        <button onclick="downloadContact(${c.id})">הוסף לאנשי קשר</button>
+        <button class="addContactBtn" onclick="downloadContact(${c.id})">הוסף לאנשי קשר</button>
       </div>
     `;
   });
