@@ -93,6 +93,12 @@ button:active {
   transform: scale(0.98);
 }
 
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 #login button {
   width: 100%;
   margin-top: 6px;
@@ -180,6 +186,38 @@ select {
   height: 0;
   margin: 0 auto;
   overflow: hidden;
+}
+
+.statusMessage {
+  display: none;
+  margin: 12px auto 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.statusMessage.visible {
+  display: block;
+}
+
+.statusMessage.loading {
+  background: #eef4ff;
+  border: 1px solid #dbe7ff;
+  color: #32507b;
+}
+
+.statusMessage.empty {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.statusMessage.error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
 }
 
 .contact {
@@ -337,7 +375,8 @@ select {
   <input type="text" id="phoneInput" placeholder="הכנס מספר טלפון">
   <input type="password" id="passwordInput" placeholder="הכנס סיסמה">
   <br>
-  <button onclick="login()">כניסה</button>
+  <button id="loginButton" onclick="login()">כניסה</button>
+  <div id="loginStatus" class="statusMessage"></div>
 </div>
 
 <div id="app" style="display:none;">
@@ -358,6 +397,7 @@ select {
 
 <img id="logo" src="icon.PNG">
 
+<div id="statusMessage" class="statusMessage"></div>
 <div id="list"></div>
 
 </div>
@@ -366,28 +406,79 @@ select {
 
 const APP_PASSWORD = "mhfc1913";
 let contacts = [];
+let isLoadingContacts = false;
+let hasLoadError = false;
+
+function setStatus(elementId, message = "", type = "") {
+  let el = document.getElementById(elementId);
+  if (!el) return;
+
+  el.textContent = message;
+  el.className = "statusMessage";
+
+  if (message) {
+    el.classList.add("visible");
+    if (type) el.classList.add(type);
+  }
+}
+
+function setLoginButtonDisabled(disabled) {
+  let btn = document.getElementById("loginButton");
+  if (btn) {
+    btn.disabled = disabled;
+  }
+}
 
 async function loadContacts() {
-  let res = await fetch("https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts");
-  let data = await res.json();
+  isLoadingContacts = true;
+  hasLoadError = false;
+  setLoginButtonDisabled(true);
+  setLoginStatus("טוען אנשי קשר...", "loading");
 
-  let rawContacts = data.map((row, index) => ({
-    id: index,
-    first: (row.first_name_he || "").toString().trim(),
-    last: (row.last_name_he || "").toString().trim(),
-    firstEn: (row.first_name_en || "").toString().trim(),
-    lastEn: (row.last_name_en || "").toString().trim(),
-    title: (row.title_prefix || "").toString().trim(),
-    name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
-    role: (row.role || "").toString().trim(),
-    dept: (row.department || "").toString().trim(),
-    phone: normalizePhone(row.phone || ""),
-    email: (row.email || "").toString().replace(/\u200E/g, "").trim()
-  })).filter(c => c.phone);
+  try {
+    let res = await fetch("https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts");
 
-  contacts = deduplicateContacts(rawContacts);
+    if (!res.ok) {
+      throw new Error("Failed to load contacts");
+    }
 
-  populateDepartments();
+    let data = await res.json();
+
+    let rawContacts = data.map((row, index) => ({
+      id: index,
+      first: (row.first_name_he || "").toString().trim(),
+      last: (row.last_name_he || "").toString().trim(),
+      firstEn: (row.first_name_en || "").toString().trim(),
+      lastEn: (row.last_name_en || "").toString().trim(),
+      title: (row.title_prefix || "").toString().trim(),
+      name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
+      role: (row.role || "").toString().trim(),
+      dept: (row.department || "").toString().trim(),
+      phone: normalizePhone(row.phone || ""),
+      email: (row.email || "").toString().replace(/\u200E/g, "").trim()
+    })).filter(c => c.phone);
+
+    contacts = deduplicateContacts(rawContacts);
+    populateDepartments();
+
+    setLoginStatus("", "");
+  } catch (error) {
+    console.error(error);
+    contacts = [];
+    hasLoadError = true;
+    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
+  } finally {
+    isLoadingContacts = false;
+    setLoginButtonDisabled(false);
+  }
+}
+
+function setLoginStatus(message = "", type = "") {
+  setStatus("loginStatus", message, type);
+}
+
+function setListStatus(message = "", type = "") {
+  setStatus("statusMessage", message, type);
 }
 
 function normalizePhone(p) {
@@ -501,6 +592,16 @@ function deduplicateContacts(list) {
 }
 
 function login() {
+  if (isLoadingContacts) {
+    setLoginStatus("טוען אנשי קשר...", "loading");
+    return;
+  }
+
+  if (hasLoadError) {
+    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
+    return;
+  }
+
   let input = document.getElementById("phoneInput").value;
   let password = document.getElementById("passwordInput").value;
 
@@ -531,6 +632,8 @@ function login() {
 }
 
 function autoLogin() {
+  if (hasLoadError) return;
+
   let saved = localStorage.getItem("userPhone");
   if (!saved) return;
 
@@ -571,11 +674,30 @@ function clearSearch() {
   input.focus();
 }
 
+function shouldShowNoResults() {
+  let searchInput = document.getElementById("searchInput");
+  let select = document.querySelector("select");
+
+  let q = searchInput ? searchInput.value.trim() : "";
+  let dept = select ? select.value : "";
+
+  return q.length >= 2 || !!dept;
+}
+
 function show(list) {
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
+
+    if (shouldShowNoResults()) {
+      setListStatus("לא נמצאו תוצאות", "empty");
+    } else {
+      setListStatus("", "");
+    }
+
     return;
   }
+
+  setListStatus("", "");
 
   let html = "";
 
