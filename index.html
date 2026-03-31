@@ -118,17 +118,21 @@ async function loadContacts() {
   let res = await fetch("https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts");
   let data = await res.json();
 
-  contacts = data.map((row, index) => ({
+  let rawContacts = data.map((row, index) => ({
     id: index,
-    first: row.first_name_he || "",
-    last: row.last_name_he || "",
-    title: row.title_prefix || "",
+    first: (row.first_name_he || "").toString().trim(),
+    last: (row.last_name_he || "").toString().trim(),
+    firstEn: (row.first_name_en || "").toString().trim(),
+    lastEn: (row.last_name_en || "").toString().trim(),
+    title: (row.title_prefix || "").toString().trim(),
     name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
-    role: row.role || "",
-    dept: row.department || "",
+    role: (row.role || "").toString().trim(),
+    dept: (row.department || "").toString().trim(),
     phone: normalizePhone(row.phone || ""),
     email: (row.email || "").toString().replace(/\u200E/g, "").trim()
   })).filter(c => c.phone);
+
+  contacts = deduplicateContacts(rawContacts);
 
   populateDepartments();
 }
@@ -139,6 +143,99 @@ function normalizePhone(p) {
   if (num.startsWith("0")) num = "972" + num.slice(1);
   if (!num.startsWith("972")) num = "972" + num;
   return "+" + num;
+}
+
+function formatPhoneForDisplay(phone) {
+  let normalized = normalizePhone(phone);
+  let digits = normalized.replace(/\D/g, "");
+
+  if (digits.startsWith("972")) {
+    digits = "0" + digits.slice(3);
+  }
+
+  if (digits.length === 10 && digits.startsWith("05")) {
+    return digits.slice(0, 3) + "-" + digits.slice(3, 6) + "-" + digits.slice(6);
+  }
+
+  return normalized;
+}
+
+function buildDisplayName(contact) {
+  return [contact.title, contact.first, contact.last].filter(Boolean).join(" ").trim();
+}
+
+function getContactInfoScore(contact) {
+  let fields = [
+    contact.first,
+    contact.last,
+    contact.firstEn,
+    contact.lastEn,
+    contact.title,
+    contact.role,
+    contact.dept,
+    contact.email
+  ];
+
+  let filledFields = fields.filter(v => (v || "").toString().trim() !== "").length;
+  let textLength = fields.reduce((sum, v) => sum + ((v || "").toString().trim().length), 0);
+
+  return (filledFields * 1000) + textLength;
+}
+
+function isEmptyValue(value) {
+  return (value || "").toString().trim() === "";
+}
+
+function mergeMissingFields(base, extra) {
+  let merged = { ...base };
+
+  let fieldsToComplete = [
+    "first",
+    "last",
+    "firstEn",
+    "lastEn",
+    "title",
+    "role",
+    "dept",
+    "email"
+  ];
+
+  fieldsToComplete.forEach(field => {
+    if (isEmptyValue(merged[field]) && !isEmptyValue(extra[field])) {
+      merged[field] = extra[field];
+    }
+  });
+
+  merged.name = buildDisplayName(merged);
+
+  return merged;
+}
+
+function deduplicateContacts(list) {
+  let groupedByPhone = new Map();
+
+  list.forEach(contact => {
+    if (!groupedByPhone.has(contact.phone)) {
+      groupedByPhone.set(contact.phone, []);
+    }
+    groupedByPhone.get(contact.phone).push(contact);
+  });
+
+  let mergedContacts = [];
+
+  groupedByPhone.forEach(group => {
+    let sortedGroup = [...group].sort((a, b) => getContactInfoScore(b) - getContactInfoScore(a));
+    let merged = { ...sortedGroup[0] };
+
+    for (let i = 1; i < sortedGroup.length; i++) {
+      merged = mergeMissingFields(merged, sortedGroup[i]);
+    }
+
+    merged.name = buildDisplayName(merged);
+    mergedContacts.push(merged);
+  });
+
+  return mergedContacts;
 }
 
 function login() {
@@ -200,6 +297,7 @@ function show(list) {
 
   list.forEach(c => {
     let cleanPhone = normalizePhone(c.phone).replace("+", "");
+    let displayPhone = formatPhoneForDisplay(c.phone);
 
     html += `
       <div class="contact">
@@ -207,10 +305,10 @@ function show(list) {
         ${c.role}<br>
         ${c.dept}<br>
 
-        📞 <a href="tel:${c.phone}">${c.phone}</a><br>
+        📞 <a href="tel:${c.phone}">${displayPhone}</a><br>
 
-        ${c.email 
-          ? `📧 <a href="mailto:${c.email}">${c.email}</a><br>` 
+        ${c.email
+          ? `📧 <a href="mailto:${c.email}">${c.email}</a><br>`
           : `📧 אין מייל<br>`
         }
 
@@ -239,7 +337,8 @@ function search() {
   let filtered = contacts.filter(c =>
     c.name.toLowerCase().includes(q) ||
     c.role.toLowerCase().includes(q) ||
-    c.dept.toLowerCase().includes(q)
+    c.dept.toLowerCase().includes(q) ||
+    c.phone.toLowerCase().includes(q)
   );
 
   show(filtered);
@@ -264,6 +363,8 @@ function populateDepartments() {
   let depts = [...new Set(contacts.map(c => c.dept).filter(Boolean))];
   let select = document.querySelector("select");
 
+  select.innerHTML = '<option value="">כל המחלקות</option>';
+
   depts.sort().forEach(d => {
     let option = document.createElement("option");
     option.value = d;
@@ -272,18 +373,43 @@ function populateDepartments() {
   });
 }
 
+function escapeVCardValue(value) {
+  return (value || "")
+    .toString()
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+}
+
 function downloadContact(id) {
   let c = contacts.find(x => x.id === id);
 
-  let vcard = `BEGIN:VCARD
-VERSION:3.0
-N;CHARSET=UTF-8:${c.last};${c.first};;;
-FN;CHARSET=UTF-8:${c.name}
-ORG;CHARSET=UTF-8:${c.dept}
-TITLE;CHARSET=UTF-8:${c.role}
-TEL;TYPE=CELL:${c.phone}
-EMAIL:${c.email}
-END:VCARD`;
+  let vcardLines = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `N;CHARSET=UTF-8:${escapeVCardValue(c.last)};${escapeVCardValue(c.first)};;;`,
+    `FN;CHARSET=UTF-8:${escapeVCardValue(c.name)}`,
+    `ORG;CHARSET=UTF-8:${escapeVCardValue(c.dept)}`,
+    `TITLE;CHARSET=UTF-8:${escapeVCardValue(c.role)}`,
+    `TEL;TYPE=CELL:${escapeVCardValue(c.phone)}`
+  ];
+
+  if (c.email) {
+    vcardLines.push(`EMAIL:${escapeVCardValue(c.email)}`);
+  }
+
+  if (c.firstEn) {
+    vcardLines.push(`X-PHONETIC-FIRST-NAME:${escapeVCardValue(c.firstEn)}`);
+  }
+
+  if (c.lastEn) {
+    vcardLines.push(`X-PHONETIC-LAST-NAME:${escapeVCardValue(c.lastEn)}`);
+  }
+
+  vcardLines.push("END:VCARD");
+
+  let vcard = vcardLines.join("\n");
 
   let blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
   let url = URL.createObjectURL(blob);
