@@ -128,6 +128,40 @@ select {
   background: #ffffff;
 }
 
+.searchWrap {
+  position: relative;
+  width: 100%;
+  margin: 0 0 10px;
+}
+
+.searchWrap input {
+  margin: 0;
+  padding-left: 50px;
+}
+
+.clearSearchBtn {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  border: 1px solid #d9e6ff;
+  font-size: 18px;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.clearSearchBtn.visible {
+  display: flex;
+}
+
 #logo {
   display: block;
   margin: 28px auto 20px;
@@ -257,7 +291,10 @@ select {
 
 <div id="hint">🔍 התחילו להקליד כדי לחפש איש קשר</div>
 
-<input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
+<div class="searchWrap">
+  <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
+  <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()">×</button>
+</div>
 
 <select onchange="filterByDept(this.value)">
   <option value="">כל המחלקות</option>
@@ -322,6 +359,11 @@ function formatPhoneForDisplay(phone) {
   }
 
   return normalized;
+}
+
+function getPhoneSearchValue(phone) {
+  let displayPhone = formatPhoneForDisplay(phone);
+  return displayPhone.replace(/-/g, "").toLowerCase();
 }
 
 function buildDisplayName(contact) {
@@ -451,6 +493,28 @@ function autoLogin() {
   }
 }
 
+function updateSearchUI() {
+  let q = document.getElementById("searchInput").value.trim();
+  let clearBtn = document.getElementById("clearSearchBtn");
+
+  if (q) {
+    clearBtn.classList.add("visible");
+  } else {
+    clearBtn.classList.remove("visible");
+  }
+}
+
+function clearSearch() {
+  let input = document.getElementById("searchInput");
+  let logo = document.getElementById("logo");
+
+  input.value = "";
+  logo.classList.remove("hidden");
+  show([]);
+  updateSearchUI();
+  input.focus();
+}
+
 function show(list) {
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
@@ -488,7 +552,10 @@ function show(list) {
 
 function search() {
   let q = document.getElementById("searchInput").value.toLowerCase().trim();
+  let qNoHyphen = q.replace(/-/g, "");
   let logo = document.getElementById("logo");
+
+  updateSearchUI();
 
   if (q.length < 2) {
     logo.classList.remove("hidden");
@@ -502,7 +569,8 @@ function search() {
     c.name.toLowerCase().includes(q) ||
     c.role.toLowerCase().includes(q) ||
     c.dept.toLowerCase().includes(q) ||
-    c.phone.toLowerCase().includes(q)
+    c.phone.toLowerCase().includes(q) ||
+    getPhoneSearchValue(c.phone).includes(qNoHyphen)
   );
 
   show(filtered);
