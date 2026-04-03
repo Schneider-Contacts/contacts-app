@@ -347,7 +347,7 @@ select {
   min-height: 40px;
 }
 
-.copyBtn {
+.saveBtn {
   background: #3b82f6;
   color: white;
 }
@@ -715,7 +715,7 @@ select {
 <div id="bulkActions" class="bulkActions">
   <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
   <div class="bulkActionsButtons">
-    <button type="button" class="bulkBtn copyBtn" onclick="copySelectedNumbers()">העתק מספרים</button>
+    <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">שמור אנשי קשר</button>
     <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
   </div>
 </div>
@@ -1092,89 +1092,63 @@ function clearSelectedContacts() {
   refreshSelectedCardsUI();
 }
 
-async function copyTextToClipboard(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (error) {
-      console.warn("Clipboard API failed, using fallback", error);
-    }
-  }
-
-  let textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.setAttribute("readonly", "");
-  textArea.style.position = "fixed";
-  textArea.style.top = "0";
-  textArea.style.left = "-9999px";
-  textArea.style.fontSize = "16px";
-  textArea.style.opacity = "1";
-  document.body.appendChild(textArea);
-
-  let selection = document.getSelection();
-  let originalRange = null;
-
-  if (selection && selection.rangeCount > 0) {
-    originalRange = selection.getRangeAt(0);
-  }
-
-  textArea.focus();
-  textArea.select();
-  textArea.setSelectionRange(0, text.length);
-
-  let success = false;
-
-  try {
-    success = document.execCommand("copy");
-  } catch (error) {
-    success = false;
-  }
-
-  document.body.removeChild(textArea);
-
-  if (selection) {
-    selection.removeAllRanges();
-    if (originalRange) {
-      selection.addRange(originalRange);
-    }
-  }
-
-  if (success) {
-    return true;
-  }
-
-  throw new Error("Clipboard copy failed");
+function escapeVCardValue(value) {
+  return (value || "")
+    .toString()
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
 }
 
-async function copySelectedNumbers() {
-  let selectedContacts = currentDisplayedContacts.filter(c => selectedContactIds.has(c.id));
+function buildContactVCard(c) {
+  let vcardLines = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `N;CHARSET=UTF-8:${escapeVCardValue(c.last)};${escapeVCardValue(c.first)};;;`,
+    `FN;CHARSET=UTF-8:${escapeVCardValue(c.name)}`,
+    `ORG;CHARSET=UTF-8:${escapeVCardValue(c.dept)}`,
+    `TITLE;CHARSET=UTF-8:${escapeVCardValue(c.role)}`,
+    `TEL;TYPE=CELL:${escapeVCardValue(c.phone)}`
+  ];
 
-  if (!selectedContacts.length) {
-    selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
+  if (c.email) {
+    vcardLines.push(`EMAIL:${escapeVCardValue(c.email)}`);
   }
+
+  if (c.firstEn) {
+    vcardLines.push(`X-PHONETIC-FIRST-NAME:${escapeVCardValue(c.firstEn)}`);
+  }
+
+  if (c.lastEn) {
+    vcardLines.push(`X-PHONETIC-LAST-NAME:${escapeVCardValue(c.lastEn)}`);
+  }
+
+  vcardLines.push("END:VCARD");
+
+  return vcardLines.join("\n");
+}
+
+function downloadSelectedContacts() {
+  let selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
 
   if (!selectedContacts.length) {
     alert("לא נבחרו אנשי קשר");
     return;
   }
 
-  let numbersText = selectedContacts
-    .map(c => formatPhoneForDisplay(c.phone))
-    .join("\n");
+  let multiVCard = selectedContacts.map(buildContactVCard).join("\n");
+  let blob = new Blob([multiVCard], { type: "text/vcard;charset=utf-8" });
+  let url = URL.createObjectURL(blob);
 
-  try {
-    let copied = await copyTextToClipboard(numbersText);
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "selected-contacts.vcf";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 
-    if (!copied) {
-      throw new Error("No copy confirmation");
-    }
-
-    alert("המספרים הועתקו");
-  } catch (error) {
-    console.error(error);
-    alert("לא הצלחנו להעתיק את המספרים");
-  }
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function show(list) {
@@ -1330,51 +1304,22 @@ function populateDepartments() {
   });
 }
 
-function escapeVCardValue(value) {
-  return (value || "")
-    .toString()
-    .replace(/\\/g, "\\\\")
-    .replace(/\n/g, "\\n")
-    .replace(/,/g, "\\,")
-    .replace(/;/g, "\\;");
-}
-
 function downloadContact(id) {
   let c = contacts.find(x => x.id === id);
+  if (!c) return;
 
-  let vcardLines = [
-    "BEGIN:VCARD",
-    "VERSION:3.0",
-    `N;CHARSET=UTF-8:${escapeVCardValue(c.last)};${escapeVCardValue(c.first)};;;`,
-    `FN;CHARSET=UTF-8:${escapeVCardValue(c.name)}`,
-    `ORG;CHARSET=UTF-8:${escapeVCardValue(c.dept)}`,
-    `TITLE;CHARSET=UTF-8:${escapeVCardValue(c.role)}`,
-    `TEL;TYPE=CELL:${escapeVCardValue(c.phone)}`
-  ];
-
-  if (c.email) {
-    vcardLines.push(`EMAIL:${escapeVCardValue(c.email)}`);
-  }
-
-  if (c.firstEn) {
-    vcardLines.push(`X-PHONETIC-FIRST-NAME:${escapeVCardValue(c.firstEn)}`);
-  }
-
-  if (c.lastEn) {
-    vcardLines.push(`X-PHONETIC-LAST-NAME:${escapeVCardValue(c.lastEn)}`);
-  }
-
-  vcardLines.push("END:VCARD");
-
-  let vcard = vcardLines.join("\n");
-
+  let vcard = buildContactVCard(c);
   let blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
   let url = URL.createObjectURL(blob);
 
   let a = document.createElement("a");
   a.href = url;
   a.download = c.name + ".vcf";
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 loadContacts().then(() => autoLogin());
