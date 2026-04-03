@@ -26,6 +26,7 @@
   --green-500: #10b981;
   --green-600: #059669;
   --green-700: #047857;
+  --green-800: #065f46;
 
   --border: #d9efe4;
   --border-strong: #bfe6d4;
@@ -782,16 +783,17 @@ select {
   <div class="guideCard">
     <h1 id="guideTitle">ייבוא אנשי קשר</h1>
     <div class="guideSubtitle">
-      זהו שלב ביניים שמסביר איך להשלים את הפעולה בצורה נוחה וברורה.
+      הקובץ מוכן לייבוא ולשמירה במכשיר.
     </div>
     <div class="guideCountBox" id="guideCountBox"></div>
     <ol class="guideSteps">
-      <li>לחצו על הכפתור הירוק בתחתית.</li>
-      <li>אם נפתח חלון שיתוף — בחרו באפשרות המתאימה לשמירה או פתיחה של הקובץ.</li>
-      <li>אם הקובץ ירד למכשיר — פתחו אותו מתוך הקבצים/Downloads.</li>
-      <li>הקובץ כולל את כל אנשי הקשר שביקשתם, ללא כפילויות לפי מספר טלפון מנורמל.</li>
+      <li>לחצו על הכפתור הירוק כדי להתחיל בייבוא קובץ אנשי הקשר.</li>
+      <li>ב-iPhone: אם הקובץ נפתח בתצוגה מקדימה, לחצו על כפתור <b>שיתוף / Share</b> בפינה הימנית התחתונה.</li>
+      <li>לאחר מכן בחרו <b>אנשי קשר / Contacts</b> או אפשרות של <b>הוספה לאנשי קשר / Add to Contacts / Create New Contacts</b>, לפי מה שמופיע במכשיר.</li>
+      <li>אם הקובץ ירד למכשיר ולא נפתח מיד, אפשר לפתוח אותו מתוך <b>קבצים / Files</b> או מתוך <b>הורדות / Downloads</b>.</li>
+      <li>באנדרואיד: פתחו את קובץ ה-VCF דרך <b>אנשי קשר / Contacts</b> או דרך <b>הקבצים / Files</b>, ואז בחרו באפשרות של ייבוא אנשי קשר.</li>
     </ol>
-    <button type="button" class="finalGuideBtn" id="finalGuideBtn">הורדה / פתיחת קובץ VCF</button>
+    <button type="button" class="finalGuideBtn" id="finalGuideBtn">ייבוא קובץ VCF</button>
     <button type="button" class="guideBackBtn" onclick="goBackToMainApp()">חזרה לאפליקציה</button>
     <div id="guideError" class="guideError" style="display:none;"></div>
   </div>
@@ -832,7 +834,7 @@ select {
       <option value="">כל המחלקות</option>
     </select>
 
-    <button type="button" class="importAllBtn" onclick="downloadAllContacts()">ייצא קובץ VCF של כל אנשי הקשר</button>
+    <button type="button" class="importAllBtn" onclick="downloadAllContacts()">ייבא את כל אנשי הקשר</button>
   </div>
 
   <img id="logo" src="icon.PNG">
@@ -840,7 +842,7 @@ select {
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
     <div class="bulkActionsButtons">
-      <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">ייצא VCF של המסומנים</button>
+      <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">ייבא אנשי קשר</button>
       <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
     </div>
   </div>
@@ -1103,7 +1105,9 @@ function autoLogin() {
 function updateSearchUI() {
   const q = document.getElementById("searchInput").value.trim();
   const clearBtn = document.getElementById("clearSearchBtn");
-  clearBtn.classList.toggle("visible", !!q);
+
+  if (q) clearBtn.classList.add("visible");
+  else clearBtn.classList.remove("visible");
 }
 
 function clearSearch() {
@@ -1251,8 +1255,9 @@ function cleanupOldImportPayloads() {
   const now = Date.now();
   const maxAge = 1000 * 60 * 60 * 24;
 
-  Object.keys(localStorage).forEach(key => {
-    if (!key.startsWith(IMPORT_STORAGE_PREFIX)) return;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(IMPORT_STORAGE_PREFIX)) continue;
 
     try {
       const parsed = JSON.parse(localStorage.getItem(key) || "{}");
@@ -1262,12 +1267,11 @@ function cleanupOldImportPayloads() {
     } catch (error) {
       localStorage.removeItem(key);
     }
-  });
+  }
 }
 
 function saveImportPayload(vcardContent, fileName, count, titleText) {
   const key = IMPORT_STORAGE_PREFIX + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-
   const payload = {
     vcardContent,
     fileName,
@@ -1283,11 +1287,7 @@ function saveImportPayload(vcardContent, fileName, count, titleText) {
 function openImportGuide(vcardContent, fileName, count, titleText) {
   const key = saveImportPayload(vcardContent, fileName, count, titleText);
   const guideUrl = window.location.pathname + "?importKey=" + encodeURIComponent(key);
-  const newWindow = window.open(guideUrl, "_blank");
-
-  if (!newWindow) {
-    window.location.href = guideUrl;
-  }
+  window.open(guideUrl, "_blank");
 }
 
 function showGuideError(message) {
@@ -1307,7 +1307,7 @@ function renderImportGuide(importKey) {
 
   const raw = localStorage.getItem(importKey);
   if (!raw) {
-    showGuideError("לא נמצא מידע לקובץ. חזרו לאפליקציה ונסו שוב.");
+    showGuideError("לא נמצא מידע לייבוא. חזרו לאפליקציה ונסו שוב.");
     return;
   }
 
@@ -1315,29 +1315,26 @@ function renderImportGuide(importKey) {
   try {
     payload = JSON.parse(raw);
   } catch (error) {
-    showGuideError("המידע לקובץ לא תקין. חזרו לאפליקציה ונסו שוב.");
+    showGuideError("קובץ הייבוא לא תקין. חזרו לאפליקציה ונסו שוב.");
     return;
   }
 
   if (!payload || !payload.vcardContent || !payload.fileName) {
-    showGuideError("חסר מידע ליצוא הקובץ. חזרו לאפליקציה ונסו שוב.");
+    showGuideError("חסר מידע לייבוא. חזרו לאפליקציה ונסו שוב.");
     return;
   }
 
-  document.getElementById("guideTitle").textContent = payload.titleText || "קובץ VCF";
+  document.getElementById("guideTitle").textContent = payload.titleText || "ייבוא אנשי קשר";
   document.getElementById("guideCountBox").innerHTML =
-    `הקובץ מוכן וכולל <b>${payload.count || 0}</b> אנשי קשר, ללא כפילויות לפי מספר טלפון מנורמל.`;
+    `הקובץ מוכן וכולל <b>${payload.count || 0}</b> אנשי קשר.`;
 
-  document.getElementById("finalGuideBtn").onclick = async function () {
+  const finalBtn = document.getElementById("finalGuideBtn");
+  finalBtn.onclick = async function () {
     await shareOrDownloadVCard(payload.vcardContent, payload.fileName);
   };
 }
 
-function buildMultiVCard(contactList) {
-  return contactList.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-}
-
-function downloadSelectedContacts() {
+async function downloadSelectedContacts() {
   const selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
 
   if (!selectedContacts.length) {
@@ -1345,18 +1342,18 @@ function downloadSelectedContacts() {
     return;
   }
 
-  const multiVCard = buildMultiVCard(selectedContacts);
-  openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "קובץ VCF של אנשי הקשר המסומנים");
+  const multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "ייבוא אנשי קשר");
 }
 
-function downloadAllContacts() {
+async function downloadAllContacts() {
   if (!contacts.length) {
     alert("לא נמצאו אנשי קשר");
     return;
   }
 
-  const multiVCard = buildMultiVCard(contacts);
-  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "קובץ VCF של כל אנשי הקשר");
+  const multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "ייבוא כל אנשי הקשר");
 }
 
 async function downloadContact(id) {
