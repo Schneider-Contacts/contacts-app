@@ -1297,10 +1297,20 @@ function buildContactVCard(c) {
   vcardLines.push("END:VCARD");
   return vcardLines.join("\r\n");
 }
-
-async function shareOrDownloadVCard(vcardContent, fileName) {
+function isAppleMobileDevice() {
+  const ua = navigator.userAgent || "";
+  return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+async function shareOrDownloadVCard(vcardContent, fileName, options = {}) {
+  const { preferDirectOpen = false } = options;
   const mimeType = "text/vcard";
   const blob = new Blob([vcardContent], { type: mimeType + ";charset=utf-8" });
+
+  if (preferDirectOpen) {
+    const dataUrl = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcardContent);
+    window.location.href = dataUrl;
+    return;
+  }
 
   if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
     try {
@@ -1438,7 +1448,9 @@ async function downloadContact(id) {
   if (!c) return;
 
   const vcard = buildContactVCard(c) + "\r\n";
-  await shareOrDownloadVCard(vcard, c.name + ".vcf");
+  await shareOrDownloadVCard(vcard, c.name + ".vcf", {
+    preferDirectOpen: isAppleMobileDevice()
+  });
 }
 
 function show(list) {
