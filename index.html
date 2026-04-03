@@ -819,7 +819,7 @@ async function loadContacts() {
       role: (row.role || "").toString().trim(),
       dept: (row.department || "").toString().trim(),
       phone: normalizePhone(row.phone || ""),
-      email: (row.email || "").toString().replace(/\\u200E/g, "").trim()
+      email: (row.email || "").toString().replace(/\u200E/g, "").trim()
     })).filter(c => c.phone);
 
     contacts = deduplicateContacts(rawContacts);
@@ -846,7 +846,7 @@ function setListStatus(message = "", type = "") {
 
 function normalizePhone(p) {
   if (!p) return "";
-  let num = p.replace(/\\D/g, "");
+  let num = p.replace(/\D/g, "");
   if (num.startsWith("0")) num = "972" + num.slice(1);
   if (!num.startsWith("972")) num = "972" + num;
   return "+" + num;
@@ -854,7 +854,7 @@ function normalizePhone(p) {
 
 function formatPhoneForDisplay(phone) {
   let normalized = normalizePhone(phone);
-  let digits = normalized.replace(/\\D/g, "");
+  let digits = normalized.replace(/\D/g, "");
 
   if (digits.startsWith("972")) {
     digits = "0" + digits.slice(3);
@@ -1135,10 +1135,10 @@ function clearSelectedContacts() {
 function escapeVCardValue(value) {
   return (value || "")
     .toString()
-    .replace(/\\\\/g, "\\\\\\\\")
-    .replace(/\\n/g, "\\\\n")
-    .replace(/,/g, "\\\\,")
-    .replace(/;/g, "\\\\;");
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
 }
 
 function buildContactVCard(c) {
@@ -1167,206 +1167,12 @@ function buildContactVCard(c) {
 
   vcardLines.push("END:VCARD");
 
-  return vcardLines.join("\\r\\n");
-}
-
-function safeScriptValue(value) {
-  return JSON.stringify(value)
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/&/g, "\\u0026")
-    .replace(/\\u2028/g, "\\u2028")
-    .replace(/\\u2029/g, "\\u2029");
-}
-
-function createImportGuideHtml(vcardContent, fileName, count, titleText) {
-  const safeVCard = safeScriptValue(vcardContent);
-  const safeFileName = safeScriptValue(fileName);
-  const safeTitle = safeScriptValue(titleText);
-
-  return `<!DOCTYPE html>
-<html lang="he">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>\${JSON.parse(${safeTitle})}</title>
-<style>
-  :root {
-    --bg: #f4fbf7;
-    --card: #ffffff;
-    --text: #1f2937;
-    --muted: #5e7a6f;
-    --green-50: #ecfdf5;
-    --green-100: #d1fae5;
-    --green-200: #a7f3d0;
-    --green-600: #059669;
-    --green-700: #047857;
-    --border: #d9efe4;
-  }
-
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-    direction: rtl;
-    background: var(--bg);
-    color: var(--text);
-    padding: 20px 14px 28px;
-  }
-
-  .wrap {
-    max-width: 460px;
-    margin: 0 auto;
-  }
-
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 18px 16px;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
-    text-align: right;
-  }
-
-  h1 {
-    margin: 0 0 8px;
-    font-size: 26px;
-    color: #17352d;
-  }
-
-  .subtitle {
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--muted);
-    margin-bottom: 14px;
-  }
-
-  .countBox {
-    background: var(--green-50);
-    border: 1px solid var(--green-200);
-    color: #295746;
-    border-radius: 14px;
-    padding: 12px 14px;
-    font-size: 14px;
-    margin-bottom: 14px;
-  }
-
-  .steps {
-    margin: 0 0 16px;
-    padding-right: 18px;
-    color: #335b4b;
-    line-height: 1.7;
-    font-size: 14px;
-  }
-
-  .steps li {
-    margin-bottom: 6px;
-  }
-
-  .finalBtn {
-    width: 100%;
-    border: none;
-    border-radius: 16px;
-    padding: 14px 16px;
-    background: var(--green-600);
-    color: white;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 10px 20px rgba(5, 150, 105, 0.22);
-  }
-
-  .secondaryNote {
-    margin-top: 12px;
-    font-size: 13px;
-    color: #6b7280;
-    line-height: 1.6;
-  }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="card">
-    <h1>\${JSON.parse(${safeTitle})}</h1>
-    <div class="subtitle">זהו שלב ביניים שמסביר איך להשלים את הייבוא בצורה ברורה ונוחה.</div>
-
-    <div class="countBox">הקובץ מוכן וכולל <b>${count}</b> אנשי קשר, ללא כפילויות לפי מספר טלפון מנורמל.</div>
-
-    <ol class="steps">
-      <li>לחצו על הכפתור הירוק בתחתית.</li>
-      <li>אם נפתח חלון שיתוף — בחרו בייבוא/שיתוף המתאים במכשיר.</li>
-      <li>אם הקובץ ירד למכשיר — פתחו אותו דרך קבצים/Downloads והמשיכו משם.</li>
-      <li>במקרה של ייבוא מרובה, עדיף להשלים את התהליך מתוך מסך הייבוא של המכשיר.</li>
-    </ol>
-
-    <button class="finalBtn" id="finalDownloadBtn">הורדה / ייבוא סופי</button>
-
-    <div class="secondaryNote">
-      אם לא נפתח מסך ייבוא אוטומטי, פשוט שמרו את הקובץ ופתחו אותו מתוך הקבצים במכשיר.
-    </div>
-  </div>
-</div>
-
-<script>
-const VCARD_CONTENT = ${safeVCard};
-const FILE_NAME = ${safeFileName};
-
-async function shareOrDownloadFinal() {
-  const mimeType = "text/vcard";
-  const blob = new Blob([VCARD_CONTENT], { type: mimeType + ";charset=utf-8" });
-
-  if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
-    try {
-      const file = new File([blob], FILE_NAME, { type: mimeType });
-      const shareData = { title: FILE_NAME, files: [file] };
-
-      if (navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        return;
-      }
-    } catch (error) {
-      if (error && error.name === "AbortError") {
-        return;
-      }
-      console.warn("Native share failed, falling back to download", error);
-    }
-  }
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = FILE_NAME;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-document.getElementById("finalDownloadBtn").addEventListener("click", shareOrDownloadFinal);
-</script>
-</body>
-</html>`;
-}
-
-async function openImportGuide(vcardContent, fileName, count, titleText) {
-  const guideWindow = window.open("", "_blank");
-
-  if (!guideWindow) {
-    await shareOrDownloadVCard(vcardContent, fileName);
-    return;
-  }
-
-  const html = createImportGuideHtml(vcardContent, fileName, count, titleText);
-  guideWindow.document.open();
-  guideWindow.document.write(html);
-  guideWindow.document.close();
+  return vcardLines.join("\r\n");
 }
 
 async function shareOrDownloadVCard(vcardContent, fileName) {
   const mimeType = "text/vcard";
-  const blob = new Blob([vcardContent], { type: mimeType + ";charset=utf-8" });
+  const blob = new Blob([vcardContent], { type: `${mimeType};charset=utf-8` });
 
   if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
     try {
@@ -1407,8 +1213,8 @@ async function downloadSelectedContacts() {
     return;
   }
 
-  let multiVCard = selectedContacts.map(buildContactVCard).join("\\r\\n\\r\\n") + "\\r\\n";
-  await openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "ייבוא אנשי קשר");
+  let multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  await shareOrDownloadVCard(multiVCard, "selected-contacts.vcf");
 }
 
 async function downloadAllContacts() {
@@ -1417,8 +1223,8 @@ async function downloadAllContacts() {
     return;
   }
 
-  let multiVCard = contacts.map(buildContactVCard).join("\\r\\n\\r\\n") + "\\r\\n";
-  await openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "ייבוא כל אנשי הקשר");
+  let multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  await shareOrDownloadVCard(multiVCard, "all-contacts.vcf");
 }
 
 function show(list) {
@@ -1450,63 +1256,63 @@ function show(list) {
     let actionChips = "";
 
     if (c.role) {
-      metaRows += \`<div class="contactMetaRow">\${c.role}</div>\`;
+      metaRows += `<div class="contactMetaRow">${c.role}</div>`;
     }
 
     if (c.dept) {
-      metaRows += \`<div class="contactMetaRow">\${c.dept}</div>\`;
+      metaRows += `<div class="contactMetaRow">${c.dept}</div>`;
     }
 
-    metaRows += \`
+    metaRows += `
       <div class="contactMetaRow phoneRow">
-        📞 <a href="tel:\${c.phone}">\${displayPhone}</a>
+        📞 <a href="tel:${c.phone}">${displayPhone}</a>
       </div>
-    \`;
+    `;
 
-    actionChips += \`
-      <a class="actionChip" href="tel:\${c.phone}">חיוג</a>
-      <a class="actionChip" href="https://wa.me/\${cleanPhone}" target="_blank">וואטסאפ</a>
-    \`;
+    actionChips += `
+      <a class="actionChip" href="tel:${c.phone}">חיוג</a>
+      <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a>
+    `;
 
     if (c.email) {
-      metaRows += \`
+      metaRows += `
         <div class="contactMetaRow">
-          📧 <a href="mailto:\${c.email}">\${c.email}</a>
+          📧 <a href="mailto:${c.email}">${c.email}</a>
         </div>
-      \`;
+      `;
 
-      actionChips += \`
-        <a class="actionChip" href="mailto:\${c.email}">מייל</a>
-      \`;
+      actionChips += `
+        <a class="actionChip" href="mailto:${c.email}">מייל</a>
+      `;
     }
 
-    html += \`
-      <div class="contact \${isSelected ? "selected" : ""}" data-id="\${c.id}">
+    html += `
+      <div class="contact ${isSelected ? "selected" : ""}" data-id="${c.id}">
         <div class="contactTopRow">
           <div class="contactHeader">
-            <span class="contactName">\${c.name}</span>
+            <span class="contactName">${c.name}</span>
           </div>
 
-          <label class="contactSelect \${isSelected ? "selected" : ""}" data-id="\${c.id}">
-            <input type="checkbox" data-id="\${c.id}" \${isSelected ? "checked" : ""} onchange="toggleContactSelection(\${c.id})">
+          <label class="contactSelect ${isSelected ? "selected" : ""}" data-id="${c.id}">
+            <input type="checkbox" data-id="${c.id}" ${isSelected ? "checked" : ""} onchange="toggleContactSelection(${c.id})">
             <span class="contactSelectBox">✓</span>
             <span class="contactSelectText">בחר/י</span>
           </label>
         </div>
 
         <div class="contactMeta">
-          \${metaRows}
+          ${metaRows}
         </div>
 
         <div class="contactDivider"></div>
 
         <div class="contactActions">
-          \${actionChips}
+          ${actionChips}
         </div>
 
-        <button class="addContactBtn" onclick="downloadContact(\${c.id})">הוסף לאנשי קשר</button>
+        <button class="addContactBtn" onclick="downloadContact(${c.id})">הוסף לאנשי קשר</button>
       </div>
-    \`;
+    `;
   });
 
   document.getElementById("list").innerHTML = html;
@@ -1578,7 +1384,7 @@ async function downloadContact(id) {
   let c = contacts.find(x => x.id === id);
   if (!c) return;
 
-  let vcard = buildContactVCard(c) + "\\r\\n";
+  let vcard = buildContactVCard(c) + "\r\n";
   await shareOrDownloadVCard(vcard, c.name + ".vcf");
 }
 
