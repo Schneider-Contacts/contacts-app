@@ -286,6 +286,21 @@ select {
   margin: 0;
 }
 
+.importAllBtn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.importAllBtn:hover {
+  background: #e6fbf0;
+}
+
 #logo {
   display: block;
   margin: 28px auto 20px;
@@ -731,6 +746,8 @@ select {
   <select onchange="filterByDept(this.value)">
     <option value="">כל המחלקות</option>
   </select>
+
+  <button type="button" class="importAllBtn" onclick="downloadAllContacts()">ייבא את כל אנשי הקשר</button>
 </div>
 
 <img id="logo" src="icon.PNG">
@@ -738,7 +755,7 @@ select {
 <div id="bulkActions" class="bulkActions">
   <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
   <div class="bulkActionsButtons">
-    <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">שמור אנשי קשר</button>
+    <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">ייבא אנשי קשר</button>
     <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
   </div>
 </div>
@@ -1198,6 +1215,16 @@ async function downloadSelectedContacts() {
 
   let multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
   await shareOrDownloadVCard(multiVCard, "selected-contacts.vcf");
+}
+
+async function downloadAllContacts() {
+  if (!contacts.length) {
+    alert("לא נמצאו אנשי קשר");
+    return;
+  }
+
+  let multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  await shareOrDownloadVCard(multiVCard, "all-contacts.vcf");
 }
 
 function show(list) {
