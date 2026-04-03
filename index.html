@@ -1128,6 +1128,7 @@ function buildContactVCard(c) {
   let vcardLines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
+    "PRODID:-//Contacts App//HE",
     `N;CHARSET=UTF-8:${escapeVCardValue(c.last)};${escapeVCardValue(c.first)};;;`,
     `FN;CHARSET=UTF-8:${escapeVCardValue(c.name)}`,
     `ORG;CHARSET=UTF-8:${escapeVCardValue(c.dept)}`,
@@ -1152,7 +1153,42 @@ function buildContactVCard(c) {
   return vcardLines.join("\r\n");
 }
 
-function downloadSelectedContacts() {
+async function shareOrDownloadVCard(vcardContent, fileName) {
+  const mimeType = "text/vcard";
+  const blob = new Blob([vcardContent], { type: `${mimeType};charset=utf-8` });
+
+  if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
+    try {
+      const file = new File([blob], fileName, { type: mimeType });
+      const shareData = {
+        title: fileName,
+        files: [file]
+      };
+
+      if (navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        return;
+      }
+      console.warn("Native share failed, falling back to download", error);
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function downloadSelectedContacts() {
   let selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
 
   if (!selectedContacts.length) {
@@ -1160,18 +1196,8 @@ function downloadSelectedContacts() {
     return;
   }
 
-  let multiVCard = selectedContacts.map(buildContactVCard).join("\r\n") + "\r\n";
-  let blob = new Blob([multiVCard], { type: "text/x-vcard;charset=utf-8" });
-  let url = URL.createObjectURL(blob);
-
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = "selected-contacts.vcf";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  let multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  await shareOrDownloadVCard(multiVCard, "selected-contacts.vcf");
 }
 
 function show(list) {
@@ -1327,22 +1353,12 @@ function populateDepartments() {
   });
 }
 
-function downloadContact(id) {
+async function downloadContact(id) {
   let c = contacts.find(x => x.id === id);
   if (!c) return;
 
   let vcard = buildContactVCard(c) + "\r\n";
-  let blob = new Blob([vcard], { type: "text/x-vcard;charset=utf-8" });
-  let url = URL.createObjectURL(blob);
-
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = c.name + ".vcf";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await shareOrDownloadVCard(vcard, c.name + ".vcf");
 }
 
 loadContacts().then(() => autoLogin());
