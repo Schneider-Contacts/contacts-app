@@ -1149,7 +1149,7 @@ function buildContactVCard(c) {
 
   vcardLines.push("END:VCARD");
 
-  return vcardLines.join("\n");
+  return vcardLines.join("\r\n");
 }
 
 function downloadSelectedContacts() {
@@ -1160,8 +1160,8 @@ function downloadSelectedContacts() {
     return;
   }
 
-  let multiVCard = selectedContacts.map(buildContactVCard).join("\n");
-  let blob = new Blob([multiVCard], { type: "text/vcard;charset=utf-8" });
+  let multiVCard = selectedContacts.map(buildContactVCard).join("\r\n") + "\r\n";
+  let blob = new Blob([multiVCard], { type: "text/x-vcard;charset=utf-8" });
   let url = URL.createObjectURL(blob);
 
   let a = document.createElement("a");
@@ -1331,8 +1331,8 @@ function downloadContact(id) {
   let c = contacts.find(x => x.id === id);
   if (!c) return;
 
-  let vcard = buildContactVCard(c);
-  let blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+  let vcard = buildContactVCard(c) + "\r\n";
+  let blob = new Blob([vcard], { type: "text/x-vcard;charset=utf-8" });
   let url = URL.createObjectURL(blob);
 
   let a = document.createElement("a");
