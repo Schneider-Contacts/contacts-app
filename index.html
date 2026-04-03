@@ -49,8 +49,15 @@ body {
   transition: padding-bottom 0.2s ease;
 }
 
-h2, h3 {
+h1, h2, h3 {
   margin-top: 0;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  color: #17352d;
 }
 
 h2 {
@@ -67,17 +74,22 @@ h3 {
 }
 
 #login,
-#app {
+#app,
+#importGuidePage {
   max-width: 420px;
   margin: 0 auto;
 }
 
-#login {
+#login,
+.guideCard {
   background: var(--card);
   border-radius: 20px;
   padding: 22px 18px 20px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
   border: 1px solid var(--border);
+}
+
+#login {
   margin-top: 28px;
 }
 
@@ -123,7 +135,8 @@ button:disabled {
   transform: none;
 }
 
-#login button {
+#login button,
+.finalGuideBtn {
   width: 100%;
   margin-top: 6px;
   padding: 14px 16px;
@@ -132,7 +145,8 @@ button:disabled {
   box-shadow: 0 8px 18px rgba(5, 150, 105, 0.24);
 }
 
-#login button:hover {
+#login button:hover,
+.finalGuideBtn:hover {
   opacity: 0.96;
 }
 
@@ -580,6 +594,61 @@ select {
   margin-top: 8px;
 }
 
+.guideCard {
+  margin-top: 18px;
+  text-align: right;
+}
+
+.guideSubtitle {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #5e7a6f;
+  margin-bottom: 14px;
+}
+
+.guideCountBox {
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: #295746;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.guideSteps {
+  margin: 0 0 16px;
+  padding-right: 18px;
+  color: #335b4b;
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.guideSteps li {
+  margin-bottom: 6px;
+}
+
+.guideBackBtn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.guideError {
+  color: #be123c;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 14px;
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+
 @media (max-width: 600px) {
   body {
     padding: 14px 12px 24px;
@@ -589,7 +658,7 @@ select {
     padding-bottom: 118px;
   }
 
-  h2 {
+  h1, h2 {
     font-size: 25px;
   }
 
@@ -707,9 +776,27 @@ select {
   }
 }
 </style>
-
 </head>
 <body>
+
+<div id="importGuidePage" style="display:none;">
+  <div class="guideCard">
+    <h1 id="guideTitle">ייבוא אנשי קשר</h1>
+    <div class="guideSubtitle">
+      זהו שלב ביניים שמסביר איך להשלים את הייבוא בצורה נוחה וברורה.
+    </div>
+    <div class="guideCountBox" id="guideCountBox"></div>
+    <ol class="guideSteps">
+      <li>לחצו על הכפתור הירוק בתחתית.</li>
+      <li>אם נפתח חלון שיתוף — בחרו באפשרות המתאימה לייבוא או שמירה.</li>
+      <li>אם הקובץ ירד למכשיר — פתחו אותו מתוך הקבצים/Downloads והמשיכו משם.</li>
+      <li>בייבוא מרובה אנשי קשר, כדאי להשלים את התהליך מתוך מסך הייבוא של המכשיר.</li>
+    </ol>
+    <button type="button" class="finalGuideBtn" id="finalGuideBtn">הורדה / ייבוא סופי</button>
+    <button type="button" class="guideBackBtn" onclick="goBackToMainApp()">חזרה לאפליקציה</button>
+    <div id="guideError" class="guideError" style="display:none;"></div>
+  </div>
+</div>
 
 <div id="login">
   <h3>כניסה למערכת</h3>
@@ -721,52 +808,53 @@ select {
 </div>
 
 <div id="app" style="display:none;">
-
-<div class="appHeader">
-  <div class="appHeaderTop">
-    <div class="appHeaderText">
-      <h2>ספר אנשי קשר</h2>
+  <div class="appHeader">
+    <div class="appHeaderTop">
+      <div class="appHeaderText">
+        <h2>ספר אנשי קשר</h2>
+      </div>
+      <div class="appHeaderLogoBox">
+        <img class="appHeaderLogo" src="icon.PNG" alt="App logo">
+      </div>
     </div>
-    <div class="appHeaderLogoBox">
-      <img class="appHeaderLogo" src="icon.PNG" alt="App logo">
+    <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש לפי שם, מחלקה או תפקיד, ושמירה ישירה למכשיר.</div>
+    <div id="userInfo"></div>
+  </div>
+
+  <div class="controlsCard">
+    <div id="hint">התחילו להקליד כדי לחפש איש קשר</div>
+
+    <div class="searchWrap">
+      <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
+      <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()">×</button>
+    </div>
+
+    <select onchange="filterByDept(this.value)">
+      <option value="">כל המחלקות</option>
+    </select>
+
+    <button type="button" class="importAllBtn" onclick="downloadAllContacts()">ייבא את כל אנשי הקשר</button>
+  </div>
+
+  <img id="logo" src="icon.PNG">
+
+  <div id="bulkActions" class="bulkActions">
+    <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
+    <div class="bulkActionsButtons">
+      <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">ייבא אנשי קשר</button>
+      <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
     </div>
   </div>
-  <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש לפי שם, מחלקה או תפקיד, ושמירה ישירה למכשיר.</div>
-  <div id="userInfo"></div>
-</div>
 
-<div class="controlsCard">
-  <div id="hint">התחילו להקליד כדי לחפש איש קשר</div>
-
-  <div class="searchWrap">
-    <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
-    <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()">×</button>
-  </div>
-
-  <select onchange="filterByDept(this.value)">
-    <option value="">כל המחלקות</option>
-  </select>
-
-  <button type="button" class="importAllBtn" onclick="downloadAllContacts()">ייבא את כל אנשי הקשר</button>
-</div>
-
-<img id="logo" src="icon.PNG">
-
-<div id="bulkActions" class="bulkActions">
-  <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
-  <div class="bulkActionsButtons">
-    <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">ייבא אנשי קשר</button>
-    <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
-  </div>
-</div>
-
-<div id="statusMessage" class="statusMessage"></div>
-<div id="list"></div>
-
+  <div id="statusMessage" class="statusMessage"></div>
+  <div id="list"></div>
 </div>
 
 <script>
 const APP_PASSWORD = "mhfc1913";
+const DATA_URL = "https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts";
+const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
+
 let contacts = [];
 let isLoadingContacts = false;
 let hasLoadError = false;
@@ -774,7 +862,7 @@ let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 
 function setStatus(elementId, message = "", type = "") {
-  let el = document.getElementById(elementId);
+  const el = document.getElementById(elementId);
   if (!el) return;
 
   el.textContent = message;
@@ -787,53 +875,8 @@ function setStatus(elementId, message = "", type = "") {
 }
 
 function setLoginButtonDisabled(disabled) {
-  let btn = document.getElementById("loginButton");
-  if (btn) {
-    btn.disabled = disabled;
-  }
-}
-
-async function loadContacts() {
-  isLoadingContacts = true;
-  hasLoadError = false;
-  setLoginButtonDisabled(true);
-  setLoginStatus("טוען אנשי קשר...", "loading");
-
-  try {
-    let res = await fetch("https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts");
-
-    if (!res.ok) {
-      throw new Error("Failed to load contacts");
-    }
-
-    let data = await res.json();
-
-    let rawContacts = data.map((row, index) => ({
-      id: index,
-      first: (row.first_name_he || "").toString().trim(),
-      last: (row.last_name_he || "").toString().trim(),
-      firstEn: (row.first_name_en || "").toString().trim(),
-      lastEn: (row.last_name_en || "").toString().trim(),
-      title: (row.title_prefix || "").toString().trim(),
-      name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
-      role: (row.role || "").toString().trim(),
-      dept: (row.department || "").toString().trim(),
-      phone: normalizePhone(row.phone || ""),
-      email: (row.email || "").toString().replace(/\u200E/g, "").trim()
-    })).filter(c => c.phone);
-
-    contacts = deduplicateContacts(rawContacts);
-    populateDepartments();
-    setLoginStatus("", "");
-  } catch (error) {
-    console.error(error);
-    contacts = [];
-    hasLoadError = true;
-    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
-  } finally {
-    isLoadingContacts = false;
-    setLoginButtonDisabled(false);
-  }
+  const btn = document.getElementById("loginButton");
+  if (btn) btn.disabled = disabled;
 }
 
 function setLoginStatus(message = "", type = "") {
@@ -872,8 +915,7 @@ function formatPhoneForDisplay(phone) {
 }
 
 function getPhoneSearchValue(phone) {
-  let displayPhone = formatPhoneForDisplay(phone);
-  return displayPhone.replace(/-/g, "").toLowerCase();
+  return formatPhoneForDisplay(phone).replace(/-/g, "").toLowerCase();
 }
 
 function buildDisplayName(contact) {
@@ -881,7 +923,7 @@ function buildDisplayName(contact) {
 }
 
 function getContactInfoScore(contact) {
-  let fields = [
+  const fields = [
     contact.first,
     contact.last,
     contact.firstEn,
@@ -892,8 +934,8 @@ function getContactInfoScore(contact) {
     contact.email
   ];
 
-  let filledFields = fields.filter(v => (v || "").toString().trim() !== "").length;
-  let textLength = fields.reduce((sum, v) => sum + ((v || "").toString().trim().length), 0);
+  const filledFields = fields.filter(v => (v || "").toString().trim() !== "").length;
+  const textLength = fields.reduce((sum, v) => sum + ((v || "").toString().trim().length), 0);
 
   return (filledFields * 1000) + textLength;
 }
@@ -903,18 +945,8 @@ function isEmptyValue(value) {
 }
 
 function mergeMissingFields(base, extra) {
-  let merged = { ...base };
-
-  let fieldsToComplete = [
-    "first",
-    "last",
-    "firstEn",
-    "lastEn",
-    "title",
-    "role",
-    "dept",
-    "email"
-  ];
+  const merged = { ...base };
+  const fieldsToComplete = ["first", "last", "firstEn", "lastEn", "title", "role", "dept", "email"];
 
   fieldsToComplete.forEach(field => {
     if (isEmptyValue(merged[field]) && !isEmptyValue(extra[field])) {
@@ -923,12 +955,11 @@ function mergeMissingFields(base, extra) {
   });
 
   merged.name = buildDisplayName(merged);
-
   return merged;
 }
 
 function deduplicateContacts(list) {
-  let groupedByPhone = new Map();
+  const groupedByPhone = new Map();
 
   list.forEach(contact => {
     if (!groupedByPhone.has(contact.phone)) {
@@ -937,10 +968,10 @@ function deduplicateContacts(list) {
     groupedByPhone.get(contact.phone).push(contact);
   });
 
-  let mergedContacts = [];
+  const mergedContacts = [];
 
   groupedByPhone.forEach(group => {
-    let sortedGroup = [...group].sort((a, b) => getContactInfoScore(b) - getContactInfoScore(a));
+    const sortedGroup = [...group].sort((a, b) => getContactInfoScore(b) - getContactInfoScore(a));
     let merged = { ...sortedGroup[0] };
 
     for (let i = 1; i < sortedGroup.length; i++) {
@@ -955,11 +986,11 @@ function deduplicateContacts(list) {
 }
 
 function getSearchPriority(contact, q, qNoHyphen) {
-  let name = (contact.name || "").toLowerCase();
-  let role = (contact.role || "").toLowerCase();
-  let dept = (contact.dept || "").toLowerCase();
-  let phoneIntl = (contact.phone || "").toLowerCase();
-  let phoneLocal = getPhoneSearchValue(contact.phone);
+  const name = (contact.name || "").toLowerCase();
+  const role = (contact.role || "").toLowerCase();
+  const dept = (contact.dept || "").toLowerCase();
+  const phoneIntl = (contact.phone || "").toLowerCase();
+  const phoneLocal = getPhoneSearchValue(contact.phone);
 
   if (name === q) return 1;
   if (name.startsWith(q)) return 2;
@@ -981,6 +1012,46 @@ function getSearchPriority(contact, q, qNoHyphen) {
   return null;
 }
 
+async function loadContacts() {
+  isLoadingContacts = true;
+  hasLoadError = false;
+  setLoginButtonDisabled(true);
+  setLoginStatus("טוען אנשי קשר...", "loading");
+
+  try {
+    const res = await fetch(DATA_URL);
+    if (!res.ok) throw new Error("Failed to load contacts");
+
+    const data = await res.json();
+
+    const rawContacts = data.map((row, index) => ({
+      id: index,
+      first: (row.first_name_he || "").toString().trim(),
+      last: (row.last_name_he || "").toString().trim(),
+      firstEn: (row.first_name_en || "").toString().trim(),
+      lastEn: (row.last_name_en || "").toString().trim(),
+      title: (row.title_prefix || "").toString().trim(),
+      name: ((row.title_prefix || "") + " " + (row.first_name_he || "") + " " + (row.last_name_he || "")).trim(),
+      role: (row.role || "").toString().trim(),
+      dept: (row.department || "").toString().trim(),
+      phone: normalizePhone(row.phone || ""),
+      email: (row.email || "").toString().replace(/\u200E/g, "").trim()
+    })).filter(c => c.phone);
+
+    contacts = deduplicateContacts(rawContacts);
+    populateDepartments();
+    setLoginStatus("", "");
+  } catch (error) {
+    console.error(error);
+    contacts = [];
+    hasLoadError = true;
+    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
+  } finally {
+    isLoadingContacts = false;
+    setLoginButtonDisabled(false);
+  }
+}
+
 function login() {
   if (isLoadingContacts) {
     setLoginStatus("טוען אנשי קשר...", "loading");
@@ -992,29 +1063,22 @@ function login() {
     return;
   }
 
-  let input = document.getElementById("phoneInput").value;
-  let password = document.getElementById("passwordInput").value;
+  const input = document.getElementById("phoneInput").value;
+  const password = document.getElementById("passwordInput").value;
 
   if (password !== APP_PASSWORD) {
     alert("סיסמה שגויה");
     return;
   }
 
-  let normalized = normalizePhone(input);
-
-  let found = contacts.find(c =>
-    normalizePhone(c.phone) === normalized
-  );
+  const normalized = normalizePhone(input);
+  const found = contacts.find(c => normalizePhone(c.phone) === normalized);
 
   if (found) {
     localStorage.setItem("userPhone", normalized);
-
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
-
-    document.getElementById("userInfo").textContent =
-      "מחובר/ת כ: " + (found.name || found.phone);
-
+    document.getElementById("userInfo").textContent = "מחובר/ת כ: " + (found.name || found.phone);
     show([]);
   } else {
     alert("מספר לא נמצא במערכת");
@@ -1024,38 +1088,30 @@ function login() {
 function autoLogin() {
   if (hasLoadError) return;
 
-  let saved = localStorage.getItem("userPhone");
+  const saved = localStorage.getItem("userPhone");
   if (!saved) return;
 
-  let found = contacts.find(c =>
-    normalizePhone(c.phone) === saved
-  );
+  const found = contacts.find(c => normalizePhone(c.phone) === saved);
 
   if (found) {
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
-
-    document.getElementById("userInfo").textContent =
-      "מחובר/ת כ: " + (found.name || found.phone);
-
+    document.getElementById("userInfo").textContent = "מחובר/ת כ: " + (found.name || found.phone);
     show([]);
   }
 }
 
 function updateSearchUI() {
-  let q = document.getElementById("searchInput").value.trim();
-  let clearBtn = document.getElementById("clearSearchBtn");
+  const q = document.getElementById("searchInput").value.trim();
+  const clearBtn = document.getElementById("clearSearchBtn");
 
-  if (q) {
-    clearBtn.classList.add("visible");
-  } else {
-    clearBtn.classList.remove("visible");
-  }
+  if (q) clearBtn.classList.add("visible");
+  else clearBtn.classList.remove("visible");
 }
 
 function clearSearch() {
-  let input = document.getElementById("searchInput");
-  let logo = document.getElementById("logo");
+  const input = document.getElementById("searchInput");
+  const logo = document.getElementById("logo");
 
   input.value = "";
   logo.classList.remove("hidden");
@@ -1065,19 +1121,19 @@ function clearSearch() {
 }
 
 function shouldShowNoResults() {
-  let searchInput = document.getElementById("searchInput");
-  let select = document.querySelector("select");
+  const searchInput = document.getElementById("searchInput");
+  const select = document.querySelector("select");
 
-  let q = searchInput ? searchInput.value.trim() : "";
-  let dept = select ? select.value : "";
+  const q = searchInput ? searchInput.value.trim() : "";
+  const dept = select ? select.value : "";
 
   return q.length >= 2 || !!dept;
 }
 
 function updateBulkActions() {
-  let selectedCount = selectedContactIds.size;
-  let bulkActions = document.getElementById("bulkActions");
-  let info = document.getElementById("bulkActionsInfo");
+  const selectedCount = selectedContactIds.size;
+  const bulkActions = document.getElementById("bulkActions");
+  const info = document.getElementById("bulkActionsInfo");
 
   info.textContent = `נבחרו ${selectedCount} אנשי קשר`;
 
@@ -1091,11 +1147,8 @@ function updateBulkActions() {
 }
 
 function toggleContactSelection(id) {
-  if (selectedContactIds.has(id)) {
-    selectedContactIds.delete(id);
-  } else {
-    selectedContactIds.add(id);
-  }
+  if (selectedContactIds.has(id)) selectedContactIds.delete(id);
+  else selectedContactIds.add(id);
 
   updateBulkActions();
   refreshSelectedCardsUI();
@@ -1103,25 +1156,17 @@ function toggleContactSelection(id) {
 
 function refreshSelectedCardsUI() {
   document.querySelectorAll(".contact").forEach(card => {
-    let id = Number(card.dataset.id);
-    if (selectedContactIds.has(id)) {
-      card.classList.add("selected");
-    } else {
-      card.classList.remove("selected");
-    }
+    const id = Number(card.dataset.id);
+    card.classList.toggle("selected", selectedContactIds.has(id));
   });
 
   document.querySelectorAll(".contactSelect").forEach(label => {
-    let id = Number(label.dataset.id);
-    if (selectedContactIds.has(id)) {
-      label.classList.add("selected");
-    } else {
-      label.classList.remove("selected");
-    }
+    const id = Number(label.dataset.id);
+    label.classList.toggle("selected", selectedContactIds.has(id));
   });
 
   document.querySelectorAll(".contactSelect input[type='checkbox']").forEach(checkbox => {
-    let id = Number(checkbox.dataset.id);
+    const id = Number(checkbox.dataset.id);
     checkbox.checked = selectedContactIds.has(id);
   });
 }
@@ -1130,6 +1175,20 @@ function clearSelectedContacts() {
   selectedContactIds.clear();
   updateBulkActions();
   refreshSelectedCardsUI();
+}
+
+function populateDepartments() {
+  const depts = [...new Set(contacts.map(c => c.dept).filter(Boolean))];
+  const select = document.querySelector("select");
+
+  select.innerHTML = '<option value="">כל המחלקות</option>';
+
+  depts.sort().forEach(d => {
+    const option = document.createElement("option");
+    option.value = d;
+    option.textContent = d;
+    select.appendChild(option);
+  });
 }
 
 function escapeVCardValue(value) {
@@ -1142,7 +1201,7 @@ function escapeVCardValue(value) {
 }
 
 function buildContactVCard(c) {
-  let vcardLines = [
+  const vcardLines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
     "PRODID:-//Contacts App//HE",
@@ -1153,43 +1212,29 @@ function buildContactVCard(c) {
     `TEL;TYPE=CELL:${escapeVCardValue(c.phone)}`
   ];
 
-  if (c.email) {
-    vcardLines.push(`EMAIL:${escapeVCardValue(c.email)}`);
-  }
-
-  if (c.firstEn) {
-    vcardLines.push(`X-PHONETIC-FIRST-NAME:${escapeVCardValue(c.firstEn)}`);
-  }
-
-  if (c.lastEn) {
-    vcardLines.push(`X-PHONETIC-LAST-NAME:${escapeVCardValue(c.lastEn)}`);
-  }
+  if (c.email) vcardLines.push(`EMAIL:${escapeVCardValue(c.email)}`);
+  if (c.firstEn) vcardLines.push(`X-PHONETIC-FIRST-NAME:${escapeVCardValue(c.firstEn)}`);
+  if (c.lastEn) vcardLines.push(`X-PHONETIC-LAST-NAME:${escapeVCardValue(c.lastEn)}`);
 
   vcardLines.push("END:VCARD");
-
   return vcardLines.join("\r\n");
 }
 
 async function shareOrDownloadVCard(vcardContent, fileName) {
   const mimeType = "text/vcard";
-  const blob = new Blob([vcardContent], { type: `${mimeType};charset=utf-8` });
+  const blob = new Blob([vcardContent], { type: mimeType + ";charset=utf-8" });
 
   if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
     try {
       const file = new File([blob], fileName, { type: mimeType });
-      const shareData = {
-        title: fileName,
-        files: [file]
-      };
+      const shareData = { title: fileName, files: [file] };
 
       if (navigator.canShare(shareData)) {
         await navigator.share(shareData);
         return;
       }
     } catch (error) {
-      if (error && error.name === "AbortError") {
-        return;
-      }
+      if (error && error.name === "AbortError") return;
       console.warn("Native share failed, falling back to download", error);
     }
   }
@@ -1205,16 +1250,99 @@ async function shareOrDownloadVCard(vcardContent, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function cleanupOldImportPayloads() {
+  const now = Date.now();
+  const maxAge = 1000 * 60 * 60 * 24;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(IMPORT_STORAGE_PREFIX)) continue;
+
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+      if (!parsed.createdAt || now - parsed.createdAt > maxAge) {
+        localStorage.removeItem(key);
+      }
+    } catch (error) {
+      localStorage.removeItem(key);
+    }
+  }
+}
+
+function saveImportPayload(vcardContent, fileName, count, titleText) {
+  const key = IMPORT_STORAGE_PREFIX + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  const payload = {
+    vcardContent,
+    fileName,
+    count,
+    titleText,
+    createdAt: Date.now()
+  };
+
+  localStorage.setItem(key, JSON.stringify(payload));
+  return key;
+}
+
+function openImportGuide(vcardContent, fileName, count, titleText) {
+  const key = saveImportPayload(vcardContent, fileName, count, titleText);
+  const guideUrl = window.location.pathname + "?importKey=" + encodeURIComponent(key);
+  window.open(guideUrl, "_blank");
+}
+
+function showGuideError(message) {
+  const errorEl = document.getElementById("guideError");
+  errorEl.style.display = "block";
+  errorEl.textContent = message;
+}
+
+function goBackToMainApp() {
+  window.location.href = window.location.pathname;
+}
+
+function renderImportGuide(importKey) {
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "none";
+  document.getElementById("importGuidePage").style.display = "block";
+
+  const raw = localStorage.getItem(importKey);
+  if (!raw) {
+    showGuideError("לא נמצא מידע לייבוא. חזרו לאפליקציה ונסו שוב.");
+    return;
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch (error) {
+    showGuideError("קובץ הייבוא לא תקין. חזרו לאפליקציה ונסו שוב.");
+    return;
+  }
+
+  if (!payload || !payload.vcardContent || !payload.fileName) {
+    showGuideError("חסר מידע לייבוא. חזרו לאפליקציה ונסו שוב.");
+    return;
+  }
+
+  document.getElementById("guideTitle").textContent = payload.titleText || "ייבוא אנשי קשר";
+  document.getElementById("guideCountBox").innerHTML =
+    `הקובץ מוכן וכולל <b>${payload.count || 0}</b> אנשי קשר, ללא כפילויות לפי מספר טלפון מנורמל.`;
+
+  const finalBtn = document.getElementById("finalGuideBtn");
+  finalBtn.onclick = async function () {
+    await shareOrDownloadVCard(payload.vcardContent, payload.fileName);
+  };
+}
+
 async function downloadSelectedContacts() {
-  let selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
+  const selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
 
   if (!selectedContacts.length) {
     alert("לא נבחרו אנשי קשר");
     return;
   }
 
-  let multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-  await shareOrDownloadVCard(multiVCard, "selected-contacts.vcf");
+  const multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "ייבוא אנשי קשר");
 }
 
 async function downloadAllContacts() {
@@ -1223,8 +1351,16 @@ async function downloadAllContacts() {
     return;
   }
 
-  let multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-  await shareOrDownloadVCard(multiVCard, "all-contacts.vcf");
+  const multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "ייבוא כל אנשי הקשר");
+}
+
+async function downloadContact(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+
+  const vcard = buildContactVCard(c) + "\r\n";
+  await shareOrDownloadVCard(vcard, c.name + ".vcf");
 }
 
 function show(list) {
@@ -1244,13 +1380,12 @@ function show(list) {
   }
 
   setListStatus("", "");
-
   let html = "";
 
   list.forEach(c => {
-    let cleanPhone = normalizePhone(c.phone).replace("+", "");
-    let displayPhone = formatPhoneForDisplay(c.phone);
-    let isSelected = selectedContactIds.has(c.id);
+    const cleanPhone = normalizePhone(c.phone).replace("+", "");
+    const displayPhone = formatPhoneForDisplay(c.phone);
+    const isSelected = selectedContactIds.has(c.id);
 
     let metaRows = "";
     let actionChips = "";
@@ -1320,9 +1455,9 @@ function show(list) {
 }
 
 function search() {
-  let q = document.getElementById("searchInput").value.toLowerCase().trim();
-  let qNoHyphen = q.replace(/-/g, "");
-  let logo = document.getElementById("logo");
+  const q = document.getElementById("searchInput").value.toLowerCase().trim();
+  const qNoHyphen = q.replace(/-/g, "");
+  const logo = document.getElementById("logo");
 
   updateSearchUI();
 
@@ -1334,16 +1469,14 @@ function search() {
 
   logo.classList.add("hidden");
 
-  let ranked = contacts
+  const ranked = contacts
     .map(c => ({
       contact: c,
       priority: getSearchPriority(c, q, qNoHyphen)
     }))
     .filter(item => item.priority !== null)
     .sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return a.priority - b.priority;
-      }
+      if (a.priority !== b.priority) return a.priority - b.priority;
       return a.contact.name.localeCompare(b.contact.name, "he");
     })
     .map(item => item.contact);
@@ -1352,7 +1485,7 @@ function search() {
 }
 
 function filterByDept(dept) {
-  let logo = document.getElementById("logo");
+  const logo = document.getElementById("logo");
 
   if (!dept) {
     logo.classList.remove("hidden");
@@ -1361,34 +1494,24 @@ function filterByDept(dept) {
   }
 
   logo.classList.add("hidden");
-
-  let filtered = contacts.filter(c => c.dept === dept);
-  show(filtered);
+  show(contacts.filter(c => c.dept === dept));
 }
 
-function populateDepartments() {
-  let depts = [...new Set(contacts.map(c => c.dept).filter(Boolean))];
-  let select = document.querySelector("select");
+function init() {
+  cleanupOldImportPayloads();
 
-  select.innerHTML = '<option value="">כל המחלקות</option>';
+  const params = new URLSearchParams(window.location.search);
+  const importKey = params.get("importKey");
 
-  depts.sort().forEach(d => {
-    let option = document.createElement("option");
-    option.value = d;
-    option.textContent = d;
-    select.appendChild(option);
-  });
+  if (importKey) {
+    renderImportGuide(importKey);
+    return;
+  }
+
+  loadContacts().then(() => autoLogin());
 }
 
-async function downloadContact(id) {
-  let c = contacts.find(x => x.id === id);
-  if (!c) return;
-
-  let vcard = buildContactVCard(c) + "\r\n";
-  await shareOrDownloadVCard(vcard, c.name + ".vcf");
-}
-
-loadContacts().then(() => autoLogin());
+init();
 </script>
 
 </body>
