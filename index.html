@@ -371,8 +371,9 @@ select {
 }
 
 .contact.selected {
-  border-color: #93c5fd;
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.12);
+  border-color: #60a5fa;
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.16);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
 .contactTopRow {
@@ -398,12 +399,13 @@ select {
 }
 
 .contactSelect {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #475569;
   background: #f8fbff;
   border: 1px solid #d9e6ff;
@@ -411,13 +413,51 @@ select {
   padding: 7px 10px;
   user-select: none;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.contactSelect.selected {
+  background: #eef4ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .contactSelect input {
-  width: 17px;
-  height: 17px;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
   margin: 0;
-  accent-color: #3b82f6;
+}
+
+.contactSelectBox {
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
+  border: 1.5px solid #bfd4f7;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.contactSelect.selected .contactSelectBox {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.22);
+}
+
+.contactSelectText {
+  line-height: 1;
 }
 
 .contactMeta {
@@ -1031,6 +1071,15 @@ function refreshSelectedCardsUI() {
     }
   });
 
+  document.querySelectorAll(".contactSelect").forEach(label => {
+    let id = Number(label.dataset.id);
+    if (selectedContactIds.has(id)) {
+      label.classList.add("selected");
+    } else {
+      label.classList.remove("selected");
+    }
+  });
+
   document.querySelectorAll(".contactSelect input[type='checkbox']").forEach(checkbox => {
     let id = Number(checkbox.dataset.id);
     checkbox.checked = selectedContactIds.has(id);
@@ -1045,26 +1094,57 @@ function clearSelectedContacts() {
 
 async function copyTextToClipboard(text) {
   if (navigator.clipboard && window.isSecureContext) {
-    await navigator.clipboard.writeText(text);
-    return true;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      console.warn("Clipboard API failed, using fallback", error);
+    }
   }
 
   let textArea = document.createElement("textarea");
   textArea.value = text;
+  textArea.setAttribute("readonly", "");
   textArea.style.position = "fixed";
-  textArea.style.opacity = "0";
+  textArea.style.top = "0";
+  textArea.style.left = "-9999px";
+  textArea.style.fontSize = "16px";
+  textArea.style.opacity = "1";
   document.body.appendChild(textArea);
+
+  let selection = document.getSelection();
+  let originalRange = null;
+
+  if (selection && selection.rangeCount > 0) {
+    originalRange = selection.getRangeAt(0);
+  }
+
   textArea.focus();
   textArea.select();
+  textArea.setSelectionRange(0, text.length);
+
+  let success = false;
 
   try {
-    let success = document.execCommand("copy");
-    document.body.removeChild(textArea);
-    return success;
+    success = document.execCommand("copy");
   } catch (error) {
-    document.body.removeChild(textArea);
-    throw error;
+    success = false;
   }
+
+  document.body.removeChild(textArea);
+
+  if (selection) {
+    selection.removeAllRanges();
+    if (originalRange) {
+      selection.addRange(originalRange);
+    }
+  }
+
+  if (success) {
+    return true;
+  }
+
+  throw new Error("Clipboard copy failed");
 }
 
 async function copySelectedNumbers() {
@@ -1084,7 +1164,12 @@ async function copySelectedNumbers() {
     .join("\n");
 
   try {
-    await copyTextToClipboard(numbersText);
+    let copied = await copyTextToClipboard(numbersText);
+
+    if (!copied) {
+      throw new Error("No copy confirmation");
+    }
+
     alert("המספרים הועתקו");
   } catch (error) {
     console.error(error);
@@ -1158,9 +1243,10 @@ function show(list) {
             <span class="contactName">${c.name}</span>
           </div>
 
-          <label class="contactSelect">
+          <label class="contactSelect ${isSelected ? "selected" : ""}" data-id="${c.id}">
             <input type="checkbox" data-id="${c.id}" ${isSelected ? "checked" : ""} onchange="toggleContactSelection(${c.id})">
-            בחר/י
+            <span class="contactSelectBox">✓</span>
+            <span class="contactSelectText">בחר/י</span>
           </label>
         </div>
 
