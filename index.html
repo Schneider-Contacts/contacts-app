@@ -1220,7 +1220,7 @@ function buildContactVCard(c) {
   vcardLines.push("END:VCARD");
   return vcardLines.join("\r\n");
 }
-</script>
+
 async function shareOrDownloadVCard(vcardContent, fileName) {
   const mimeType = "text/vcard";
   const blob = new Blob([vcardContent], { type: mimeType + ";charset=utf-8" });
@@ -1250,7 +1250,7 @@ async function shareOrDownloadVCard(vcardContent, fileName) {
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-</script>
+
 
 function cleanupOldImportPayloads() {
   const now = Date.now();
