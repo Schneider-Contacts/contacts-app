@@ -5,12 +5,35 @@
 <link rel="icon" href="icon.PNG">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#f4fbf7">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ספר אנשי קשר</title>
 
 <style>
+:root {
+  --bg: #f4fbf7;
+  --card: #ffffff;
+  --text: #1f2937;
+  --text-soft: #4b5563;
+  --text-muted: #6b7280;
+
+  --green-50: #ecfdf5;
+  --green-100: #d1fae5;
+  --green-200: #a7f3d0;
+  --green-300: #6ee7b7;
+  --green-400: #34d399;
+  --green-500: #10b981;
+  --green-600: #059669;
+  --green-700: #047857;
+  --green-800: #065f46;
+
+  --border: #d9efe4;
+  --border-strong: #bfe6d4;
+  --shadow-soft: rgba(15, 23, 42, 0.07);
+  --shadow-green: rgba(5, 150, 105, 0.18);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -20,9 +43,9 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   direction: rtl;
   padding: 18px 14px 28px;
-  background: #f3f6fb;
+  background: var(--bg);
   text-align: center;
-  color: #1f2937;
+  color: var(--text);
   transition: padding-bottom 0.2s ease;
 }
 
@@ -34,13 +57,13 @@ h2 {
   font-size: 28px;
   margin: 0;
   font-weight: 700;
-  color: #1f2a44;
+  color: #17352d;
 }
 
 h3 {
   font-size: 22px;
   margin-bottom: 16px;
-  color: #1f2a44;
+  color: #17352d;
 }
 
 #login,
@@ -50,11 +73,11 @@ h3 {
 }
 
 #login {
-  background: #ffffff;
+  background: var(--card);
   border-radius: 20px;
   padding: 22px 18px 20px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  border: 1px solid #e7edf5;
+  border: 1px solid var(--border);
   margin-top: 28px;
 }
 
@@ -64,11 +87,11 @@ input, select {
   padding: 14px 16px;
   margin: 10px 0;
   border-radius: 14px;
-  border: 1px solid #d6dfeb;
+  border: 1px solid #d3e8de;
   background: #ffffff;
   text-align: center;
   font-size: 16px;
-  color: #1f2937;
+  color: var(--text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   -webkit-appearance: none;
@@ -76,9 +99,9 @@ input, select {
 }
 
 input:focus, select:focus {
-  border-color: #7aa7ff;
-  box-shadow: 0 0 0 4px rgba(122, 167, 255, 0.16);
-  background: #fcfdff;
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+  background: #fcfffd;
 }
 
 button {
@@ -104,9 +127,9 @@ button:disabled {
   width: 100%;
   margin-top: 6px;
   padding: 14px 16px;
-  background: #3b82f6;
+  background: var(--green-600);
   color: white;
-  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.22);
+  box-shadow: 0 8px 18px rgba(5, 150, 105, 0.24);
 }
 
 #login button:hover {
@@ -116,15 +139,15 @@ button:disabled {
 .appHeader {
   position: relative;
   background:
-    radial-gradient(circle at top right, rgba(147, 197, 253, 0.35), transparent 42%),
-    linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
-  border: 1px solid #dfe9f7;
+    radial-gradient(circle at top right, rgba(110, 231, 183, 0.34), transparent 42%),
+    linear-gradient(180deg, #ffffff 0%, #f3fcf8 100%);
+  border: 1px solid var(--border-strong);
   border-radius: 24px;
   padding: 16px 16px 14px;
   margin: 0 auto 14px;
   box-shadow:
     0 10px 28px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
   text-align: right;
   overflow: hidden;
 }
@@ -136,7 +159,7 @@ button:disabled {
   bottom: -30px;
   width: 120px;
   height: 120px;
-  background: radial-gradient(circle, rgba(191, 219, 254, 0.28) 0%, rgba(191, 219, 254, 0) 72%);
+  background: radial-gradient(circle, rgba(167, 243, 208, 0.26) 0%, rgba(167, 243, 208, 0) 72%);
   pointer-events: none;
 }
 
@@ -160,14 +183,14 @@ button:disabled {
   height: 54px;
   min-width: 54px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid #dbe7ff;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
-    0 8px 18px rgba(59, 130, 246, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 8px 18px rgba(5, 150, 105, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .appHeaderLogo {
@@ -181,17 +204,17 @@ button:disabled {
   position: relative;
   font-size: 13px;
   line-height: 1.5;
-  color: #64748b;
+  color: #5e7a6f;
   margin: 0 0 10px;
   z-index: 1;
 }
 
 #userInfo {
   position: relative;
-  color: #42526b;
+  color: #295746;
   font-size: 13px;
-  background: rgba(238, 244, 255, 0.92);
-  border: 1px solid #dbe7ff;
+  background: rgba(236, 253, 245, 0.96);
+  border: 1px solid var(--border-strong);
   border-radius: 13px;
   padding: 10px 12px;
   display: inline-flex;
@@ -203,17 +226,17 @@ button:disabled {
 }
 
 .controlsCard {
-  background: #ffffff;
+  background: var(--card);
   border-radius: 18px;
   padding: 14px;
   margin: 0 auto 14px;
-  border: 1px solid #e7edf5;
+  border: 1px solid var(--border);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
   text-align: right;
 }
 
 #hint {
-  color: #6b7280;
+  color: var(--text-muted);
   margin: 0 0 10px;
   font-size: 14px;
   line-height: 1.5;
@@ -244,9 +267,9 @@ select {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: #eef4ff;
-  color: #1d4ed8;
-  border: 1px solid #d9e6ff;
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
   font-size: 18px;
   line-height: 1;
   display: none;
@@ -294,15 +317,15 @@ select {
 }
 
 .statusMessage.loading {
-  background: #eef4ff;
-  border: 1px solid #dbe7ff;
-  color: #32507b;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: #2a6651;
 }
 
 .statusMessage.empty {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #475569;
+  background: #f7fbf8;
+  border: 1px solid #deebe4;
+  color: #567165;
 }
 
 .statusMessage.error {
@@ -319,7 +342,7 @@ select {
   margin: 12px auto 0;
   padding: 12px;
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #dbe7ff;
+  border: 1px solid var(--border-strong);
   border-radius: 16px;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
   max-width: 420px;
@@ -332,7 +355,7 @@ select {
 .bulkActionsInfo {
   font-size: 14px;
   font-weight: 600;
-  color: #334155;
+  color: #315b4c;
   text-align: right;
 }
 
@@ -348,14 +371,14 @@ select {
 }
 
 .saveBtn {
-  background: #3b82f6;
+  background: var(--green-600);
   color: white;
 }
 
 .clearSelectionBtn {
-  background: #eef4ff;
-  color: #1d4ed8;
-  border: 1px solid #d9e6ff;
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
 }
 
 .contact {
@@ -364,16 +387,16 @@ select {
   padding: 14px 14px 12px;
   margin: 10px auto;
   max-width: 420px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
-  border: 1px solid #e7edf5;
+  box-shadow: 0 6px 18px var(--shadow-soft);
+  border: 1px solid #e4efe9;
   text-align: right;
   transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
 }
 
 .contact.selected {
-  border-color: #60a5fa;
-  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.16);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-color: var(--green-400);
+  box-shadow: 0 10px 24px var(--shadow-green);
+  background: linear-gradient(180deg, #ffffff 0%, #f7fdf9 100%);
 }
 
 .contactTopRow {
@@ -393,7 +416,7 @@ select {
   display: block;
   font-size: 17px;
   font-weight: 700;
-  color: #172033;
+  color: #17352d;
   line-height: 1.3;
   word-break: break-word;
 }
@@ -406,9 +429,9 @@ select {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
-  color: #475569;
-  background: #f8fbff;
-  border: 1px solid #d9e6ff;
+  color: #4f6c60;
+  background: #f7fcf9;
+  border: 1px solid #d8ece1;
   border-radius: 999px;
   padding: 7px 10px;
   user-select: none;
@@ -418,9 +441,9 @@ select {
 }
 
 .contactSelect.selected {
-  background: #eef4ff;
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  background: var(--green-50);
+  border-color: var(--green-300);
+  color: var(--green-700);
 }
 
 .contactSelect input {
@@ -436,7 +459,7 @@ select {
   width: 20px;
   height: 20px;
   border-radius: 7px;
-  border: 1.5px solid #bfd4f7;
+  border: 1.5px solid #b9dccb;
   background: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -450,10 +473,10 @@ select {
 }
 
 .contactSelect.selected .contactSelectBox {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--green-600);
+  border-color: var(--green-600);
   color: #ffffff;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.22);
 }
 
 .contactSelectText {
@@ -469,17 +492,17 @@ select {
 
 .contactMetaRow {
   font-size: 13.5px;
-  color: #4b5563;
+  color: var(--text-soft);
   line-height: 1.45;
 }
 
 .contactMetaRow.phoneRow {
-  color: #1f2937;
+  color: var(--text);
   font-weight: 600;
 }
 
 .contactMetaRow a {
-  color: #2563eb;
+  color: var(--green-700);
   text-decoration: none;
   word-break: break-word;
 }
@@ -490,7 +513,7 @@ select {
 
 .contactDivider {
   height: 1px;
-  background: #edf2f7;
+  background: #e7f1ec;
   margin: 8px 0 10px;
 }
 
@@ -509,9 +532,9 @@ select {
   min-height: 38px;
   padding: 9px 11px;
   border-radius: 12px;
-  background: #f8fbff;
-  border: 1px solid #d9e6ff;
-  color: #1d4ed8;
+  background: #f7fcf9;
+  border: 1px solid #d8ece1;
+  color: var(--green-700);
   text-decoration: none;
   font-size: 13px;
   font-weight: 700;
@@ -520,22 +543,22 @@ select {
 }
 
 .actionChip:hover {
-  background: #eef5ff;
+  background: var(--green-50);
 }
 
 .addContactBtn {
   width: 100%;
   margin-top: 0;
   padding: 12px 14px;
-  background: #eef4ff;
-  color: #1d4ed8;
-  border: 1px solid #d9e6ff;
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
   font-size: 14px;
   font-weight: 700;
 }
 
 .addContactBtn:hover {
-  background: #e6efff;
+  background: #e6fbf0;
 }
 
 #list {
