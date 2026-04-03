@@ -834,7 +834,7 @@ select {
       <option value="">כל המחלקות</option>
     </select>
 
-    <button type="button" class="importAllBtn" onclick="downloadAllContacts()">ייבא את כל אנשי הקשר</button>
+    <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
   </div>
 
   <img id="logo" src="icon.PNG">
@@ -861,6 +861,7 @@ let isLoadingContacts = false;
 let hasLoadError = false;
 let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
+let selectionMode = false;
 
 function setStatus(elementId, message = "", type = "") {
   const el = document.getElementById(elementId);
@@ -1013,6 +1014,68 @@ function getSearchPriority(contact, q, qNoHyphen) {
   return null;
 }
 
+function isSearchActive() {
+  const input = document.getElementById("searchInput");
+  return !!input && input.value.trim().length >= 2;
+}
+
+function isDeptFilterActive() {
+  const select = document.querySelector("select");
+  return !!select && !!select.value;
+}
+
+function canUseMultiSelection() {
+  return isSearchActive() || isDeptFilterActive();
+}
+
+function updateMainActionButton() {
+  const btn = document.getElementById("importAllBtn");
+  if (!btn) return;
+
+  if (selectionMode) {
+    btn.textContent = "בטל בחירה";
+    return;
+  }
+
+  if (canUseMultiSelection()) {
+    btn.textContent = "בחירת כמה אנשי קשר";
+    return;
+  }
+
+  btn.textContent = "ייבא את כל אנשי הקשר";
+}
+
+function handleMainImportButton() {
+  if (selectionMode) {
+    exitSelectionMode();
+    return;
+  }
+
+  if (canUseMultiSelection()) {
+    enterSelectionMode();
+    return;
+  }
+
+  downloadAllContacts();
+}
+
+function enterSelectionMode() {
+  if (!currentDisplayedContacts.length) {
+    alert("לא נמצאו אנשי קשר לבחירה");
+    return;
+  }
+
+  selectedContactIds.clear();
+  selectionMode = true;
+  show(currentDisplayedContacts);
+}
+
+function exitSelectionMode() {
+  selectionMode = false;
+  selectedContactIds.clear();
+  show(currentDisplayedContacts);
+}
+
 async function loadContacts() {
   isLoadingContacts = true;
   hasLoadError = false;
@@ -1115,6 +1178,13 @@ function clearSearch() {
   const logo = document.getElementById("logo");
 
   input.value = "";
+  if (!isDeptFilterActive()) {
+    selectionMode = false;
+    selectedContactIds.clear();
+  } else if (selectionMode) {
+    selectedContactIds.clear();
+  }
+
   logo.classList.remove("hidden");
   show([]);
   updateSearchUI();
@@ -1138,7 +1208,7 @@ function updateBulkActions() {
 
   info.textContent = `נבחרו ${selectedCount} אנשי קשר`;
 
-  if (selectedCount > 0) {
+  if (selectionMode && selectedCount > 0) {
     bulkActions.classList.add("visible");
     document.body.classList.add("bulkBarVisible");
   } else {
@@ -1148,6 +1218,8 @@ function updateBulkActions() {
 }
 
 function toggleContactSelection(id) {
+  if (!selectionMode) return;
+
   if (selectedContactIds.has(id)) selectedContactIds.delete(id);
   else selectedContactIds.add(id);
 
@@ -1158,12 +1230,12 @@ function toggleContactSelection(id) {
 function refreshSelectedCardsUI() {
   document.querySelectorAll(".contact").forEach(card => {
     const id = Number(card.dataset.id);
-    card.classList.toggle("selected", selectedContactIds.has(id));
+    card.classList.toggle("selected", selectionMode && selectedContactIds.has(id));
   });
 
   document.querySelectorAll(".contactSelect").forEach(label => {
     const id = Number(label.dataset.id);
-    label.classList.toggle("selected", selectedContactIds.has(id));
+    label.classList.toggle("selected", selectionMode && selectedContactIds.has(id));
   });
 
   document.querySelectorAll(".contactSelect input[type='checkbox']").forEach(checkbox => {
@@ -1250,7 +1322,6 @@ async function shareOrDownloadVCard(vcardContent, fileName) {
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
 
 function cleanupOldImportPayloads() {
   const now = Date.now();
@@ -1368,6 +1439,13 @@ async function downloadContact(id) {
 function show(list) {
   currentDisplayedContacts = list;
 
+  if (selectionMode && !canUseMultiSelection()) {
+    selectionMode = false;
+    selectedContactIds.clear();
+  }
+
+  updateMainActionButton();
+
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
 
@@ -1387,10 +1465,11 @@ function show(list) {
   list.forEach(c => {
     const cleanPhone = normalizePhone(c.phone).replace("+", "");
     const displayPhone = formatPhoneForDisplay(c.phone);
-    const isSelected = selectedContactIds.has(c.id);
+    const isSelected = selectionMode && selectedContactIds.has(c.id);
 
     let metaRows = "";
     let actionChips = "";
+    let selectionHtml = "";
 
     if (c.role) {
       metaRows += `<div class="contactMetaRow">${c.role}</div>`;
@@ -1423,6 +1502,16 @@ function show(list) {
       `;
     }
 
+    if (selectionMode) {
+      selectionHtml = `
+        <label class="contactSelect ${isSelected ? "selected" : ""}" data-id="${c.id}">
+          <input type="checkbox" data-id="${c.id}" ${isSelected ? "checked" : ""} onchange="toggleContactSelection(${c.id})">
+          <span class="contactSelectBox">✓</span>
+          <span class="contactSelectText">בחר/י</span>
+        </label>
+      `;
+    }
+
     html += `
       <div class="contact ${isSelected ? "selected" : ""}" data-id="${c.id}">
         <div class="contactTopRow">
@@ -1430,11 +1519,7 @@ function show(list) {
             <span class="contactName">${c.name}</span>
           </div>
 
-          <label class="contactSelect ${isSelected ? "selected" : ""}" data-id="${c.id}">
-            <input type="checkbox" data-id="${c.id}" ${isSelected ? "checked" : ""} onchange="toggleContactSelection(${c.id})">
-            <span class="contactSelectBox">✓</span>
-            <span class="contactSelectText">בחר/י</span>
-          </label>
+          ${selectionHtml}
         </div>
 
         <div class="contactMeta">
@@ -1463,7 +1548,15 @@ function search() {
 
   updateSearchUI();
 
+  if (selectionMode) {
+    selectedContactIds.clear();
+  }
+
   if (q.length < 2) {
+    if (!isDeptFilterActive()) {
+      selectionMode = false;
+    }
+
     logo.classList.remove("hidden");
     show([]);
     return;
@@ -1489,7 +1582,15 @@ function search() {
 function filterByDept(dept) {
   const logo = document.getElementById("logo");
 
+  if (selectionMode) {
+    selectedContactIds.clear();
+  }
+
   if (!dept) {
+    if (!isSearchActive()) {
+      selectionMode = false;
+    }
+
     logo.classList.remove("hidden");
     show([]);
     return;
