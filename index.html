@@ -920,6 +920,11 @@ function getPhoneSearchValue(phone) {
   return formatPhoneForDisplay(phone).replace(/-/g, "").toLowerCase();
 }
 
+function isNoWhatsappPhone(phone) {
+  const displayPhone = formatPhoneForDisplay(phone);
+  return displayPhone.startsWith("03-");
+}
+
 function buildDisplayName(contact) {
   return [contact.title, contact.first, contact.last].filter(Boolean).join(" ").trim();
 }
@@ -1466,6 +1471,7 @@ function show(list) {
     const cleanPhone = normalizePhone(c.phone).replace("+", "");
     const displayPhone = formatPhoneForDisplay(c.phone);
     const isSelected = selectionMode && selectedContactIds.has(c.id);
+    const hideWhatsapp = isNoWhatsappPhone(c.phone);
 
     let metaRows = "";
     let actionChips = "";
@@ -1487,8 +1493,13 @@ function show(list) {
 
     actionChips += `
       <a class="actionChip" href="tel:${c.phone}">חיוג</a>
-      <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a>
     `;
+
+    if (!hideWhatsapp) {
+      actionChips += `
+        <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a>
+      `;
+    }
 
     if (c.email) {
       metaRows += `
