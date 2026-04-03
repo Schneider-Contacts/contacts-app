@@ -23,6 +23,7 @@ body {
   background: #f3f6fb;
   text-align: center;
   color: #1f2937;
+  transition: padding-bottom 0.2s ease;
 }
 
 h2, h3 {
@@ -31,7 +32,7 @@ h2, h3 {
 
 h2 {
   font-size: 28px;
-  margin-bottom: 10px;
+  margin: 0;
   font-weight: 700;
   color: #1f2a44;
 }
@@ -112,14 +113,68 @@ button:disabled {
   opacity: 0.96;
 }
 
+.appHeader {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e2ebf7;
+  border-radius: 22px;
+  padding: 16px 16px 14px;
+  margin: 0 auto 14px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+  text-align: right;
+}
+
+.appHeaderTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.appHeaderBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: #eef4ff;
+  border: 1px solid #dbe7ff;
+  color: #1d4ed8;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.appSubtitle {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748b;
+  margin: 0 0 10px;
+}
+
 #userInfo {
-  margin: 0 auto 12px;
   color: #42526b;
-  font-size: 14px;
+  font-size: 13px;
   background: #eef4ff;
   border: 1px solid #dbe7ff;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 9px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.controlsCard {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  margin: 0 auto 14px;
+  border: 1px solid #e7edf5;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  text-align: right;
 }
 
 #hint {
@@ -127,6 +182,7 @@ button:disabled {
   margin: 0 0 10px;
   font-size: 14px;
   line-height: 1.5;
+  text-align: right;
 }
 
 #searchInput,
@@ -166,6 +222,10 @@ select {
 
 .clearSearchBtn.visible {
   display: flex;
+}
+
+.controlsCard select {
+  margin: 0;
 }
 
 #logo {
@@ -216,40 +276,126 @@ select {
   color: #be123c;
 }
 
+.bulkActions {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px auto 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #dbe7ff;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  max-width: 420px;
+}
+
+.bulkActions.visible {
+  display: flex;
+}
+
+.bulkActionsInfo {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  text-align: right;
+}
+
+.bulkActionsButtons {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bulkBtn {
+  padding: 10px 12px;
+  min-height: 40px;
+}
+
+.copyBtn {
+  background: #3b82f6;
+  color: white;
+}
+
+.clearSelectionBtn {
+  background: #eef4ff;
+  color: #1d4ed8;
+  border: 1px solid #d9e6ff;
+}
+
 .contact {
   background: #ffffff;
   border-radius: 18px;
-  padding: 16px 16px 14px;
-  margin: 12px auto;
+  padding: 14px 14px 12px;
+  margin: 10px auto;
   max-width: 420px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
   border: 1px solid #e7edf5;
   text-align: right;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+.contact.selected {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.12);
+}
+
+.contactTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .contactHeader {
-  margin-bottom: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .contactName {
   display: block;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: #172033;
-  line-height: 1.35;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.contactSelect {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  background: #f8fbff;
+  border: 1px solid #d9e6ff;
+  border-radius: 999px;
+  padding: 7px 10px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.contactSelect input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #3b82f6;
 }
 
 .contactMeta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
 .contactMetaRow {
-  font-size: 14px;
+  font-size: 13.5px;
   color: #4b5563;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .contactMetaRow.phoneRow {
@@ -267,29 +413,35 @@ select {
   text-decoration: underline;
 }
 
+.contactDivider {
+  height: 1px;
+  background: #edf2f7;
+  margin: 8px 0 10px;
+}
+
 .contactActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
-  margin-bottom: 12px;
+  gap: 7px;
+  margin-top: 0;
+  margin-bottom: 10px;
 }
 
 .actionChip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 10px 12px;
+  min-height: 38px;
+  padding: 9px 11px;
   border-radius: 12px;
   background: #f8fbff;
   border: 1px solid #d9e6ff;
   color: #1d4ed8;
   text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  flex: 1 1 calc(33.333% - 6px);
-  min-width: 92px;
+  font-size: 13px;
+  font-weight: 700;
+  flex: 1 1 calc(33.333% - 5px);
+  min-width: 88px;
 }
 
 .actionChip:hover {
@@ -299,11 +451,11 @@ select {
 .addContactBtn {
   width: 100%;
   margin-top: 0;
-  padding: 13px 14px;
+  padding: 12px 14px;
   background: #eef4ff;
   color: #1d4ed8;
   border: 1px solid #d9e6ff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -318,6 +470,10 @@ select {
 @media (max-width: 600px) {
   body {
     padding: 14px 12px 24px;
+  }
+
+  body.bulkBarVisible {
+    padding-bottom: 118px;
   }
 
   h2 {
@@ -339,18 +495,90 @@ select {
     padding: 14px;
   }
 
+  .appHeader {
+    padding: 14px 14px 13px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+
+  .appHeaderTop {
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .appHeaderBadge {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    font-size: 19px;
+    border-radius: 13px;
+    padding: 0;
+  }
+
+  .appSubtitle {
+    font-size: 12.5px;
+    margin-bottom: 9px;
+  }
+
+  .controlsCard {
+    padding: 12px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+  }
+
+  .bulkActions {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    z-index: 1000;
+    max-width: none;
+    margin: 0;
+    padding: 12px;
+    border-radius: 18px;
+    align-items: stretch;
+    flex-direction: column;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .bulkActionsButtons {
+    width: 100%;
+    display: flex;
+  }
+
+  .bulkBtn {
+    flex: 1;
+  }
+
   .contact {
     max-width: 100%;
-    padding: 15px 14px 13px;
+    padding: 13px 13px 12px;
     border-radius: 16px;
   }
 
+  .contactTopRow {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
   .contactName {
-    font-size: 17px;
+    font-size: 16px;
+  }
+
+  .contactSelect {
+    font-size: 11.5px;
+    padding: 6px 9px;
+  }
+
+  .contactMetaRow {
+    font-size: 13px;
   }
 
   .actionChip {
     flex: 1 1 calc(50% - 4px);
+    min-height: 40px;
   }
 
   #logo {
@@ -377,21 +605,39 @@ select {
 
 <div id="app" style="display:none;">
 
-<h2>📇 ספר אנשי קשר</h2>
-<div id="userInfo" style="margin-bottom:10px;color:#444;"></div>
-
-<div id="hint">🔍 התחילו להקליד כדי לחפש איש קשר</div>
-
-<div class="searchWrap">
-  <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
-  <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()">×</button>
+<div class="appHeader">
+  <div class="appHeaderTop">
+    <div>
+      <h2>ספר אנשי קשר</h2>
+    </div>
+    <div class="appHeaderBadge">📇</div>
+  </div>
+  <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש לפי שם, מחלקה או תפקיד, ושמירה ישירה למכשיר.</div>
+  <div id="userInfo"></div>
 </div>
 
-<select onchange="filterByDept(this.value)">
-  <option value="">כל המחלקות</option>
-</select>
+<div class="controlsCard">
+  <div id="hint">🔍 התחילו להקליד כדי לחפש איש קשר</div>
+
+  <div class="searchWrap">
+    <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
+    <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()">×</button>
+  </div>
+
+  <select onchange="filterByDept(this.value)">
+    <option value="">כל המחלקות</option>
+  </select>
+</div>
 
 <img id="logo" src="icon.PNG">
+
+<div id="bulkActions" class="bulkActions">
+  <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
+  <div class="bulkActionsButtons">
+    <button type="button" class="bulkBtn copyBtn" onclick="copySelectedNumbers()">העתק מספרים</button>
+    <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
+  </div>
+</div>
 
 <div id="statusMessage" class="statusMessage"></div>
 <div id="list"></div>
@@ -403,6 +649,8 @@ const APP_PASSWORD = "mhfc1913";
 let contacts = [];
 let isLoadingContacts = false;
 let hasLoadError = false;
+let selectedContactIds = new Set();
+let currentDisplayedContacts = [];
 
 function setStatus(elementId, message = "", type = "") {
   let el = document.getElementById(elementId);
@@ -455,7 +703,6 @@ async function loadContacts() {
 
     contacts = deduplicateContacts(rawContacts);
     populateDepartments();
-
     setLoginStatus("", "");
   } catch (error) {
     console.error(error);
@@ -706,7 +953,107 @@ function shouldShowNoResults() {
   return q.length >= 2 || !!dept;
 }
 
+function updateBulkActions() {
+  let selectedCount = selectedContactIds.size;
+  let bulkActions = document.getElementById("bulkActions");
+  let info = document.getElementById("bulkActionsInfo");
+
+  info.textContent = `נבחרו ${selectedCount} אנשי קשר`;
+
+  if (selectedCount > 0) {
+    bulkActions.classList.add("visible");
+    document.body.classList.add("bulkBarVisible");
+  } else {
+    bulkActions.classList.remove("visible");
+    document.body.classList.remove("bulkBarVisible");
+  }
+}
+
+function toggleContactSelection(id) {
+  if (selectedContactIds.has(id)) {
+    selectedContactIds.delete(id);
+  } else {
+    selectedContactIds.add(id);
+  }
+
+  updateBulkActions();
+  refreshSelectedCardsUI();
+}
+
+function refreshSelectedCardsUI() {
+  document.querySelectorAll(".contact").forEach(card => {
+    let id = Number(card.dataset.id);
+    if (selectedContactIds.has(id)) {
+      card.classList.add("selected");
+    } else {
+      card.classList.remove("selected");
+    }
+  });
+
+  document.querySelectorAll(".contactSelect input[type='checkbox']").forEach(checkbox => {
+    let id = Number(checkbox.dataset.id);
+    checkbox.checked = selectedContactIds.has(id);
+  });
+}
+
+function clearSelectedContacts() {
+  selectedContactIds.clear();
+  updateBulkActions();
+  refreshSelectedCardsUI();
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  let textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    let success = document.execCommand("copy");
+    document.body.removeChild(textArea);
+    return success;
+  } catch (error) {
+    document.body.removeChild(textArea);
+    throw error;
+  }
+}
+
+async function copySelectedNumbers() {
+  let selectedContacts = currentDisplayedContacts.filter(c => selectedContactIds.has(c.id));
+
+  if (!selectedContacts.length) {
+    selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
+  }
+
+  if (!selectedContacts.length) {
+    alert("לא נבחרו אנשי קשר");
+    return;
+  }
+
+  let numbersText = selectedContacts
+    .map(c => formatPhoneForDisplay(c.phone))
+    .join("\n");
+
+  try {
+    await copyTextToClipboard(numbersText);
+    alert("המספרים הועתקו");
+  } catch (error) {
+    console.error(error);
+    alert("לא הצלחנו להעתיק את המספרים");
+  }
+}
+
 function show(list) {
+  currentDisplayedContacts = list;
+
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
 
@@ -716,6 +1063,7 @@ function show(list) {
       setListStatus("", "");
     }
 
+    updateBulkActions();
     return;
   }
 
@@ -726,6 +1074,7 @@ function show(list) {
   list.forEach(c => {
     let cleanPhone = normalizePhone(c.phone).replace("+", "");
     let displayPhone = formatPhoneForDisplay(c.phone);
+    let isSelected = selectedContactIds.has(c.id);
 
     let metaRows = "";
     let actionChips = "";
@@ -762,14 +1111,23 @@ function show(list) {
     }
 
     html += `
-      <div class="contact">
-        <div class="contactHeader">
-          <span class="contactName">${c.name}</span>
+      <div class="contact ${isSelected ? "selected" : ""}" data-id="${c.id}">
+        <div class="contactTopRow">
+          <div class="contactHeader">
+            <span class="contactName">${c.name}</span>
+          </div>
+
+          <label class="contactSelect">
+            <input type="checkbox" data-id="${c.id}" ${isSelected ? "checked" : ""} onchange="toggleContactSelection(${c.id})">
+            בחר/י
+          </label>
         </div>
 
         <div class="contactMeta">
           ${metaRows}
         </div>
+
+        <div class="contactDivider"></div>
 
         <div class="contactActions">
           ${actionChips}
@@ -781,6 +1139,7 @@ function show(list) {
   });
 
   document.getElementById("list").innerHTML = html;
+  updateBulkActions();
 }
 
 function search() {
