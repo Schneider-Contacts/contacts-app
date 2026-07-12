@@ -150,6 +150,61 @@ button:disabled {
   opacity: 0.96;
 }
 
+
+.loginLinks {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 12px;
+}
+
+#login .loginTextBtn {
+  width: auto;
+  margin: 0;
+  padding: 3px 0;
+  background: transparent;
+  color: var(--green-700);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#login .loginTextBtn:hover {
+  text-decoration: underline;
+}
+
+.loginHelp {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.loginHelp a {
+  color: var(--green-700);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.loginHelp a:hover {
+  text-decoration: underline;
+}
+
+.logoutBtn {
+  margin-right: 8px;
+  padding: 5px 8px;
+  background: #ffffff;
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 .appHeader {
   position: relative;
   background:
@@ -800,11 +855,53 @@ select {
 </div>
 
 <div id="login">
-  <h3>כניסה למערכת</h3>
-  <input type="text" id="phoneInput" placeholder="הכנס מספר טלפון">
-  <input type="password" id="passwordInput" placeholder="הכנס סיסמה">
+  <h3 id="loginTitle">כניסה למערכת</h3>
+
+  <input
+    type="email"
+    id="emailInput"
+    placeholder="כתובת מייל"
+    autocomplete="email"
+    inputmode="email"
+  >
+
+  <input
+    type="password"
+    id="passwordInput"
+    placeholder="סיסמה"
+    autocomplete="current-password"
+    onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()"
+  >
+
+  <input
+    type="password"
+    id="confirmPasswordInput"
+    placeholder="אימות סיסמה"
+    autocomplete="new-password"
+    style="display:none;"
+    onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()"
+  >
+
   <br>
-  <button id="loginButton" onclick="login()">כניסה</button>
+  <button id="loginButton" onclick="handlePrimaryAuthAction()">כניסה</button>
+
+  <div class="loginLinks">
+    <button type="button" class="loginTextBtn" id="toggleAuthModeBtn" onclick="toggleAuthMode()">
+      הרשמה ראשונית
+    </button>
+    <button type="button" class="loginTextBtn" onclick="sendPasswordReset()">
+      שכחתי / אין לי סיסמה
+    </button>
+    <button type="button" class="loginTextBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">
+      שליחת אימות מחדש
+    </button>
+  </div>
+
+  <div class="loginHelp">
+    כתובת המייל עדיין לא רשומה?
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header" target="_blank" rel="noopener">מלאו את טופס ההצטרפות</a>.
+  </div>
+
   <div id="loginStatus" class="statusMessage"></div>
 </div>
 
@@ -819,7 +916,10 @@ select {
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש לפי שם, מחלקה או תפקיד, ושמירה ישירה למכשיר.</div>
-    <div id="userInfo"></div>
+    <div id="userInfo">
+      <span id="userInfoText"></span>
+      <button type="button" class="logoutBtn" onclick="logout()">יציאה</button>
+    </div>
   </div>
 
   <div class="controlsCard">
@@ -852,9 +952,24 @@ select {
 </div>
 
 <script>
-const APP_PASSWORD = "mhfc1913";
-const DATA_URL = "https://opensheet.elk.sh/1EN-gasJRSjrWz_HquzKnGlGFQeRBbCV1wxUAJSTXwAg/contacts";
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBaZa5_RmMqhRH6MazTw5or9BqMZGC1RqM",
+  authDomain: "contacts-sch.firebaseapp.com",
+  projectId: "contacts-sch",
+  storageBucket: "contacts-sch.firebasestorage.app",
+  messagingSenderId: "1075199399228",
+  appId: "1:1075199399228:web:1791df20931f66a483fa39"
+};
+
+const FIREBASE_SDK_VERSION = "12.16.0";
+const PASSWORD_AUTH_RETURN_URL =
+  "https://schneider-contacts.github.io/contacts-app/index-firebase-password-test.html";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
+
+let firebaseApi = null;
+let firebaseApp = null;
+let auth = null;
+let db = null;
 
 let contacts = [];
 let isLoadingContacts = false;
@@ -862,6 +977,10 @@ let hasLoadError = false;
 let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
+
+let authMode = "login";
+let authActionInProgress = false;
+let lastUnverifiedEmail = "";
 
 function setStatus(elementId, message = "", type = "") {
   const el = document.getElementById(elementId);
@@ -1082,16 +1201,20 @@ function exitSelectionMode() {
 }
 
 async function loadContacts() {
+  if (!firebaseApi || !db) {
+    throw new Error("Firebase עדיין לא אותחל.");
+  }
+
   isLoadingContacts = true;
   hasLoadError = false;
   setLoginButtonDisabled(true);
-  setLoginStatus("טוען אנשי קשר...", "loading");
 
   try {
-    const res = await fetch(DATA_URL);
-    if (!res.ok) throw new Error("Failed to load contacts");
+    const snapshot = await firebaseApi.getDocs(
+      firebaseApi.collection(db, "contacts")
+    );
 
-    const data = await res.json();
+    const data = snapshot.docs.map(document => document.data());
 
     const rawContacts = data.map((row, index) => ({
       id: index,
@@ -1105,69 +1228,470 @@ async function loadContacts() {
       dept: (row.department || "").toString().trim(),
       phone: normalizePhone(row.phone || ""),
       email: (row.email || "").toString().replace(/\u200E/g, "").trim()
-    })).filter(c => c.phone);
+    })).filter(contact => contact.phone);
 
     contacts = deduplicateContacts(rawContacts);
     populateDepartments();
-    setLoginStatus("", "");
   } catch (error) {
     console.error(error);
     contacts = [];
     hasLoadError = true;
-    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
+    throw error;
   } finally {
     isLoadingContacts = false;
     setLoginButtonDisabled(false);
   }
 }
 
-function login() {
-  if (isLoadingContacts) {
-    setLoginStatus("טוען אנשי קשר...", "loading");
-    return;
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+}
+
+function getAuthErrorMessage(error) {
+  const code = error && error.code ? error.code : "";
+
+  if (code === "auth/invalid-email") {
+    return "כתובת המייל אינה תקינה.";
   }
 
-  if (hasLoadError) {
-    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
-    return;
+  if (
+    code === "auth/invalid-credential" ||
+    code === "auth/invalid-login-credentials" ||
+    code === "auth/wrong-password" ||
+    code === "auth/user-not-found"
+  ) {
+    return "כתובת המייל או הסיסמה אינן נכונות.";
   }
 
-  const input = document.getElementById("phoneInput").value;
-  const password = document.getElementById("passwordInput").value;
-
-  if (password !== APP_PASSWORD) {
-    alert("סיסמה שגויה");
-    return;
+  if (code === "auth/email-already-in-use") {
+    return "כבר קיים חשבון עם כתובת המייל הזו. השתמשו ב״שכחתי / אין לי סיסמה״ כדי לקבוע סיסמה.";
   }
 
-  const normalized = normalizePhone(input);
-  const found = contacts.find(c => normalizePhone(c.phone) === normalized);
+  if (
+    code === "auth/weak-password" ||
+    code === "auth/password-does-not-meet-requirements"
+  ) {
+    return "הסיסמה אינה עומדת בדרישות האבטחה. בחרו סיסמה חזקה יותר.";
+  }
 
-  if (found) {
-    localStorage.setItem("userPhone", normalized);
-    document.getElementById("login").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    document.getElementById("userInfo").textContent = "מחובר/ת כ: " + (found.name || found.phone);
-    show([]);
+  if (code === "auth/too-many-requests") {
+    return "בוצעו יותר מדי ניסיונות. נסו שוב מאוחר יותר.";
+  }
+
+  if (code === "auth/user-disabled") {
+    return "חשבון המשתמש הושבת.";
+  }
+
+  if (code === "auth/operation-not-allowed") {
+    return "כניסה באמצעות מייל וסיסמה עדיין אינה מופעלת בפרויקט Firebase.";
+  }
+
+  if (code === "auth/network-request-failed") {
+    return "לא ניתן להתחבר למערכת. בדקו את החיבור לאינטרנט ונסו שוב.";
+  }
+
+  return code
+    ? "לא הצלחנו להשלים את הפעולה. קוד שגיאה: " + code
+    : "לא הצלחנו להשלים את הפעולה. נסו שוב.";
+}
+
+function setAuthMode(mode) {
+  authMode = mode === "register" ? "register" : "login";
+
+  const title = document.getElementById("loginTitle");
+  const button = document.getElementById("loginButton");
+  const toggleButton = document.getElementById("toggleAuthModeBtn");
+  const passwordInput = document.getElementById("passwordInput");
+  const confirmInput = document.getElementById("confirmPasswordInput");
+  const resendButton = document.getElementById("resendVerificationBtn");
+
+  if (resendButton) resendButton.style.display = "none";
+
+  if (authMode === "register") {
+    if (title) title.textContent = "הרשמה ראשונית";
+    if (button) button.textContent = "יצירת חשבון ושליחת אימות";
+    if (toggleButton) toggleButton.textContent = "חזרה לכניסה";
+    if (passwordInput) passwordInput.autocomplete = "new-password";
+    if (confirmInput) confirmInput.style.display = "block";
   } else {
-    alert("מספר לא נמצא במערכת");
+    if (title) title.textContent = "כניסה למערכת";
+    if (button) button.textContent = "כניסה";
+    if (toggleButton) toggleButton.textContent = "הרשמה ראשונית";
+    if (passwordInput) passwordInput.autocomplete = "current-password";
+    if (confirmInput) {
+      confirmInput.value = "";
+      confirmInput.style.display = "none";
+    }
   }
 }
 
-function autoLogin() {
-  if (hasLoadError) return;
+function toggleAuthMode() {
+  setLoginStatus("", "");
+  setAuthMode(authMode === "login" ? "register" : "login");
+}
 
-  const saved = localStorage.getItem("userPhone");
-  if (!saved) return;
+function getAuthInputs() {
+  return {
+    email: normalizeEmail(document.getElementById("emailInput").value),
+    password: document.getElementById("passwordInput").value,
+    confirmPassword: document.getElementById("confirmPasswordInput").value
+  };
+}
 
-  const found = contacts.find(c => normalizePhone(c.phone) === saved);
-
-  if (found) {
-    document.getElementById("login").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    document.getElementById("userInfo").textContent = "מחובר/ת כ: " + (found.name || found.phone);
-    show([]);
+async function handlePrimaryAuthAction() {
+  if (authMode === "register") {
+    await registerWithPassword();
+  } else {
+    await loginWithPassword();
   }
+}
+
+async function registerWithPassword() {
+  if (!firebaseApi || !auth) {
+    setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
+    return;
+  }
+
+  const { email, password, confirmPassword } = getAuthInputs();
+
+  if (!isValidEmail(email)) {
+    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
+    return;
+  }
+
+  if (!password) {
+    setLoginStatus("הכניסו סיסמה.", "error");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setLoginStatus("הסיסמאות אינן תואמות.", "error");
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("יוצר חשבון ושולח מייל אימות...", "loading");
+  authActionInProgress = true;
+
+  try {
+    const credential = await firebaseApi.createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    auth.languageCode = "he";
+
+    await firebaseApi.sendEmailVerification(credential.user, {
+      url: PASSWORD_AUTH_RETURN_URL
+    });
+
+    await firebaseApi.signOut(auth);
+    lastUnverifiedEmail = email;
+    setAuthMode("login");
+    document.getElementById("emailInput").value = email;
+    document.getElementById("passwordInput").value = "";
+
+    const resendButton = document.getElementById("resendVerificationBtn");
+    if (resendButton) resendButton.style.display = "inline-block";
+
+    setLoginStatus(
+      "נשלח מייל אימות. לחצו על הקישור במייל פעם אחת, ואז חזרו לכאן והיכנסו עם המייל והסיסמה.",
+      "loading"
+    );
+  } catch (error) {
+    console.error("Registration failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
+  } finally {
+    authActionInProgress = false;
+    setLoginButtonDisabled(false);
+  }
+}
+
+async function loginWithPassword() {
+  if (!firebaseApi || !auth) {
+    setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
+    return;
+  }
+
+  const { email, password } = getAuthInputs();
+
+  if (!isValidEmail(email)) {
+    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
+    return;
+  }
+
+  if (!password) {
+    setLoginStatus("הכניסו סיסמה.", "error");
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("מתחבר...", "loading");
+  authActionInProgress = true;
+
+  try {
+    const credential = await firebaseApi.signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    await firebaseApi.reload(credential.user);
+
+    if (!credential.user.emailVerified) {
+      lastUnverifiedEmail = email;
+      await firebaseApi.signOut(auth);
+
+      const resendButton = document.getElementById("resendVerificationBtn");
+      if (resendButton) resendButton.style.display = "inline-block";
+
+      setLoginStatus(
+        "כתובת המייל עדיין לא אומתה. פתחו את מייל האימות או לחצו על ״שליחת אימות מחדש״.",
+        "error"
+      );
+      return;
+    }
+
+    await handleAuthenticatedUser(credential.user);
+  } catch (error) {
+    console.error("Password sign-in failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
+  } finally {
+    authActionInProgress = false;
+    setLoginButtonDisabled(false);
+  }
+}
+
+async function resendVerification() {
+  if (!firebaseApi || !auth) return;
+
+  const { email, password } = getAuthInputs();
+  const targetEmail = email || lastUnverifiedEmail;
+
+  if (!isValidEmail(targetEmail) || !password) {
+    setLoginStatus(
+      "כדי לשלוח אימות מחדש, הכניסו את כתובת המייל והסיסמה של החשבון.",
+      "error"
+    );
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("שולח מייל אימות חדש...", "loading");
+  authActionInProgress = true;
+
+  try {
+    const credential = await firebaseApi.signInWithEmailAndPassword(
+      auth,
+      targetEmail,
+      password
+    );
+
+    auth.languageCode = "he";
+
+    await firebaseApi.sendEmailVerification(credential.user, {
+      url: PASSWORD_AUTH_RETURN_URL
+    });
+
+    await firebaseApi.signOut(auth);
+    lastUnverifiedEmail = targetEmail;
+
+    setLoginStatus(
+      "נשלח מייל אימות חדש. פתחו אותו ולחצו על הקישור.",
+      "loading"
+    );
+  } catch (error) {
+    console.error("Resending verification failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
+  } finally {
+    authActionInProgress = false;
+    setLoginButtonDisabled(false);
+  }
+}
+
+async function sendPasswordReset() {
+  if (!firebaseApi || !auth) {
+    setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
+    return;
+  }
+
+  const email = normalizeEmail(document.getElementById("emailInput").value);
+
+  if (!isValidEmail(email)) {
+    setLoginStatus(
+      "הכניסו תחילה את כתובת המייל שעבורה תרצו לקבוע או לאפס סיסמה.",
+      "error"
+    );
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("שולח קישור לקביעת סיסמה...", "loading");
+
+  try {
+    auth.languageCode = "he";
+
+    await firebaseApi.sendPasswordResetEmail(auth, email, {
+      url: PASSWORD_AUTH_RETURN_URL
+    });
+
+    setLoginStatus(
+      "נשלח מייל לקביעת סיסמה. לאחר קביעת הסיסמה חזרו לכאן והתחברו.",
+      "loading"
+    );
+  } catch (error) {
+    console.error("Password reset failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
+  } finally {
+    setLoginButtonDisabled(false);
+  }
+}
+
+function showLoginScreen() {
+  document.getElementById("login").style.display = "block";
+  document.getElementById("app").style.display = "none";
+}
+
+function showAppForUser(user) {
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  const normalizedUserEmail = normalizeEmail(user && user.email);
+  const matchingContact = contacts.find(
+    contact => normalizeEmail(contact.email) === normalizedUserEmail
+  );
+
+  const displayIdentity = matchingContact && matchingContact.name
+    ? matchingContact.name
+    : normalizedUserEmail;
+
+  const userInfoText = document.getElementById("userInfoText");
+  if (userInfoText) {
+    userInfoText.textContent = "מחובר/ת כ: " + displayIdentity;
+  }
+
+  setLoginStatus("", "");
+  show([]);
+}
+
+function isPermissionDeniedError(error) {
+  const code = error && error.code ? error.code : "";
+  return code === "permission-denied" || code === "firestore/permission-denied";
+}
+
+async function handleAuthenticatedUser(user) {
+  if (!user) {
+    contacts = [];
+    showLoginScreen();
+    return;
+  }
+
+  await firebaseApi.reload(user);
+
+  if (!user.emailVerified) {
+    lastUnverifiedEmail = normalizeEmail(user.email);
+    await firebaseApi.signOut(auth);
+    showLoginScreen();
+
+    const resendButton = document.getElementById("resendVerificationBtn");
+    if (resendButton) resendButton.style.display = "inline-block";
+
+    setLoginStatus(
+      "כתובת המייל עדיין לא אומתה. פתחו את מייל האימות ולאחר מכן התחברו.",
+      "error"
+    );
+    return;
+  }
+
+  try {
+    setLoginStatus("טוען אנשי קשר...", "loading");
+    await loadContacts();
+    showAppForUser(user);
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      await firebaseApi.signOut(auth);
+      showLoginScreen();
+      setLoginStatus(
+        "כתובת המייל אינה מורשית או שהגישה אליה הושבתה. ניתן להירשם באמצעות טופס ההצטרפות.",
+        "error"
+      );
+      return;
+    }
+
+    showLoginScreen();
+    setLoginStatus("שגיאה בטעינת הנתונים. נסו לרענן את הדף.", "error");
+  }
+}
+
+async function logout() {
+  if (!firebaseApi || !auth) return;
+
+  try {
+    await firebaseApi.signOut(auth);
+    contacts = [];
+    selectedContactIds.clear();
+    currentDisplayedContacts = [];
+    selectionMode = false;
+    document.getElementById("list").innerHTML = "";
+    showLoginScreen();
+    setLoginStatus("התנתקת מהמערכת.", "empty");
+  } catch (error) {
+    console.error(error);
+    alert("לא הצלחנו להתנתק. נסו שוב.");
+  }
+}
+
+async function initializeFirebase() {
+  const baseUrl = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`;
+
+  const [appModule, authModule, firestoreModule] = await Promise.all([
+    import(`${baseUrl}/firebase-app.js`),
+    import(`${baseUrl}/firebase-auth.js`),
+    import(`${baseUrl}/firebase-firestore.js`)
+  ]);
+
+  firebaseApi = {
+    initializeApp: appModule.initializeApp,
+    getAuth: authModule.getAuth,
+    setPersistence: authModule.setPersistence,
+    browserLocalPersistence: authModule.browserLocalPersistence,
+    createUserWithEmailAndPassword: authModule.createUserWithEmailAndPassword,
+    signInWithEmailAndPassword: authModule.signInWithEmailAndPassword,
+    sendEmailVerification: authModule.sendEmailVerification,
+    sendPasswordResetEmail: authModule.sendPasswordResetEmail,
+    onAuthStateChanged: authModule.onAuthStateChanged,
+    reload: authModule.reload,
+    signOut: authModule.signOut,
+    getFirestore: firestoreModule.getFirestore,
+    collection: firestoreModule.collection,
+    getDocs: firestoreModule.getDocs
+  };
+
+  firebaseApp = firebaseApi.initializeApp(FIREBASE_CONFIG);
+  auth = firebaseApi.getAuth(firebaseApp);
+  db = firebaseApi.getFirestore(firebaseApp);
+
+  auth.languageCode = "he";
+
+  await firebaseApi.setPersistence(
+    auth,
+    firebaseApi.browserLocalPersistence
+  );
+
+  firebaseApi.onAuthStateChanged(auth, user => {
+    if (authActionInProgress) return;
+
+    handleAuthenticatedUser(user).catch(error => {
+      console.error("Authentication state handling failed", error);
+      showLoginScreen();
+      setLoginStatus("שגיאה בכניסה למערכת. נסו לרענן את הדף.", "error");
+    });
+  });
 }
 
 function updateSearchUI() {
@@ -1634,7 +2158,26 @@ function init() {
     return;
   }
 
-  loadContacts().then(() => autoLogin());
+  setAuthMode("login");
+  setLoginStatus("טוען את המערכת...", "loading");
+  setLoginButtonDisabled(true);
+
+  initializeFirebase()
+    .then(() => {
+      setLoginButtonDisabled(false);
+
+      if (!auth.currentUser) {
+        setLoginStatus("", "");
+      }
+    })
+    .catch(error => {
+      console.error("Firebase initialization failed", error);
+      setLoginButtonDisabled(false);
+      setLoginStatus(
+        "לא הצלחנו לטעון את מערכת ההתחברות. נסו לרענן את הדף.",
+        "error"
+      );
+    });
 }
 
 init();
