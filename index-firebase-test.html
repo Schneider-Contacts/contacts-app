@@ -837,7 +837,7 @@ select {
 
 <div id="login">
   <h3>כניסה למערכת</h3>
-  <div class="loginSubtitle">
+  <div class="loginSubtitle" id="loginSubtitle">
     הכניסו את כתובת המייל הרשומה במערכת. יישלח אליה קישור כניסה חד-פעמי.
   </div>
   <input
@@ -926,6 +926,8 @@ let hasLoadError = false;
 let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
+let pendingEmailLinkUrl = "";
+let awaitingEmailConfirmation = false;
 
 function setStatus(elementId, message = "", type = "") {
   const el = document.getElementById(elementId);
@@ -1195,11 +1197,12 @@ function normalizeEmail(email) {
 }
 
 function getAuthReturnUrl() {
-  return window.location.origin + window.location.pathname;
+  return "https://schneider-contacts.github.io/contacts-app/index-firebase-test.html";
 }
 
 function getAuthErrorMessage(error) {
   const code = error && error.code ? error.code : "";
+  const rawMessage = error && error.message ? error.message : "";
 
   if (code === "auth/invalid-email") {
     return "כתובת המייל אינה תקינה.";
@@ -1209,15 +1212,98 @@ function getAuthErrorMessage(error) {
     return "נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.";
   }
 
-  if (code === "auth/invalid-action-code" || code === "auth/expired-action-code") {
-    return "קישור הכניסה אינו תקין או שפג תוקפו. שלחו קישור חדש.";
+  if (
+    code === "auth/invalid-action-code" ||
+    code === "auth/expired-action-code" ||
+    code === "auth/invalid-credential"
+  ) {
+    return "קישור הכניסה אינו תקין, כבר נוצל או שפג תוקפו. שלחו קישור חדש.";
+  }
+
+  if (code === "auth/invalid-continue-uri") {
+    return "כתובת החזרה של קישור הכניסה אינה תקינה. פתחו את גרסת הבדיקה דרך אתר GitHub Pages ולא כקובץ מקומי.";
   }
 
   if (code === "auth/unauthorized-continue-uri") {
     return "כתובת האתר אינה מורשית ב-Firebase Authentication.";
   }
 
-  return "לא הצלחנו להשלים את הכניסה. נסו שוב.";
+  if (code === "auth/operation-not-allowed") {
+    return "כניסה באמצעות קישור למייל אינה מופעלת בפרויקט Firebase.";
+  }
+
+  if (code === "auth/user-disabled") {
+    return "המשתמש הזה הושבת ב-Firebase Authentication.";
+  }
+
+  if (code === "auth/network-request-failed") {
+    return "לא ניתן להתחבר ל-Firebase. בדקו את החיבור לאינטרנט ונסו שוב.";
+  }
+
+  if (rawMessage === "auth/missing-email") {
+    return "כדי להשלים את הכניסה יש להזין שוב את כתובת המייל שאליה נשלח הקישור.";
+  }
+
+  const debugDetail = code || rawMessage;
+  return debugDetail
+    ? "לא הצלחנו להשלים את הכניסה. קוד שגיאה: " + debugDetail
+    : "לא הצלחנו להשלים את הכניסה. נסו שוב.";
+}
+
+function prepareEmailConfirmationScreen() {
+  awaitingEmailConfirmation = true;
+  showLoginScreen();
+
+  const subtitle = document.getElementById("loginSubtitle");
+  const input = document.getElementById("emailInput");
+  const button = document.getElementById("loginButton");
+
+  if (subtitle) {
+    subtitle.textContent = "הקישור נפתח בדפדפן אחר. הזינו את כתובת המייל שאליה נשלח הקישור כדי להשלים את הכניסה.";
+  }
+
+  if (input) {
+    input.value = "";
+    input.placeholder = "המייל שאליו נשלח הקישור";
+    input.focus();
+  }
+
+  if (button) {
+    button.textContent = "השלמת הכניסה";
+  }
+
+  setLoginStatus("", "");
+}
+
+async function finishPendingEmailLink(email) {
+  const normalized = normalizeEmail(email);
+
+  if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    setLoginStatus("הכניסו את כתובת המייל שאליה נשלח הקישור.", "error");
+    return;
+  }
+
+  if (!pendingEmailLinkUrl) {
+    setLoginStatus("קישור הכניסה חסר. שלחו קישור חדש.", "error");
+    awaitingEmailConfirmation = false;
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("משלים את הכניסה...", "loading");
+
+  try {
+    await firebaseApi.signInWithEmailLink(auth, normalized, pendingEmailLinkUrl);
+    localStorage.removeItem(AUTH_EMAIL_STORAGE_KEY);
+    pendingEmailLinkUrl = "";
+    awaitingEmailConfirmation = false;
+    window.history.replaceState({}, document.title, getAuthReturnUrl());
+  } catch (error) {
+    console.error("Email-link sign-in failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
+  } finally {
+    setLoginButtonDisabled(false);
+  }
 }
 
 async function sendLoginLink() {
@@ -1228,6 +1314,11 @@ async function sendLoginLink() {
 
   const input = document.getElementById("emailInput");
   const email = normalizeEmail(input ? input.value : "");
+
+  if (awaitingEmailConfirmation) {
+    await finishPendingEmailLink(email);
+    return;
+  }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
@@ -1249,7 +1340,7 @@ async function sendLoginLink() {
       "loading"
     );
   } catch (error) {
-    console.error(error);
+    console.error("Sending email link failed", error);
     setLoginStatus(getAuthErrorMessage(error), "error");
   } finally {
     setLoginButtonDisabled(false);
@@ -1261,24 +1352,15 @@ async function completeEmailLinkSignIn() {
     return;
   }
 
-  setLoginButtonDisabled(true);
-  setLoginStatus("משלים את הכניסה...", "loading");
-
-  let email = normalizeEmail(localStorage.getItem(AUTH_EMAIL_STORAGE_KEY));
+  pendingEmailLinkUrl = window.location.href;
+  const email = normalizeEmail(localStorage.getItem(AUTH_EMAIL_STORAGE_KEY));
 
   if (!email) {
-    email = normalizeEmail(
-      window.prompt("כדי להשלים את הכניסה, הזינו את כתובת המייל שאליה נשלח הקישור:")
-    );
+    prepareEmailConfirmationScreen();
+    return;
   }
 
-  if (!email) {
-    throw new Error("auth/missing-email");
-  }
-
-  await firebaseApi.signInWithEmailLink(auth, email, window.location.href);
-  localStorage.removeItem(AUTH_EMAIL_STORAGE_KEY);
-  window.history.replaceState({}, document.title, window.location.pathname);
+  await finishPendingEmailLink(email);
 }
 
 function showLoginScreen() {
