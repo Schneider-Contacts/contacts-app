@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4fbf7">
+  <link rel="icon" href="icon.PNG">
+  <link rel="apple-touch-icon" href="icon.PNG">
+  <title>השלמת או עדכון כתובת מייל</title>
+
+  <style>
+    :root {
+      --bg: #f4fbf7;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #61756d;
+      --green-50: #ecfdf5;
+      --green-100: #d1fae5;
+      --green-200: #a7f3d0;
+      --green-500: #10b981;
+      --green-600: #059669;
+      --green-700: #047857;
+      --border: #d9efe4;
+      --error-bg: #fff1f2;
+      --error-border: #fecdd3;
+      --error-text: #be123c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 14px;
+      background:
+        radial-gradient(circle at top right, rgba(110, 231, 183, 0.24), transparent 34%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px 18px 20px;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.09);
+    }
+
+    .logoBox {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 14px;
+      padding: 8px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--green-50);
+      border: 1px solid var(--green-200);
+    }
+
+    .logoBox img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 14px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: #17352d;
+      text-align: center;
+      font-size: 26px;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 7px;
+      color: #315b4c;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 14px 15px;
+      border: 1px solid #d3e8de;
+      border-radius: 14px;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 16px;
+      text-align: right;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus {
+      border-color: var(--green-500);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
+    }
+
+    .hint {
+      margin: 7px 2px 0;
+      color: #718078;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .honeypot {
+      position: absolute !important;
+      left: -9999px !important;
+      width: 1px !important;
+      height: 1px !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    button,
+    .appLink {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button {
+      margin-top: 20px;
+      background: var(--green-600);
+      color: #ffffff;
+      box-shadow: 0 8px 20px rgba(5, 150, 105, 0.23);
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .status {
+      display: none;
+      margin-top: 16px;
+      padding: 13px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .status.visible {
+      display: block;
+    }
+
+    .status.loading {
+      background: var(--green-50);
+      border: 1px solid var(--green-200);
+      color: #295746;
+    }
+
+    .status.error {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+    }
+
+    .successBox {
+      display: none;
+      text-align: right;
+    }
+
+    .successBox.visible {
+      display: block;
+    }
+
+    .successTitle {
+      margin: 6px 0 12px;
+      color: #176847;
+      font-size: 22px;
+      text-align: center;
+    }
+
+    .successDetails {
+      margin: 0 0 16px;
+      padding: 14px;
+      border-radius: 15px;
+      background: var(--green-50);
+      border: 1px solid var(--green-200);
+      color: #295746;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .successSteps {
+      margin: 0 0 18px;
+      padding-right: 20px;
+      color: #405e52;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .appLink {
+      background: var(--green-600);
+      color: #ffffff;
+      box-shadow: 0 8px 20px rgba(5, 150, 105, 0.23);
+    }
+
+    .secondaryBtn {
+      margin-top: 10px;
+      background: var(--green-50);
+      color: var(--green-700);
+      border: 1px solid var(--green-200);
+      box-shadow: none;
+    }
+
+    .backLink {
+      display: block;
+      margin-top: 16px;
+      color: var(--green-700);
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    #submitFrame {
+      display: none;
+      width: 0;
+      height: 0;
+      border: 0;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 16px 12px 24px;
+      }
+
+      .card {
+        border-radius: 20px;
+        padding: 21px 15px 18px;
+      }
+
+      h1 {
+        font-size: 23px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <section class="card">
+      <div class="logoBox">
+        <img src="icon.PNG" alt="">
+      </div>
+
+      <h1>השלמת או עדכון כתובת מייל</h1>
+
+      <p class="subtitle">
+        הזינו את מספר הטלפון שמופיע בספר אנשי הקשר ואת כתובת המייל שבה תרצו להשתמש לכניסה.
+      </p>
+
+      <form
+        id="emailForm"
+        action="https://script.google.com/macros/s/AKfycbw1aJRjfWl-fYiZveZ5oKdvtv9v_UGUa6JUzv9G1GKQZVK4SKsYdt0GTCgI50fyLE5V/exec"
+        method="post"
+        target="submitFrame"
+        novalidate
+      >
+        <input type="hidden" name="action" value="emailUpdate">
+        <input type="hidden" id="requestId" name="requestId" value="">
+
+        <label for="phone">מספר טלפון</label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          placeholder="למשל 050-123-4567"
+          required
+        >
+        <div class="hint">
+          יש להזין את אותו מספר שמופיע ברשימת אנשי הקשר.
+        </div>
+
+        <label for="email">כתובת מייל חדשה</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          placeholder="name@example.com"
+          required
+        >
+
+        <label for="confirmEmail">הזנת המייל פעם נוספת</label>
+        <input
+          id="confirmEmail"
+          name="confirmEmail"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          placeholder="name@example.com"
+          required
+        >
+
+        <input
+          id="website"
+          name="website"
+          type="text"
+          class="honeypot"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+        >
+
+        <button id="submitBtn" type="submit">עדכון כתובת המייל</button>
+        <div id="status" class="status"></div>
+      </form>
+
+      <div id="successBox" class="successBox">
+        <div class="successTitle">המייל עודכן בהצלחה</div>
+
+        <div id="successDetails" class="successDetails"></div>
+
+        <ol class="successSteps">
+          <li>פתחו את האפליקציה.</li>
+          <li>בחרו הרשמה ראשונית והגדירו סיסמה.</li>
+          <li>אמתו את כתובת המייל פעם אחת דרך ההודעה שתישלח אליכם.</li>
+        </ol>
+
+        <a
+          class="appLink"
+          href="https://schneider-contacts.github.io/contacts-app/"
+        >
+          מעבר לספר אנשי הקשר
+        </a>
+
+        <button type="button" class="secondaryBtn" id="resetBtn">
+          עדכון כתובת נוספת
+        </button>
+      </div>
+
+      <a
+        class="backLink"
+        href="https://schneider-contacts.github.io/contacts-app/"
+      >
+        חזרה לאפליקציה
+      </a>
+
+      <iframe id="submitFrame" name="submitFrame" title="שליחת טופס"></iframe>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("emailForm");
+    const submitFrame = document.getElementById("submitFrame");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusEl = document.getElementById("status");
+    const successBox = document.getElementById("successBox");
+    const successDetails = document.getElementById("successDetails");
+    const resetBtn = document.getElementById("resetBtn");
+    const requestIdInput = document.getElementById("requestId");
+
+    let pendingRequestId = "";
+    let responseTimer = null;
+
+    function setStatus(message = "", type = "") {
+      statusEl.textContent = message;
+      statusEl.className = "status";
+
+      if (message) {
+        statusEl.classList.add("visible");
+        if (type) statusEl.classList.add(type);
+      }
+    }
+
+    function setBusy(isBusy) {
+      submitBtn.disabled = isBusy;
+      submitBtn.textContent = isBusy
+        ? "מעדכן..."
+        : "עדכון כתובת המייל";
+    }
+
+    function createRequestId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+
+      return (
+        Date.now().toString(36) +
+        "-" +
+        Math.random().toString(36).slice(2) +
+        "-" +
+        Math.random().toString(36).slice(2)
+      );
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function clearResponseTimer() {
+      if (responseTimer) {
+        clearTimeout(responseTimer);
+        responseTimer = null;
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const confirmEmail = document
+        .getElementById("confirmEmail")
+        .value
+        .trim();
+
+      if (!phone || !email || !confirmEmail) {
+        event.preventDefault();
+        setStatus("יש למלא את כל השדות.", "error");
+        return;
+      }
+
+      if (email.toLowerCase() !== confirmEmail.toLowerCase()) {
+        event.preventDefault();
+        setStatus("כתובות המייל שהוזנו אינן תואמות.", "error");
+        return;
+      }
+
+      pendingRequestId = createRequestId();
+      requestIdInput.value = pendingRequestId;
+
+      setBusy(true);
+      setStatus("מעדכן את הפרטים...", "loading");
+      clearResponseTimer();
+
+      responseTimer = setTimeout(() => {
+        setBusy(false);
+        setStatus(
+          "לא התקבלה תשובה מהמערכת. בדקו בכניסה לאפליקציה אם המייל עודכן, או נסו שוב.",
+          "error"
+        );
+        pendingRequestId = "";
+      }, 45000);
+    });
+
+    window.addEventListener("message", event => {
+      if (event.source !== submitFrame.contentWindow) return;
+
+      const data = event.data;
+
+      if (
+        !data ||
+        data.source !== "schneider-email-update" ||
+        !pendingRequestId ||
+        data.requestId !== pendingRequestId
+      ) {
+        return;
+      }
+
+      clearResponseTimer();
+      setBusy(false);
+      pendingRequestId = "";
+
+      if (!data.success) {
+        setStatus(
+          data.message || "העדכון נכשל. נסו שוב.",
+          "error"
+        );
+        return;
+      }
+
+      const result = data.result || {};
+      const safeName = escapeHtml(result.displayName || "איש הקשר");
+      const safePhone = escapeHtml(result.phone || "");
+      const safeEmail = escapeHtml(result.email || "");
+
+      setStatus("");
+      form.style.display = "none";
+      successBox.classList.add("visible");
+
+      successDetails.innerHTML =
+        "<b>" +
+        safeName +
+        "</b><br>" +
+        (safePhone ? safePhone + "<br>" : "") +
+        "כתובת המייל המעודכנת: <b>" +
+        safeEmail +
+        "</b>";
+    });
+
+    resetBtn.addEventListener("click", () => {
+      clearResponseTimer();
+      pendingRequestId = "";
+      requestIdInput.value = "";
+      form.reset();
+      setBusy(false);
+      setStatus("");
+      successBox.classList.remove("visible");
+      form.style.display = "block";
+      document.getElementById("phone").focus();
+    });
+  </script>
+</body>
+</html>
