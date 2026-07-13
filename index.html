@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="icon.PNG?v=20260713">
-<link rel="icon" href="icon.PNG?v=20260713">
+<link rel="apple-touch-icon" href="icon.PNG?v=20260713-auth2">
+<link rel="icon" href="icon.PNG?v=20260713-auth2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -1713,6 +1713,102 @@ select {
   }
 }
 
+
+
+/* ===== Super-admin management ===== */
+.adminSuperOnly {
+  display: none !important;
+}
+
+.adminSuperOnly.visible {
+  display: inline-flex !important;
+}
+
+.adminTabs.hasManagers {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adminToolbarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.adminToolbarTop .adminSummary {
+  margin: 0;
+}
+
+.adminAddBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 12px;
+  background: var(--green-600);
+  color: #ffffff;
+  box-shadow: 0 7px 16px rgba(5, 150, 105, 0.20);
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.adminAddBtn.visible {
+  display: inline-flex;
+}
+
+.adminRoleBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef8f3;
+  border: 1px solid #cfe7da;
+  color: #3b6555;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.adminRoleBadge.super {
+  background: #fff7e6;
+  border-color: #f3d49a;
+  color: #8a5a09;
+}
+
+.adminFormField select {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 12px 13px;
+  border: 1px solid #d3e8de;
+  border-radius: 13px;
+  background: #ffffff;
+  color: var(--text);
+  text-align: right;
+  font-size: 15px;
+  outline: none;
+}
+
+.adminFormField select:focus {
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+}
+
+@media (max-width: 600px) {
+  .adminToolbarTop {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminAddBtn {
+    width: 100%;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1740,7 +1836,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="icon.PNG?v=20260713" alt="לוגו ספר אנשי הקשר">
+      <img src="icon.PNG?v=20260713-auth2" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -1823,7 +1919,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="icon.PNG?v=20260713" alt="App logo">
+        <img class="appHeaderLogo" src="icon.PNG?v=20260713-auth2" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -1859,7 +1955,7 @@ select {
   <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
 </div>
 
-  <img id="logo" src="icon.PNG?v=20260713">
+  <img id="logo" src="icon.PNG?v=20260713-auth2">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -1887,6 +1983,7 @@ select {
     <div class="adminTabs" role="tablist">
       <button type="button" id="adminContactsTab" class="adminTabBtn active" onclick="setAdminTab('contacts')">אנשי קשר</button>
       <button type="button" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">הרשאות משתמשים</button>
+      <button type="button" id="adminManagersTab" class="adminTabBtn adminSuperOnly" onclick="setAdminTab('managers')">מנהלים</button>
     </div>
   </div>
 
@@ -1908,11 +2005,57 @@ select {
       <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">חסומים</button>
     </div>
 
-    <div id="adminSummary" class="adminSummary"></div>
+    <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
+      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
+      <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">פעילים</button>
+      <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">מושבתים</button>
+      <button type="button" class="adminFilterBtn" data-filter="super_admin" onclick="setAdminFilter('super_admin')">מנהלי־על</button>
+    </div>
+
+    <div class="adminToolbarTop">
+      <div id="adminSummary" class="adminSummary"></div>
+      <button type="button" id="adminAddManagerBtn" class="adminAddBtn" onclick="openAddManagerModal()">＋ הוספת מנהל</button>
+    </div>
   </div>
 
   <div id="adminStatus" class="statusMessage"></div>
   <div id="adminList"></div>
+</div>
+
+
+<div id="adminManagerModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="adminManagerModalTitle">
+  <div class="adminModalCard">
+    <div class="adminModalHeader">
+      <h3 id="adminManagerModalTitle" class="adminModalTitle">הוספת מנהל</h3>
+      <button type="button" class="adminModalClose" onclick="closeManagerModal()" aria-label="סגירה">×</button>
+    </div>
+
+    <div class="adminFormGrid">
+      <div class="adminFormField full">
+        <label for="adminManagerEmail">כתובת מייל</label>
+        <input id="adminManagerEmail" type="email" dir="ltr" placeholder="name@example.com">
+      </div>
+
+      <div class="adminFormField full">
+        <label for="adminManagerRole">דרגת הרשאה</label>
+        <select id="adminManagerRole">
+          <option value="admin">מנהל רגיל — אנשי קשר והרשאות משתמשים</option>
+          <option value="super_admin">מנהל־על — כולל ניהול מנהלים</option>
+        </select>
+      </div>
+
+      <div class="adminFormNote">
+        הוספת מנהל תוסיף אותו גם לרשימת המשתמשים המורשים. אם עדיין לא יצר חשבון, עליו לבצע „יצירת חשבון” ולאמת את המייל פעם אחת.
+      </div>
+    </div>
+
+    <div id="adminManagerModalStatus" class="statusMessage adminSavingStatus"></div>
+
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="closeManagerModal()">ביטול</button>
+      <button type="button" id="adminSaveManagerBtn" class="adminActionBtn primary" onclick="saveNewManager()">הוספת מנהל</button>
+    </div>
+  </div>
 </div>
 
 <div id="adminEditModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="adminEditTitle">
@@ -2009,6 +2152,8 @@ let authActionInProgress = false;
 let lastUnverifiedEmail = "";
 
 let currentUserIsAdmin = false;
+let currentUserIsSuperAdmin = false;
+let currentAdminRole = "";
 let currentAdminEmail = "";
 let permissionListenerUnsubscribe = null;
 let adminActiveTab = "contacts";
@@ -2016,6 +2161,7 @@ let adminActiveFilter = "all";
 let adminContacts = [];
 let adminRemovedContacts = [];
 let adminAllowedUsers = [];
+let adminManagers = [];
 let adminEditingContact = null;
 let adminDataLoading = false;
 
@@ -2496,6 +2642,102 @@ function getAuthInputs() {
   };
 }
 
+const AUTH_EMAIL_ACTION_COOLDOWN_MS = 60 * 1000;
+const AUTH_EMAIL_COOLDOWN_PREFIX = "contacts_auth_email_cooldown_";
+
+function getAuthEmailCooldownKey(action, email) {
+  return (
+    AUTH_EMAIL_COOLDOWN_PREFIX +
+    String(action || "action") +
+    "_" +
+    normalizeEmail(email)
+  );
+}
+
+function getAuthEmailCooldownRemaining(action, email) {
+  try {
+    const key = getAuthEmailCooldownKey(action, email);
+    const nextAllowedAt = Number(localStorage.getItem(key) || 0);
+    return Math.max(0, nextAllowedAt - Date.now());
+  } catch (error) {
+    return 0;
+  }
+}
+
+function startAuthEmailCooldown(action, email) {
+  try {
+    const key = getAuthEmailCooldownKey(action, email);
+    localStorage.setItem(
+      key,
+      String(Date.now() + AUTH_EMAIL_ACTION_COOLDOWN_MS)
+    );
+  } catch (error) {
+    console.warn("Could not store email cooldown", error);
+  }
+}
+
+function ensureAuthEmailCooldownFinished(action, email) {
+  const remainingMs = getAuthEmailCooldownRemaining(action, email);
+
+  if (remainingMs <= 0) {
+    return true;
+  }
+
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+  setLoginStatus(
+    `כדי למנוע שליחות כפולות, ניתן לנסות שוב בעוד ${remainingSeconds} שניות.`,
+    "error"
+  );
+
+  return false;
+}
+
+async function getCurrentUserPermission(email) {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!db || !firebaseApi || !normalizedEmail) {
+    return {
+      exists: false,
+      active: false
+    };
+  }
+
+  const permissionSnapshot = await firebaseApi.getDoc(
+    firebaseApi.doc(db, "allowedUsers", normalizedEmail)
+  );
+
+  if (!permissionSnapshot.exists()) {
+    return {
+      exists: false,
+      active: false
+    };
+  }
+
+  const data = permissionSnapshot.data() || {};
+
+  return {
+    exists: true,
+    active: data.active === true
+  };
+}
+
+async function deleteNewAuthUserSafely(user) {
+  if (!user || !firebaseApi || !auth) return;
+
+  try {
+    await firebaseApi.deleteUser(user);
+  } catch (deleteError) {
+    console.error("Could not delete unapproved new user", deleteError);
+
+    try {
+      await firebaseApi.signOut(auth);
+    } catch (signOutError) {
+      console.error("Could not sign out unapproved new user", signOutError);
+    }
+  }
+}
+
 async function handlePrimaryAuthAction() {
   if (authMode === "register") {
     await registerWithPassword();
@@ -2505,7 +2747,7 @@ async function handlePrimaryAuthAction() {
 }
 
 async function registerWithPassword() {
-  if (!firebaseApi || !auth) {
+  if (!firebaseApi || !auth || !db) {
     setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
     return;
   }
@@ -2522,14 +2764,26 @@ async function registerWithPassword() {
     return;
   }
 
+  if (password.length < 6) {
+    setLoginStatus("הסיסמה חייבת להכיל לפחות 6 תווים.", "error");
+    return;
+  }
+
   if (password !== confirmPassword) {
     setLoginStatus("הסיסמאות אינן תואמות.", "error");
     return;
   }
 
+  if (!ensureAuthEmailCooldownFinished("verification", email)) {
+    return;
+  }
+
   setLoginButtonDisabled(true);
-  setLoginStatus("יוצר חשבון ושולח מייל אימות...", "loading");
+  setLoginStatus("בודק הרשאה ויוצר חשבון...", "loading");
   authActionInProgress = true;
+
+  let createdUser = null;
+  let verificationSent = false;
 
   try {
     const credential = await firebaseApi.createUserWithEmailAndPassword(
@@ -2538,20 +2792,44 @@ async function registerWithPassword() {
       password
     );
 
+    createdUser = credential.user;
+
+    const permission = await getCurrentUserPermission(email);
+
+    if (!permission.exists || !permission.active) {
+      await deleteNewAuthUserSafely(createdUser);
+      createdUser = null;
+
+      setLoginStatus(
+        "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר. בדקו שהמייל הוזן נכון או עדכנו אותו דרך הקישור למטה.",
+        "error"
+      );
+      return;
+    }
+
     auth.languageCode = "he";
 
-    await firebaseApi.sendEmailVerification(credential.user, {
+    await firebaseApi.sendEmailVerification(createdUser, {
       url: PASSWORD_AUTH_RETURN_URL
     });
+
+    verificationSent = true;
+    startAuthEmailCooldown("verification", email);
 
     await firebaseApi.signOut(auth);
     lastUnverifiedEmail = email;
     setAuthMode("login");
+
     document.getElementById("emailInput").value = email;
     document.getElementById("passwordInput").value = "";
 
-    const resendButton = document.getElementById("resendVerificationBtn");
-    if (resendButton) resendButton.style.display = "inline-block";
+    const resendButton = document.getElementById(
+      "resendVerificationBtn"
+    );
+
+    if (resendButton) {
+      resendButton.style.display = "inline-block";
+    }
 
     setLoginStatus(
       "החשבון נוצר. שלחנו מייל אימות חד־פעמי. לאחר האימות חזרו לכאן והתחברו.",
@@ -2559,6 +2837,11 @@ async function registerWithPassword() {
     );
   } catch (error) {
     console.error("Registration failed", error);
+
+    if (createdUser && !verificationSent) {
+      await deleteNewAuthUserSafely(createdUser);
+    }
+
     setLoginStatus(getAuthErrorMessage(error), "error");
   } finally {
     authActionInProgress = false;
@@ -2622,7 +2905,7 @@ async function loginWithPassword() {
 }
 
 async function resendVerification() {
-  if (!firebaseApi || !auth) return;
+  if (!firebaseApi || !auth || !db) return;
 
   const { email, password } = getAuthInputs();
   const targetEmail = email || lastUnverifiedEmail;
@@ -2635,8 +2918,12 @@ async function resendVerification() {
     return;
   }
 
+  if (!ensureAuthEmailCooldownFinished("verification", targetEmail)) {
+    return;
+  }
+
   setLoginButtonDisabled(true);
-  setLoginStatus("שולח מייל אימות חדש...", "loading");
+  setLoginStatus("בודק הרשאה ושולח מייל אימות...", "loading");
   authActionInProgress = true;
 
   try {
@@ -2646,11 +2933,35 @@ async function resendVerification() {
       password
     );
 
+    const permission = await getCurrentUserPermission(targetEmail);
+
+    if (!permission.exists || !permission.active) {
+      await firebaseApi.signOut(auth);
+
+      setLoginStatus(
+        "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר ולכן לא נשלח מייל אימות.",
+        "error"
+      );
+      return;
+    }
+
+    if (credential.user.emailVerified) {
+      await firebaseApi.signOut(auth);
+
+      setLoginStatus(
+        "כתובת המייל כבר מאומתת. ניתן להתחבר כרגיל.",
+        "success"
+      );
+      return;
+    }
+
     auth.languageCode = "he";
 
     await firebaseApi.sendEmailVerification(credential.user, {
       url: PASSWORD_AUTH_RETURN_URL
     });
+
+    startAuthEmailCooldown("verification", targetEmail);
 
     await firebaseApi.signOut(auth);
     lastUnverifiedEmail = targetEmail;
@@ -2674,13 +2985,19 @@ async function sendPasswordReset() {
     return;
   }
 
-  const email = normalizeEmail(document.getElementById("emailInput").value);
+  const email = normalizeEmail(
+    document.getElementById("emailInput").value
+  );
 
   if (!isValidEmail(email)) {
     setLoginStatus(
       "הכניסו תחילה את כתובת המייל שעבורה תרצו לקבוע או לאפס סיסמה.",
       "error"
     );
+    return;
+  }
+
+  if (!ensureAuthEmailCooldownFinished("password-reset", email)) {
     return;
   }
 
@@ -2694,8 +3011,10 @@ async function sendPasswordReset() {
       url: PASSWORD_AUTH_RETURN_URL
     });
 
+    startAuthEmailCooldown("password-reset", email);
+
     setLoginStatus(
-      "נשלח מייל לקביעת סיסמה. לאחר קביעת הסיסמה חזרו לכאן והתחברו.",
+      "אם קיים חשבון עבור כתובת המייל הזו, נשלח אליה קישור לקביעת סיסמה.",
       "success"
     );
   } catch (error) {
@@ -2792,6 +3111,8 @@ async function logout() {
     await firebaseApi.signOut(auth);
     contacts = [];
     currentUserIsAdmin = false;
+    currentUserIsSuperAdmin = false;
+    currentAdminRole = "";
     currentAdminEmail = "";
     const adminButton = document.getElementById("adminOpenBtn");
     if (adminButton) adminButton.classList.remove("visible");
@@ -2821,6 +3142,8 @@ function setAdminEditStatus(message = "", type = "") {
 
 async function detectAdminAccess(user) {
   currentUserIsAdmin = false;
+  currentUserIsSuperAdmin = false;
+  currentAdminRole = "";
   currentAdminEmail = normalizeEmail(user && user.email);
 
   const adminButton = document.getElementById("adminOpenBtn");
@@ -2834,8 +3157,12 @@ async function detectAdminAccess(user) {
     );
 
     const adminData = adminSnapshot.exists() ? adminSnapshot.data() : null;
+    currentAdminRole = String(adminData && adminData.role || "admin");
     currentUserIsAdmin = Boolean(
-      adminData && adminData.active !== false
+      adminData && adminData.active === true
+    );
+    currentUserIsSuperAdmin = Boolean(
+      currentUserIsAdmin && currentAdminRole === "super_admin"
     );
 
     if (adminButton) {
@@ -2860,7 +3187,47 @@ function startPermissionListener(user) {
   stopPermissionListener();
 
   const email = normalizeEmail(user && user.email);
-  if (!email || currentUserIsAdmin || !firebaseApi || !db) return;
+  if (!email || !firebaseApi || !db) return;
+
+  if (currentUserIsAdmin) {
+    permissionListenerUnsubscribe = firebaseApi.onSnapshot(
+      firebaseApi.doc(db, "admins", email),
+      snapshot => {
+        const data = snapshot.exists() ? snapshot.data() : null;
+        const nextRole = String(data && data.role || "");
+        const nextIsAdmin = Boolean(
+          data && data.active === true &&
+          (nextRole === "admin" || nextRole === "super_admin")
+        );
+
+        currentAdminRole = nextRole;
+        currentUserIsAdmin = nextIsAdmin;
+        currentUserIsSuperAdmin = Boolean(
+          nextIsAdmin && nextRole === "super_admin"
+        );
+
+        const adminButton = document.getElementById("adminOpenBtn");
+        if (adminButton) {
+          adminButton.classList.toggle("visible", currentUserIsAdmin);
+        }
+
+        if (!currentUserIsAdmin) {
+          if (document.getElementById("adminPanel").style.display === "block") {
+            closeAdminPanel();
+          }
+          setListStatus("הרשאת הניהול הוסרה. הגישה הרגילה לאפליקציה נשארה בהתאם להרשאת המשתמש.", "empty");
+          return;
+        }
+
+        updateAdminTabs();
+      },
+      error => {
+        console.error("Admin permission listener failed", error);
+      }
+    );
+
+    return;
+  }
 
   permissionListenerUnsubscribe = firebaseApi.onSnapshot(
     firebaseApi.doc(db, "allowedUsers", email),
@@ -2904,12 +3271,22 @@ function closeAdminPanel() {
   document.getElementById("adminPanel").style.display = "none";
   document.getElementById("app").style.display = "block";
   closeAdminEditModal();
+  closeManagerModal();
   renderCurrentSearchResults();
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function setAdminTab(tabName) {
-  adminActiveTab = tabName === "users" ? "users" : "contacts";
+  const requestedTab = ["contacts", "users", "managers"].includes(tabName)
+    ? tabName
+    : "contacts";
+
+  if (requestedTab === "managers" && !currentUserIsSuperAdmin) {
+    alert("רק מנהל־על יכול לנהל מנהלים.");
+    return;
+  }
+
+  adminActiveTab = requestedTab;
   adminActiveFilter = "all";
   document.getElementById("adminSearchInput").value = "";
   updateAdminTabs();
@@ -2919,13 +3296,40 @@ function setAdminTab(tabName) {
 function updateAdminTabs() {
   const contactsTab = document.getElementById("adminContactsTab");
   const usersTab = document.getElementById("adminUsersTab");
+  const managersTab = document.getElementById("adminManagersTab");
   const contactFilters = document.getElementById("adminContactFilters");
   const userFilters = document.getElementById("adminUserFilters");
+  const managerFilters = document.getElementById("adminManagerFilters");
+  const addManagerButton = document.getElementById("adminAddManagerBtn");
+
+  if (adminActiveTab === "managers" && !currentUserIsSuperAdmin) {
+    adminActiveTab = "contacts";
+  }
 
   contactsTab.classList.toggle("active", adminActiveTab === "contacts");
   usersTab.classList.toggle("active", adminActiveTab === "users");
+
+  if (managersTab) {
+    managersTab.classList.toggle("visible", currentUserIsSuperAdmin);
+    managersTab.classList.toggle("active", adminActiveTab === "managers");
+    const tabsContainer = managersTab.closest(".adminTabs");
+    if (tabsContainer) {
+      tabsContainer.classList.toggle("hasManagers", currentUserIsSuperAdmin);
+    }
+  }
+
   contactFilters.style.display = adminActiveTab === "contacts" ? "flex" : "none";
   userFilters.style.display = adminActiveTab === "users" ? "flex" : "none";
+  if (managerFilters) {
+    managerFilters.style.display = adminActiveTab === "managers" ? "flex" : "none";
+  }
+
+  if (addManagerButton) {
+    addManagerButton.classList.toggle(
+      "visible",
+      currentUserIsSuperAdmin && adminActiveTab === "managers"
+    );
+  }
 
   updateAdminFilterButtons();
 }
@@ -2939,7 +3343,9 @@ function setAdminFilter(filterName) {
 function updateAdminFilterButtons() {
   const containerId = adminActiveTab === "contacts"
     ? "adminContactFilters"
-    : "adminUserFilters";
+    : adminActiveTab === "users"
+      ? "adminUserFilters"
+      : "adminManagerFilters";
 
   document
     .querySelectorAll(`#${containerId} .adminFilterBtn`)
@@ -2959,11 +3365,21 @@ async function loadAdminData() {
   document.getElementById("adminList").innerHTML = "";
 
   try {
-    const [contactsSnapshot, overridesSnapshot, usersSnapshot] = await Promise.all([
+    const requests = [
       firebaseApi.getDocs(firebaseApi.collection(db, "contacts")),
       firebaseApi.getDocs(firebaseApi.collection(db, "contactOverrides")),
       firebaseApi.getDocs(firebaseApi.collection(db, "allowedUsers"))
-    ]);
+    ];
+
+    if (currentUserIsSuperAdmin) {
+      requests.push(firebaseApi.getDocs(firebaseApi.collection(db, "admins")));
+    }
+
+    const results = await Promise.all(requests);
+    const contactsSnapshot = results[0];
+    const overridesSnapshot = results[1];
+    const usersSnapshot = results[2];
+    const managersSnapshot = results[3] || null;
 
     adminContacts = contactsSnapshot.docs
       .map((document, index) => mapFirestoreContact(document, index))
@@ -2990,6 +3406,21 @@ async function loadAdminData() {
         updatedAt: data.updatedAt || null
       };
     });
+
+    adminManagers = managersSnapshot
+      ? managersSnapshot.docs.map(document => {
+          const data = document.data() || {};
+          return {
+            docId: document.id,
+            email: normalizeEmail(data.email || document.id),
+            active: data.active === true,
+            role: data.role === "super_admin" ? "super_admin" : "admin",
+            createdBy: normalizeEmail(data.createdBy || ""),
+            createdAt: data.createdAt || null,
+            updatedAt: data.updatedAt || null
+          };
+        })
+      : [];
 
     setAdminStatus("", "");
     renderAdminList();
@@ -3044,6 +3475,22 @@ function adminUserMatchesQuery(user, query) {
   return searchable.includes(query);
 }
 
+function adminManagerMatchesQuery(manager, query) {
+  if (!query) return true;
+
+  const contact = findContactByEmail(manager.email);
+  const searchable = normalizeSearchText([
+    manager.email,
+    manager.role,
+    manager.createdBy,
+    contact ? contact.name : "",
+    contact ? contact.phone : "",
+    contact ? contact.dept : ""
+  ].filter(Boolean).join(" "));
+
+  return searchable.includes(query);
+}
+
 function findContactByEmail(email) {
   const normalized = normalizeEmail(email);
   return [...adminContacts, ...adminRemovedContacts].find(
@@ -3065,6 +3512,8 @@ function renderAdminList() {
 
   if (adminActiveTab === "users") {
     renderAdminUsers();
+  } else if (adminActiveTab === "managers") {
+    renderAdminManagers();
   } else {
     renderAdminContacts();
   }
@@ -3190,6 +3639,301 @@ function renderAdminUsers() {
       </div>
     `;
   }).join("");
+}
+
+
+function renderAdminManagers() {
+  if (!currentUserIsSuperAdmin) {
+    document.getElementById("adminSummary").textContent = "";
+    document.getElementById("adminList").innerHTML =
+      '<div class="adminEmpty">רק מנהל־על יכול לנהל מנהלים.</div>';
+    return;
+  }
+
+  const query = getAdminSearchQuery();
+
+  const managers = adminManagers
+    .filter(manager => {
+      if (adminActiveFilter === "active" && !manager.active) return false;
+      if (adminActiveFilter === "blocked" && manager.active) return false;
+      if (adminActiveFilter === "super_admin" && manager.role !== "super_admin") return false;
+      return adminManagerMatchesQuery(manager, query);
+    })
+    .sort((a, b) => {
+      if (a.role !== b.role) {
+        return a.role === "super_admin" ? -1 : 1;
+      }
+      return a.email.localeCompare(b.email);
+    });
+
+  document.getElementById("adminSummary").textContent =
+    managers.length === 1
+      ? "נמצא מנהל אחד"
+      : `נמצאו ${managers.length} מנהלים`;
+
+  if (!managers.length) {
+    document.getElementById("adminList").innerHTML =
+      '<div class="adminEmpty">לא נמצאו מנהלים התואמים לחיפוש.</div>';
+    return;
+  }
+
+  document.getElementById("adminList").innerHTML = managers.map(manager => {
+    const contact = findContactByEmail(manager.email);
+    const isSelf = manager.email === currentAdminEmail;
+    const roleLabel = manager.role === "super_admin" ? "מנהל־על" : "מנהל רגיל";
+    const nextRole = manager.role === "super_admin" ? "admin" : "super_admin";
+    const nextRoleLabel = manager.role === "super_admin" ? "הפיכה למנהל רגיל" : "הפיכה למנהל־על";
+
+    return `
+      <div class="adminCard ${manager.active ? "" : "blocked"}">
+        <div class="adminCardTop">
+          <div>
+            <div class="adminCardName">${escapeHtml(contact && contact.name ? contact.name : manager.email)}</div>
+            <div class="adminCardMeta">
+              ${escapeHtml(manager.email)}
+              ${contact && contact.phone ? "<br>" + escapeHtml(formatPhoneForDisplay(contact.phone)) : ""}
+              ${contact && contact.dept ? " · " + escapeHtml(contact.dept) : ""}
+              ${manager.createdBy ? "<br>נוסף על ידי: " + escapeHtml(manager.createdBy) : ""}
+            </div>
+            <span class="adminRoleBadge ${manager.role === "super_admin" ? "super" : ""}">${roleLabel}</span>
+          </div>
+          <span class="adminStatusBadge ${manager.active ? "" : "blocked"}">${manager.active ? "פעיל" : "מושבת"}</span>
+        </div>
+
+        <div class="adminCardActions">
+          ${isSelf
+            ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון מנהל־העל הנוכחי</button>'
+            : `<button type="button" class="adminActionBtn ${manager.active ? "warning" : "primary"}" onclick="toggleManagerActive('${escapeJsString(manager.email)}', ${!manager.active})">${manager.active ? "השבתת מנהל" : "הפעלת מנהל"}</button>
+               <button type="button" class="adminActionBtn secondary" onclick="changeManagerRole('${escapeJsString(manager.email)}', '${nextRole}')">${nextRoleLabel}</button>
+               <button type="button" class="adminActionBtn danger" onclick="removeManager('${escapeJsString(manager.email)}')">הסרת מנהל</button>`}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function setAdminManagerModalStatus(message = "", type = "") {
+  setStatus("adminManagerModalStatus", message, type);
+}
+
+function openAddManagerModal() {
+  if (!currentUserIsSuperAdmin) {
+    alert("רק מנהל־על יכול להוסיף מנהלים.");
+    return;
+  }
+
+  document.getElementById("adminManagerEmail").value = "";
+  document.getElementById("adminManagerRole").value = "admin";
+  document.getElementById("adminManagerModalTitle").textContent = "הוספת מנהל";
+  document.getElementById("adminSaveManagerBtn").textContent = "הוספת מנהל";
+  setAdminManagerModalStatus("", "");
+  document.getElementById("adminManagerModal").classList.add("visible");
+  document.body.style.overflow = "hidden";
+  setTimeout(() => document.getElementById("adminManagerEmail").focus(), 50);
+}
+
+function closeManagerModal() {
+  const modal = document.getElementById("adminManagerModal");
+  if (modal) modal.classList.remove("visible");
+  document.body.style.overflow = "";
+  setAdminManagerModalStatus("", "");
+}
+
+async function saveNewManager() {
+  if (!currentUserIsSuperAdmin) return;
+
+  const email = normalizeEmail(document.getElementById("adminManagerEmail").value);
+  const role = document.getElementById("adminManagerRole").value === "super_admin"
+    ? "super_admin"
+    : "admin";
+
+  if (!isValidEmail(email)) {
+    setAdminManagerModalStatus("כתובת המייל אינה תקינה.", "error");
+    return;
+  }
+
+  if (adminManagers.some(manager => manager.email === email)) {
+    setAdminManagerModalStatus("כתובת המייל כבר מופיעה ברשימת המנהלים.", "error");
+    return;
+  }
+
+  const saveButton = document.getElementById("adminSaveManagerBtn");
+  saveButton.disabled = true;
+  setAdminManagerModalStatus("מוסיף מנהל...", "loading");
+
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+
+    batch.set(
+      firebaseApi.doc(db, "admins", email),
+      {
+        email,
+        active: true,
+        role,
+        createdBy: currentAdminEmail,
+        createdAt: now,
+        updatedAt: now
+      },
+      { merge: false }
+    );
+
+    batch.set(
+      firebaseApi.doc(db, "allowedUsers", email),
+      {
+        email,
+        active: true,
+        source: "super-admin",
+        updatedAt: now
+      },
+      { merge: true }
+    );
+
+    batch.set(
+      firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
+      {
+        action: "manager_add",
+        targetEmail: email,
+        newRole: role,
+        adminEmail: currentAdminEmail,
+        timestamp: now
+      }
+    );
+
+    await batch.commit();
+    await loadAdminData();
+    closeManagerModal();
+  } catch (error) {
+    console.error("Adding manager failed", error);
+    setAdminManagerModalStatus("לא הצלחנו להוסיף את המנהל. נסו שוב.", "error");
+  } finally {
+    saveButton.disabled = false;
+  }
+}
+
+async function toggleManagerActive(email, shouldActivate) {
+  if (!currentUserIsSuperAdmin) return;
+
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
+    alert("לא ניתן להשבית את חשבון מנהל־העל הנוכחי.");
+    return;
+  }
+
+  const actionLabel = shouldActivate ? "להפעיל" : "להשבית";
+  if (!confirm(`האם ${actionLabel} את הרשאת הניהול של ${normalizedEmail}?`)) return;
+
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+
+    batch.set(
+      firebaseApi.doc(db, "admins", normalizedEmail),
+      {
+        active: shouldActivate,
+        updatedBy: currentAdminEmail,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+
+    batch.set(
+      firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
+      {
+        action: shouldActivate ? "manager_enable" : "manager_disable",
+        targetEmail: normalizedEmail,
+        adminEmail: currentAdminEmail,
+        timestamp: now
+      }
+    );
+
+    await batch.commit();
+    await loadAdminData();
+  } catch (error) {
+    console.error("Manager status update failed", error);
+    alert("לא הצלחנו לעדכן את הרשאת המנהל.");
+  }
+}
+
+async function changeManagerRole(email, newRole) {
+  if (!currentUserIsSuperAdmin) return;
+
+  const normalizedEmail = normalizeEmail(email);
+  const safeRole = newRole === "super_admin" ? "super_admin" : "admin";
+
+  if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
+    alert("לא ניתן לשנות את דרגת החשבון שמחובר כעת.");
+    return;
+  }
+
+  const roleLabel = safeRole === "super_admin" ? "מנהל־על" : "מנהל רגיל";
+  if (!confirm(`לשנות את ${normalizedEmail} ל-${roleLabel}?`)) return;
+
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+
+    batch.set(
+      firebaseApi.doc(db, "admins", normalizedEmail),
+      {
+        role: safeRole,
+        updatedBy: currentAdminEmail,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+
+    batch.set(
+      firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
+      {
+        action: "manager_role_change",
+        targetEmail: normalizedEmail,
+        newRole: safeRole,
+        adminEmail: currentAdminEmail,
+        timestamp: now
+      }
+    );
+
+    await batch.commit();
+    await loadAdminData();
+  } catch (error) {
+    console.error("Manager role update failed", error);
+    alert("לא הצלחנו לשנות את דרגת המנהל.");
+  }
+}
+
+async function removeManager(email) {
+  if (!currentUserIsSuperAdmin) return;
+
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
+    alert("לא ניתן להסיר את חשבון מנהל־העל הנוכחי.");
+    return;
+  }
+
+  if (!confirm(`להסיר את הרשאת הניהול של ${normalizedEmail}?\nהרשאת הכניסה הרגילה לאפליקציה תישאר ללא שינוי.`)) return;
+
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+
+    batch.delete(firebaseApi.doc(db, "admins", normalizedEmail));
+    batch.set(
+      firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
+      {
+        action: "manager_remove",
+        targetEmail: normalizedEmail,
+        adminEmail: currentAdminEmail,
+        timestamp: now
+      }
+    );
+
+    await batch.commit();
+    await loadAdminData();
+  } catch (error) {
+    console.error("Removing manager failed", error);
+    alert("לא הצלחנו להסיר את הרשאת המנהל.");
+  }
 }
 
 function escapeJsString(value) {
@@ -3550,6 +4294,7 @@ async function initializeFirebase() {
     signInWithEmailAndPassword: authModule.signInWithEmailAndPassword,
     sendEmailVerification: authModule.sendEmailVerification,
     sendPasswordResetEmail: authModule.sendPasswordResetEmail,
+    deleteUser: authModule.deleteUser,
     onAuthStateChanged: authModule.onAuthStateChanged,
     reload: authModule.reload,
     signOut: authModule.signOut,
