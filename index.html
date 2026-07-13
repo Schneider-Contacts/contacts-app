@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="icon.PNG">
-<link rel="icon" href="icon.PNG">
+<link rel="apple-touch-icon" href="icon.PNG?v=20260713">
+<link rel="icon" href="icon.PNG?v=20260713">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ספר אנשי קשר</title>
@@ -830,6 +833,478 @@ select {
     border-radius: 30px;
   }
 }
+
+/* ===== Final launch refinements: authentication ===== */
+
+#login {
+  position: relative;
+  max-width: 440px;
+  margin-top: 22px;
+  padding: 24px 18px 20px;
+  border-radius: 26px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(110, 231, 183, 0.28), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #f8fdfa 100%);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 16px 42px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  text-align: right;
+}
+
+#login::after {
+  content: "";
+  position: absolute;
+  left: -48px;
+  bottom: -52px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 243, 208, 0.22), transparent 70%);
+  pointer-events: none;
+}
+
+.authBrand,
+.authTabs,
+.authForm,
+.authHelp,
+#loginStatus {
+  position: relative;
+  z-index: 1;
+}
+
+.authLogoBox {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 12px;
+  padding: 8px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.90);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 10px 22px rgba(5, 150, 105, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.authLogoBox img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 15px;
+}
+
+.authBrand h1 {
+  margin: 0 0 6px;
+  text-align: center;
+  font-size: 27px;
+  color: #17352d;
+}
+
+.authBrandSubtitle {
+  margin: 0;
+  text-align: center;
+  color: #5e7a6f;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.securityBadge {
+  width: fit-content;
+  margin: 11px auto 18px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(236, 253, 245, 0.96);
+  border: 1px solid var(--green-200);
+  color: #295746;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.authTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 18px;
+  padding: 5px;
+  border: 1px solid #d7ebe1;
+  border-radius: 16px;
+  background: #edf8f2;
+}
+
+#login .authTab {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #557065;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+#login .authTab.active {
+  background: #ffffff;
+  color: var(--green-700);
+  box-shadow:
+    0 5px 14px rgba(15, 23, 42, 0.08),
+    inset 0 0 0 1px rgba(167, 243, 208, 0.85);
+}
+
+.authModeHeading {
+  margin: 0 0 4px;
+  color: #17352d;
+  font-size: 20px;
+  text-align: right;
+}
+
+.authModeDescription {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.authField {
+  margin-top: 12px;
+}
+
+.authField label {
+  display: block;
+  margin: 0 2px 7px;
+  color: #315b4c;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.authInputShell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  overflow: hidden;
+  border: 1px solid #d3e8de;
+  border-radius: 14px;
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.authInputShell:focus-within {
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
+  background: #fcfffd;
+}
+
+.authFieldIcon {
+  position: absolute;
+  right: 14px;
+  color: #6d887d;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+#login .authInputShell input {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 12px 42px 12px 52px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: right;
+  font-size: 16px;
+}
+
+#login .authInputShell input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+#login .passwordToggle {
+  position: absolute;
+  left: 8px;
+  width: auto;
+  min-width: 40px;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#login .primaryAuthBtn {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 18px;
+  padding: 13px 16px;
+  border-radius: 15px;
+  background: linear-gradient(180deg, #079c6c 0%, var(--green-600) 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(5, 150, 105, 0.24);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.authModeNote {
+  display: none;
+  margin: 10px 2px 0;
+  color: #5d746a;
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.authSecondaryLinks {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+
+#login .authLinkBtn {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--green-700);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#login .authLinkBtn:hover {
+  text-decoration: underline;
+}
+
+#loginStatus {
+  margin-top: 14px;
+  text-align: right;
+}
+
+.statusMessage.success {
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: #176847;
+}
+
+.authHelp {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #e1efe8;
+}
+
+.authHelpTitle {
+  margin-bottom: 10px;
+  color: #456558;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.helpActions {
+  display: grid;
+  gap: 9px;
+}
+
+.helpAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid #d8ece1;
+  border-radius: 14px;
+  background: rgba(247, 252, 249, 0.90);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.08s ease;
+}
+
+.helpAction:hover {
+  border-color: var(--green-300);
+  background: var(--green-50);
+}
+
+.helpAction:active {
+  transform: scale(0.99);
+}
+
+.helpActionText {
+  min-width: 0;
+}
+
+.helpActionTitle {
+  display: block;
+  margin-bottom: 2px;
+  color: #315b4c;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.helpActionSubtitle {
+  display: block;
+  color: #6a7e75;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.helpActionArrow {
+  color: var(--green-600);
+  font-size: 20px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* ===== Final launch refinements: search ===== */
+
+.controlsCard {
+  padding: 15px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(209, 250, 229, 0.38), transparent 38%),
+    #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.065);
+}
+
+.searchHeadingRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.searchTitle {
+  margin: 0 0 2px;
+  color: #17352d;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+#hint {
+  margin: 0;
+  color: #6a7d75;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.searchWrap {
+  margin-bottom: 11px;
+}
+
+.searchWrap input {
+  min-height: 50px;
+  padding-right: 43px;
+  padding-left: 50px;
+  border-color: #cfe6da;
+  text-align: right;
+  font-size: 16px;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: #5d786c;
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.quickFilters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.quickFilterBtn {
+  min-height: 42px;
+  padding: 9px 12px;
+  background: #f7fcf9;
+  color: #3e6656;
+  border: 1px solid #d7ebe1;
+  border-radius: 13px;
+  font-size: 13.5px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.quickFilterBtn.active {
+  background: var(--green-600);
+  color: #ffffff;
+  border-color: var(--green-600);
+  box-shadow: 0 7px 16px rgba(5, 150, 105, 0.20);
+}
+
+.quickFilterIcon {
+  margin-left: 5px;
+}
+
+.resultsSummary {
+  min-height: 18px;
+  margin-top: 10px;
+  color: #587167;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.importAllBtn {
+  margin-top: 9px;
+}
+
+.searchHighlight {
+  padding: 0 1px;
+  border-radius: 4px;
+  background: #dff8eb;
+  color: #075f45;
+  font-weight: 850;
+}
+
+@media (max-width: 600px) {
+  #login {
+    margin-top: 12px;
+    padding: 21px 14px 18px;
+    border-radius: 22px;
+  }
+
+  .authLogoBox {
+    width: 62px;
+    height: 62px;
+    border-radius: 20px;
+  }
+
+  .authBrand h1 {
+    font-size: 24px;
+  }
+
+  .controlsCard {
+    padding: 13px;
+    border-radius: 18px;
+  }
+
+  .quickFilterBtn {
+    min-height: 43px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -855,56 +1330,82 @@ select {
 </div>
 
 <div id="login">
-  <h3 id="loginTitle">כניסה למערכת</h3>
-
-  <input
-    type="email"
-    id="emailInput"
-    placeholder="כתובת מייל"
-    autocomplete="email"
-    inputmode="email"
-  >
-
-  <input
-    type="password"
-    id="passwordInput"
-    placeholder="סיסמה"
-    autocomplete="current-password"
-    onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()"
-  >
-
-  <input
-    type="password"
-    id="confirmPasswordInput"
-    placeholder="אימות סיסמה"
-    autocomplete="new-password"
-    style="display:none;"
-    onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()"
-  >
-
-  <br>
-  <button id="loginButton" onclick="handlePrimaryAuthAction()">כניסה</button>
-
-  <div class="loginLinks">
-    <button type="button" class="loginTextBtn" id="toggleAuthModeBtn" onclick="toggleAuthMode()">
-      הרשמה ראשונית
-    </button>
-    <button type="button" class="loginTextBtn" onclick="sendPasswordReset()">
-      שכחתי / אין לי סיסמה
-    </button>
-    <button type="button" class="loginTextBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">
-      שליחת אימות מחדש
-    </button>
+  <div class="authBrand">
+    <div class="authLogoBox">
+      <img src="icon.PNG?v=20260713" alt="לוגו ספר אנשי הקשר">
+    </div>
+    <h1>ספר אנשי קשר</h1>
+    <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
+    <div class="securityBadge">🔒 כניסה מאובטחת</div>
   </div>
 
-  <div class="loginHelp">
-    המייל חסר או לא מעודכן?
-    <a href="email-update.html">השלימו או עדכנו כתובת מייל</a>.<br>
-    עובד/ת חדש/ה?
-    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header" target="_blank" rel="noopener">מלאו את טופס ההצטרפות</a>.
+  <div class="authTabs" role="tablist" aria-label="בחירת אופן כניסה">
+    <button type="button" id="authLoginTab" class="authTab active" role="tab" aria-selected="true" onclick="setAuthMode('login')">כניסה</button>
+    <button type="button" id="authRegisterTab" class="authTab" role="tab" aria-selected="false" onclick="setAuthMode('register')">יצירת חשבון</button>
+  </div>
+
+  <div class="authForm">
+    <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
+    <p id="authModeDescription" class="authModeDescription">למי שכבר יצר חשבון ויש לו סיסמה.</p>
+
+    <div class="authField">
+      <label for="emailInput">כתובת מייל</label>
+      <div class="authInputShell">
+        <span class="authFieldIcon" aria-hidden="true">✉</span>
+        <input type="email" id="emailInput" placeholder="name@example.com" autocomplete="email" inputmode="email">
+      </div>
+    </div>
+
+    <div class="authField">
+      <label for="passwordInput">סיסמה</label>
+      <div class="authInputShell">
+        <span class="authFieldIcon" aria-hidden="true">●</span>
+        <input type="password" id="passwordInput" placeholder="הזינו סיסמה" autocomplete="current-password" onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()">
+        <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
+      </div>
+    </div>
+
+    <div class="authField" id="confirmPasswordGroup" style="display:none;">
+      <label for="confirmPasswordInput">אימות סיסמה</label>
+      <div class="authInputShell">
+        <span class="authFieldIcon" aria-hidden="true">●</span>
+        <input type="password" id="confirmPasswordInput" placeholder="הזינו את הסיסמה פעם נוספת" autocomplete="new-password" onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()">
+        <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
+      </div>
+    </div>
+
+    <button id="loginButton" class="primaryAuthBtn" onclick="handlePrimaryAuthAction()">כניסה לחשבון</button>
+
+    <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח אליכם מייל אימות חד־פעמי.</div>
+
+    <div class="authSecondaryLinks">
+      <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
+      <button type="button" class="authLinkBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">שליחת אימות מחדש</button>
+    </div>
   </div>
 
   <div id="loginStatus" class="statusMessage"></div>
+
+  <div class="authHelp">
+    <div class="authHelpTitle">צריכים עזרה?</div>
+    <div class="helpActions">
+      <a class="helpAction" href="email-update.html">
+        <span class="helpActionText">
+          <span class="helpActionTitle">המייל חסר או לא מעודכן?</span>
+          <span class="helpActionSubtitle">השלמה או עדכון כתובת מייל</span>
+        </span>
+        <span class="helpActionArrow" aria-hidden="true">‹</span>
+      </a>
+
+      <a class="helpAction" href="https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header" target="_blank" rel="noopener">
+        <span class="helpActionText">
+          <span class="helpActionTitle">משתמש/ת חדש/ה בספר אנשי הקשר?</span>
+          <span class="helpActionSubtitle">מילוי טופס הצטרפות</span>
+        </span>
+        <span class="helpActionArrow" aria-hidden="true">‹</span>
+      </a>
+    </div>
+  </div>
 </div>
 
 <div id="app" style="display:none;">
@@ -914,32 +1415,42 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="icon.PNG" alt="App logo">
+        <img class="appHeaderLogo" src="icon.PNG?v=20260713" alt="App logo">
       </div>
     </div>
-    <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש לפי שם, מחלקה או תפקיד, ושמירה ישירה למכשיר.</div>
+    <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
     <div id="userInfo">
       <span id="userInfoText"></span>
       <button type="button" class="logoutBtn" onclick="logout()">יציאה</button>
     </div>
   </div>
 
-  <div class="controlsCard">
-    <div id="hint">התחילו להקליד כדי לחפש איש קשר</div>
 
-    <div class="searchWrap">
-      <input type="text" id="searchInput" placeholder="חפשו שם, מחלקה או תפקיד..." onkeyup="search()">
-      <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()">×</button>
+<div class="controlsCard">
+  <div class="searchHeadingRow">
+    <div>
+      <div class="searchTitle">חיפוש אנשי קשר</div>
+      <div id="hint">הקלידו לפחות שתי אותיות מהשם הפרטי או שם המשפחה</div>
     </div>
-
-    <select onchange="filterByDept(this.value)">
-      <option value="">כל המחלקות</option>
-    </select>
-
-    <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
   </div>
 
-  <img id="logo" src="icon.PNG">
+  <div class="searchWrap">
+    <span class="searchIcon" aria-hidden="true">⌕</span>
+    <input type="text" id="searchInput" placeholder="שם פרטי או שם משפחה" autocomplete="off" oninput="search()">
+    <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()" aria-label="ניקוי החיפוש">×</button>
+  </div>
+
+  <div class="quickFilters" aria-label="רשימות מהירות">
+    <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')"><span class="quickFilterIcon" aria-hidden="true">☎</span>תורנים</button>
+    <button type="button" id="labsFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('labs')"><span class="quickFilterIcon" aria-hidden="true">⚗</span>מעבדות</button>
+  </div>
+
+  <div id="resultsSummary" class="resultsSummary"></div>
+
+  <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
+</div>
+
+  <img id="logo" src="icon.PNG?v=20260713">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -979,6 +1490,7 @@ let hasLoadError = false;
 let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
+let activeQuickFilter = "";
 
 let authMode = "login";
 let authActionInProgress = false;
@@ -1113,45 +1625,108 @@ function deduplicateContacts(list) {
   return mergedContacts;
 }
 
+function normalizeSearchText(value) {
+  return String(value || "")
+    .replace(/\u200E|\u200F/g, "")
+    .replace(/[״"'׳]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function getSearchPriority(contact, q, qNoHyphen) {
-  const name = (contact.name || "").toLowerCase();
-  const role = (contact.role || "").toLowerCase();
-  const dept = (contact.dept || "").toLowerCase();
-  const phoneIntl = (contact.phone || "").toLowerCase();
+  const first = normalizeSearchText(contact.first);
+  const last = normalizeSearchText(contact.last);
+  const firstEn = normalizeSearchText(contact.firstEn);
+  const lastEn = normalizeSearchText(contact.lastEn);
+  const full = [first, last].filter(Boolean).join(" ");
+  const fullEn = [firstEn, lastEn].filter(Boolean).join(" ");
+  const nameParts = [first, last].filter(Boolean);
+  const englishNameParts = [firstEn, lastEn].filter(Boolean);
+  const queryTokens = q.split(" ").filter(Boolean);
+  const phoneIntl = normalizeSearchText(contact.phone);
   const phoneLocal = getPhoneSearchValue(contact.phone);
 
-  if (name === q) return 1;
-  if (name.startsWith(q)) return 2;
-  if (name.includes(q)) return 3;
+  if (first === q || last === q || full === q) return 1;
 
-  if (role === q) return 4;
-  if (role.startsWith(q)) return 5;
-  if (role.includes(q)) return 6;
+  if (queryTokens.length > 1 && queryTokens.every((token, index) => !!nameParts[index] && nameParts[index].startsWith(token))) {
+    return 2;
+  }
 
-  if (dept === q) return 7;
-  if (dept.startsWith(q)) return 8;
-  if (dept.includes(q)) return 9;
+  if (first.startsWith(q) || last.startsWith(q)) return 3;
+  if (full.startsWith(q)) return 4;
 
-  if (phoneLocal.startsWith(qNoHyphen)) return 10;
-  if (phoneLocal.includes(qNoHyphen)) return 11;
-  if (phoneIntl.startsWith(q)) return 12;
-  if (phoneIntl.includes(q)) return 13;
+  if (queryTokens.length > 1 && queryTokens.every(token => nameParts.some(namePart => namePart.startsWith(token)))) {
+    return 5;
+  }
 
+  if (first.includes(q) || last.includes(q) || full.includes(q)) return 6;
+  if (firstEn === q || lastEn === q || fullEn === q) return 7;
+  if (firstEn.startsWith(q) || lastEn.startsWith(q) || fullEn.startsWith(q)) return 8;
+
+  if (queryTokens.length > 1 && queryTokens.every(token => englishNameParts.some(namePart => namePart.startsWith(token)))) {
+    return 9;
+  }
+
+  if (firstEn.includes(q) || lastEn.includes(q) || fullEn.includes(q)) return 10;
+  if (qNoHyphen && phoneLocal.startsWith(qNoHyphen)) return 11;
+  if (qNoHyphen && phoneIntl.replace(/\D/g, "").startsWith(qNoHyphen)) return 12;
+  if (qNoHyphen && (phoneLocal.includes(qNoHyphen) || phoneIntl.replace(/\D/g, "").includes(qNoHyphen))) return 13;
   return null;
+}
+
+function compareContactsByName(a, b) {
+  const lastComparison = (a.last || "").localeCompare(b.last || "", "he", { sensitivity: "base" });
+  if (lastComparison !== 0) return lastComparison;
+  return (a.first || "").localeCompare(b.first || "", "he", { sensitivity: "base" });
 }
 
 function isSearchActive() {
   const input = document.getElementById("searchInput");
-  return !!input && input.value.trim().length >= 2;
+  return !!input && normalizeSearchText(input.value).length >= 2;
 }
 
-function isDeptFilterActive() {
-  const select = document.querySelector("select");
-  return !!select && !!select.value;
+function isQuickFilterActive() {
+  return activeQuickFilter === "vpn" || activeQuickFilter === "labs";
 }
 
 function canUseMultiSelection() {
-  return isSearchActive() || isDeptFilterActive();
+  return isSearchActive() || isQuickFilterActive();
+}
+
+function contactMatchesQuickFilter(contact, filterName) {
+  const department = normalizeSearchText(contact.dept);
+  if (filterName === "vpn") return department.includes("vpn");
+  if (filterName === "labs") return department.includes("מעבד");
+  return true;
+}
+
+function getQuickFilterContacts() {
+  if (!isQuickFilterActive()) return [...contacts];
+  return contacts.filter(contact => contactMatchesQuickFilter(contact, activeQuickFilter));
+}
+
+function updateQuickFilterButtons() {
+  const vpnButton = document.getElementById("vpnFilterBtn");
+  const labsButton = document.getElementById("labsFilterBtn");
+
+  if (vpnButton) {
+    vpnButton.classList.toggle("active", activeQuickFilter === "vpn");
+    vpnButton.setAttribute("aria-pressed", activeQuickFilter === "vpn" ? "true" : "false");
+  }
+
+  if (labsButton) {
+    labsButton.classList.toggle("active", activeQuickFilter === "labs");
+    labsButton.setAttribute("aria-pressed", activeQuickFilter === "labs" ? "true" : "false");
+  }
+}
+
+function toggleQuickFilter(filterName) {
+  activeQuickFilter = activeQuickFilter === filterName ? "" : filterName;
+  selectionMode = false;
+  selectedContactIds.clear();
+  updateQuickFilterButtons();
+  renderCurrentSearchResults();
 }
 
 function updateMainActionButton() {
@@ -1233,7 +1808,6 @@ async function loadContacts() {
     })).filter(contact => contact.phone);
 
     contacts = deduplicateContacts(rawContacts);
-    populateDepartments();
   } catch (error) {
     console.error(error);
     contacts = [];
@@ -1296,44 +1870,79 @@ function getAuthErrorMessage(error) {
     return "לא ניתן להתחבר למערכת. בדקו את החיבור לאינטרנט ונסו שוב.";
   }
 
-  return code
-    ? "לא הצלחנו להשלים את הפעולה. קוד שגיאה: " + code
-    : "לא הצלחנו להשלים את הפעולה. נסו שוב.";
+  return "לא הצלחנו להשלים את הפעולה. בדקו את הפרטים ונסו שוב.";
 }
 
 function setAuthMode(mode) {
   authMode = mode === "register" ? "register" : "login";
+  setLoginStatus("", "");
 
   const title = document.getElementById("loginTitle");
+  const description = document.getElementById("authModeDescription");
   const button = document.getElementById("loginButton");
-  const toggleButton = document.getElementById("toggleAuthModeBtn");
+  const loginTab = document.getElementById("authLoginTab");
+  const registerTab = document.getElementById("authRegisterTab");
   const passwordInput = document.getElementById("passwordInput");
+  const confirmGroup = document.getElementById("confirmPasswordGroup");
   const confirmInput = document.getElementById("confirmPasswordInput");
+  const passwordResetButton = document.getElementById("passwordResetBtn");
   const resendButton = document.getElementById("resendVerificationBtn");
+  const modeNote = document.getElementById("authModeNote");
+
+  [passwordInput, confirmInput].forEach(input => {
+    if (input) input.type = "password";
+  });
+
+  document.querySelectorAll(".passwordToggle").forEach(toggle => {
+    toggle.textContent = "הצג";
+    toggle.setAttribute("aria-label", "הצגת הסיסמה");
+  });
 
   if (resendButton) resendButton.style.display = "none";
+  const isRegister = authMode === "register";
 
-  if (authMode === "register") {
-    if (title) title.textContent = "הרשמה ראשונית";
-    if (button) button.textContent = "יצירת חשבון ושליחת אימות";
-    if (toggleButton) toggleButton.textContent = "חזרה לכניסה";
+  if (loginTab) {
+    loginTab.classList.toggle("active", !isRegister);
+    loginTab.setAttribute("aria-selected", isRegister ? "false" : "true");
+  }
+
+  if (registerTab) {
+    registerTab.classList.toggle("active", isRegister);
+    registerTab.setAttribute("aria-selected", isRegister ? "true" : "false");
+  }
+
+  if (isRegister) {
+    if (title) title.textContent = "יצירת חשבון";
+    if (description) description.textContent = "מיועד לשימוש הראשון באפליקציה. השתמשו במייל שמופיע בספר אנשי הקשר.";
+    if (button) button.textContent = "יצירת חשבון";
     if (passwordInput) passwordInput.autocomplete = "new-password";
-    if (confirmInput) confirmInput.style.display = "block";
+    if (confirmGroup) confirmGroup.style.display = "block";
+    if (passwordResetButton) passwordResetButton.style.display = "none";
+    if (modeNote) modeNote.style.display = "block";
   } else {
-    if (title) title.textContent = "כניסה למערכת";
-    if (button) button.textContent = "כניסה";
-    if (toggleButton) toggleButton.textContent = "הרשמה ראשונית";
+    if (title) title.textContent = "כניסה לחשבון";
+    if (description) description.textContent = "למי שכבר יצר חשבון ויש לו סיסמה.";
+    if (button) button.textContent = "כניסה לחשבון";
     if (passwordInput) passwordInput.autocomplete = "current-password";
-    if (confirmInput) {
-      confirmInput.value = "";
-      confirmInput.style.display = "none";
-    }
+    if (confirmGroup) confirmGroup.style.display = "none";
+    if (confirmInput) confirmInput.value = "";
+    if (passwordResetButton) passwordResetButton.style.display = "inline-block";
+    if (modeNote) modeNote.style.display = "none";
   }
 }
 
 function toggleAuthMode() {
   setLoginStatus("", "");
   setAuthMode(authMode === "login" ? "register" : "login");
+}
+
+function togglePasswordVisibility(inputId, button) {
+  const input = document.getElementById(inputId);
+  if (!input || !button) return;
+  const shouldShow = input.type === "password";
+  input.type = shouldShow ? "text" : "password";
+  button.textContent = shouldShow ? "הסתר" : "הצג";
+  button.setAttribute("aria-label", shouldShow ? "הסתרת הסיסמה" : "הצגת הסיסמה");
 }
 
 function getAuthInputs() {
@@ -1402,8 +2011,8 @@ async function registerWithPassword() {
     if (resendButton) resendButton.style.display = "inline-block";
 
     setLoginStatus(
-      "נשלח מייל אימות. לחצו על הקישור במייל פעם אחת, ואז חזרו לכאן והיכנסו עם המייל והסיסמה.",
-      "loading"
+      "החשבון נוצר. שלחנו מייל אימות חד־פעמי. לאחר האימות חזרו לכאן והתחברו.",
+      "success"
     );
   } catch (error) {
     console.error("Registration failed", error);
@@ -1505,7 +2114,7 @@ async function resendVerification() {
 
     setLoginStatus(
       "נשלח מייל אימות חדש. פתחו אותו ולחצו על הקישור.",
-      "loading"
+      "success"
     );
   } catch (error) {
     console.error("Resending verification failed", error);
@@ -1544,7 +2153,7 @@ async function sendPasswordReset() {
 
     setLoginStatus(
       "נשלח מייל לקביעת סיסמה. לאחר קביעת הסיסמה חזרו לכאן והתחברו.",
-      "loading"
+      "success"
     );
   } catch (error) {
     console.error("Password reset failed", error);
@@ -1619,7 +2228,7 @@ async function handleAuthenticatedUser(user) {
       await firebaseApi.signOut(auth);
       showLoginScreen();
       setLoginStatus(
-        "כתובת המייל אינה מורשית או שהגישה אליה הושבתה. ניתן להירשם באמצעות טופס ההצטרפות.",
+        "כתובת המייל אינה מורשית או שהגישה אליה הושבתה. בדקו שהמייל מעודכן בספר אנשי הקשר.",
         "error"
       );
       return;
@@ -1639,6 +2248,8 @@ async function logout() {
     selectedContactIds.clear();
     currentDisplayedContacts = [];
     selectionMode = false;
+    activeQuickFilter = "";
+    updateQuickFilterButtons();
     document.getElementById("list").innerHTML = "";
     showLoginScreen();
     setLoginStatus("התנתקת מהמערכת.", "empty");
@@ -1697,39 +2308,36 @@ async function initializeFirebase() {
 }
 
 function updateSearchUI() {
-  const q = document.getElementById("searchInput").value.trim();
-  const clearBtn = document.getElementById("clearSearchBtn");
-
-  if (q) clearBtn.classList.add("visible");
-  else clearBtn.classList.remove("visible");
+  const input = document.getElementById("searchInput");
+  const q = input ? input.value.trim() : "";
+  const clearButton = document.getElementById("clearSearchBtn");
+  if (clearButton) clearButton.classList.toggle("visible", Boolean(q));
+  updateQuickFilterButtons();
 }
 
 function clearSearch() {
   const input = document.getElementById("searchInput");
-  const logo = document.getElementById("logo");
-
-  input.value = "";
-  if (!isDeptFilterActive()) {
-    selectionMode = false;
-    selectedContactIds.clear();
-  } else if (selectionMode) {
-    selectedContactIds.clear();
-  }
-
-  logo.classList.remove("hidden");
-  show([]);
+  if (input) input.value = "";
+  selectionMode = false;
+  selectedContactIds.clear();
   updateSearchUI();
-  input.focus();
+  renderCurrentSearchResults();
+  if (input) input.focus();
 }
 
 function shouldShowNoResults() {
-  const searchInput = document.getElementById("searchInput");
-  const select = document.querySelector("select");
+  return isSearchActive() || isQuickFilterActive();
+}
 
-  const q = searchInput ? searchInput.value.trim() : "";
-  const dept = select ? select.value : "";
-
-  return q.length >= 2 || !!dept;
+function updateResultsSummary(list) {
+  const summary = document.getElementById("resultsSummary");
+  if (!summary) return;
+  if (!shouldShowNoResults()) {
+    summary.textContent = "";
+    return;
+  }
+  const count = Array.isArray(list) ? list.length : 0;
+  summary.textContent = count === 1 ? "נמצא איש קשר אחד" : `נמצאו ${count} אנשי קשר`;
 }
 
 function updateBulkActions() {
@@ -1779,20 +2387,6 @@ function clearSelectedContacts() {
   selectedContactIds.clear();
   updateBulkActions();
   refreshSelectedCardsUI();
-}
-
-function populateDepartments() {
-  const depts = [...new Set(contacts.map(c => c.dept).filter(Boolean))];
-  const select = document.querySelector("select");
-
-  select.innerHTML = '<option value="">כל המחלקות</option>';
-
-  depts.sort().forEach(d => {
-    const option = document.createElement("option");
-    option.value = d;
-    option.textContent = d;
-    select.appendChild(option);
-  });
 }
 
 function escapeVCardValue(value) {
@@ -1979,6 +2573,51 @@ async function downloadContact(id) {
   });
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightSearchText(value) {
+  const rawValue = String(value || "");
+  const searchInput = document.getElementById("searchInput");
+  const query = searchInput ? normalizeSearchText(searchInput.value) : "";
+  const terms = query.split(" ").map(term => term.trim()).filter(term => term.length >= 2).sort((a, b) => b.length - a.length);
+  if (!terms.length || !rawValue) return escapeHtml(rawValue);
+
+  const pattern = new RegExp(terms.map(escapeRegExp).join("|"), "gi");
+  let result = "";
+  let lastIndex = 0;
+
+  rawValue.replace(pattern, (match, offset) => {
+    result += escapeHtml(rawValue.slice(lastIndex, offset));
+    result += `<mark class="searchHighlight">${escapeHtml(match)}</mark>`;
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  result += escapeHtml(rawValue.slice(lastIndex));
+  return result;
+}
+
+function renderContactName(contact) {
+  const renderedName = [
+    escapeHtml(contact.title),
+    highlightSearchText(contact.first),
+    highlightSearchText(contact.last)
+  ].filter(Boolean).join(" ").trim();
+
+  return renderedName || escapeHtml(contact.name || formatPhoneForDisplay(contact.phone));
+}
+
 function show(list) {
   currentDisplayedContacts = list;
 
@@ -1988,6 +2627,7 @@ function show(list) {
   }
 
   updateMainActionButton();
+  updateResultsSummary(list);
 
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
@@ -2016,11 +2656,11 @@ function show(list) {
     let selectionHtml = "";
 
     if (c.role) {
-      metaRows += `<div class="contactMetaRow">${c.role}</div>`;
+      metaRows += `<div class="contactMetaRow">${escapeHtml(c.role)}</div>`;
     }
 
     if (c.dept) {
-      metaRows += `<div class="contactMetaRow">${c.dept}</div>`;
+      metaRows += `<div class="contactMetaRow">${escapeHtml(c.dept)}</div>`;
     }
 
     metaRows += `
@@ -2035,19 +2675,19 @@ function show(list) {
 
     if (!hideWhatsapp) {
       actionChips += `
-        <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank">וואטסאפ</a>
+        <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener">וואטסאפ</a>
       `;
     }
 
     if (c.email) {
       metaRows += `
         <div class="contactMetaRow">
-          📧 <a href="mailto:${c.email}">${c.email}</a>
+          📧 <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a>
         </div>
       `;
 
       actionChips += `
-        <a class="actionChip" href="mailto:${c.email}">מייל</a>
+        <a class="actionChip" href="mailto:${escapeHtml(c.email)}">מייל</a>
       `;
     }
 
@@ -2065,7 +2705,7 @@ function show(list) {
       <div class="contact ${isSelected ? "selected" : ""}" data-id="${c.id}">
         <div class="contactTopRow">
           <div class="contactHeader">
-            <span class="contactName">${c.name}</span>
+            <span class="contactName">${renderContactName(c)}</span>
           </div>
 
           ${selectionHtml}
@@ -2090,63 +2730,43 @@ function show(list) {
   updateBulkActions();
 }
 
-function search() {
-  const q = document.getElementById("searchInput").value.toLowerCase().trim();
-  const qNoHyphen = q.replace(/-/g, "");
+function renderCurrentSearchResults() {
+  const input = document.getElementById("searchInput");
   const logo = document.getElementById("logo");
+  const rawQuery = input ? input.value : "";
+  const q = normalizeSearchText(rawQuery);
+  const qNoHyphen = rawQuery.replace(/\D/g, "");
+  const baseContacts = getQuickFilterContacts();
 
   updateSearchUI();
-
-  if (selectionMode) {
-    selectedContactIds.clear();
-  }
+  if (selectionMode) selectedContactIds.clear();
 
   if (q.length < 2) {
-    if (!isDeptFilterActive()) {
+    if (!isQuickFilterActive()) {
       selectionMode = false;
+      if (logo) logo.classList.remove("hidden");
+      show([]);
+      return;
     }
 
-    logo.classList.remove("hidden");
-    show([]);
+    if (logo) logo.classList.add("hidden");
+    show([...baseContacts].sort(compareContactsByName));
     return;
   }
 
-  logo.classList.add("hidden");
+  if (logo) logo.classList.add("hidden");
 
-  const ranked = contacts
-    .map(c => ({
-      contact: c,
-      priority: getSearchPriority(c, q, qNoHyphen)
-    }))
+  const ranked = baseContacts
+    .map(contact => ({ contact, priority: getSearchPriority(contact, q, qNoHyphen) }))
     .filter(item => item.priority !== null)
-    .sort((a, b) => {
-      if (a.priority !== b.priority) return a.priority - b.priority;
-      return a.contact.name.localeCompare(b.contact.name, "he");
-    })
+    .sort((a, b) => a.priority !== b.priority ? a.priority - b.priority : compareContactsByName(a.contact, b.contact))
     .map(item => item.contact);
 
   show(ranked);
 }
 
-function filterByDept(dept) {
-  const logo = document.getElementById("logo");
-
-  if (selectionMode) {
-    selectedContactIds.clear();
-  }
-
-  if (!dept) {
-    if (!isSearchActive()) {
-      selectionMode = false;
-    }
-
-    logo.classList.remove("hidden");
-    show([]);
-    return;
-  }
-
-  logo.classList.add("hidden");
-  show(contacts.filter(c => c.dept === dept));
+function search() {
+  renderCurrentSearchResults();
 }
 
 function init() {
