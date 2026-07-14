@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260714-logo2">
-<link rel="icon" href="app-icon.png?v=20260714-logo2">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260714-ui1">
+<link rel="icon" href="app-icon.png?v=20260714-ui1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -1860,23 +1860,52 @@ select {
 .rememberDeviceOption {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  margin: 13px 2px 0;
+  gap: 10px;
+  margin: 13px 0 0;
+  padding: 11px 12px;
+  border: 1px solid #d7ebe1;
+  border-radius: 14px;
+  background: rgba(247, 252, 249, 0.92);
   color: #4f6e61;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.45;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rememberDeviceOption:hover {
+  border-color: var(--green-300);
+  background: var(--green-50);
 }
 
 #login .rememberDeviceOption input {
-  width: 18px;
-  height: 18px;
-  min-height: 18px;
+  display: block;
+  position: relative;
+  width: 19px;
+  height: 19px;
+  min-width: 19px;
+  min-height: 19px;
   margin: 1px 0 0;
   padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  text-align: initial;
   accent-color: var(--green-600);
+  -webkit-appearance: checkbox;
+  appearance: auto;
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
   flex-shrink: 0;
+}
+
+#login .rememberDeviceOption input:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.24);
+  outline-offset: 2px;
 }
 
 .rememberDeviceHelp {
@@ -1885,6 +1914,36 @@ select {
   color: #73847c;
   font-size: 11.5px;
   font-weight: 500;
+}
+
+.guidePlatformSection {
+  margin: 14px 0;
+  padding: 14px 14px 10px;
+  border: 1px solid #d8ece1;
+  border-radius: 16px;
+  background: #f9fdfa;
+}
+
+.guidePlatformTitle {
+  margin: 0 0 8px;
+  color: #245946;
+  font-size: 17px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.guidePlatformSection .guideSteps {
+  margin-bottom: 0;
+}
+
+.guideDirectOpenNote {
+  margin: 10px 0 0;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: var(--green-50);
+  color: #3f6657;
+  font-size: 12.5px;
+  line-height: 1.55;
 }
 
 .adminTabs {
@@ -2008,17 +2067,35 @@ select {
   <div class="guideCard">
     <h1 id="guideTitle">ייבוא אנשי קשר</h1>
     <div class="guideSubtitle">
-      הקובץ מוכן לייבוא ולשמירה במכשיר.
+      הקובץ מוכן. הורידו אותו ופעלו לפי ההוראות המתאימות למכשיר שלכם.
     </div>
     <div class="guideCountBox" id="guideCountBox"></div>
-    <ol class="guideSteps">
-      <li>לחצו על הכפתור הירוק כדי להתחיל בייבוא קובץ אנשי הקשר.</li>
-      <li>ב-iPhone: אם הקובץ נפתח בתצוגה מקדימה, לחצו על כפתור <b>שיתוף / Share</b> בפינה הימנית התחתונה.</li>
-      <li>לאחר מכן בחרו <b>אנשי קשר / Contacts</b> או אפשרות של <b>הוספה לאנשי קשר / Add to Contacts / Create New Contacts</b>, לפי מה שמופיע במכשיר.</li>
-      <li>אם הקובץ ירד למכשיר ולא נפתח מיד, אפשר לפתוח אותו מתוך <b>קבצים / Files</b> או מתוך <b>הורדות / Downloads</b>.</li>
-      <li>באנדרואיד: פתחו את קובץ ה-VCF דרך <b>אנשי קשר / Contacts</b> או דרך <b>הקבצים / Files</b>, ואז בחרו באפשרות של ייבוא אנשי קשר.</li>
-    </ol>
-    <button type="button" class="finalGuideBtn" id="finalGuideBtn">ייבוא קובץ VCF</button>
+
+    <button type="button" class="finalGuideBtn" id="finalGuideBtn">הורדת קובץ VCF</button>
+
+    <section class="guidePlatformSection" aria-labelledby="iphoneGuideTitle">
+      <h2 id="iphoneGuideTitle" class="guidePlatformTitle">📱 iPhone / iPad</h2>
+      <ol class="guideSteps">
+        <li>לחצו על <b>הורדת קובץ VCF</b> ושמרו או הורידו את הקובץ אל <b>קבצים / Files</b>. בדרך כלל הוא יופיע בתיקיית <b>הורדות / Downloads</b>.</li>
+        <li>פתחו את אפליקציית <b>קבצים / Files</b> ולחצו על קובץ ה-VCF שהורדתם.</li>
+        <li>בתצוגת הקובץ לחצו על כפתור <b>שיתוף / Share</b>.</li>
+        <li>בחרו <b>אנשי קשר / Contacts</b>, ולאחר מכן בחרו באפשרות להוסיף או לייבא את כל אנשי הקשר שמופיעים בקובץ.</li>
+      </ol>
+      <div class="guideDirectOpenNote">
+        אם הקובץ נפתח מיד לאחר ההורדה, אין צורך להיכנס שוב ל-Files — אפשר ללחוץ ישירות על <b>Share</b> ולהמשיך משם.
+      </div>
+    </section>
+
+    <section class="guidePlatformSection" aria-labelledby="androidGuideTitle">
+      <h2 id="androidGuideTitle" class="guidePlatformTitle">🤖 Android</h2>
+      <ol class="guideSteps">
+        <li>לחצו על <b>הורדת קובץ VCF</b>.</li>
+        <li>פתחו את הקובץ מתוך הודעת ההורדה או מתוך <b>קבצים / Files</b> → <b>הורדות / Downloads</b>.</li>
+        <li>בחרו לפתוח את הקובץ באמצעות אפליקציית <b>אנשי קשר / Contacts</b>.</li>
+        <li>אשרו את ייבוא אנשי הקשר ובחרו את החשבון שאליו תרצו לשמור אותם, אם המכשיר מבקש זאת.</li>
+      </ol>
+    </section>
+
     <button type="button" class="guideBackBtn" onclick="goBackToMainApp()">חזרה לאפליקציה</button>
     <div id="guideError" class="guideError" style="display:none;"></div>
   </div>
@@ -2027,7 +2104,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260714-logo2" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260714-ui1" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2118,7 +2195,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260714-logo2" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260714-ui1" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2156,7 +2233,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260714-logo2" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260714-ui1" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
