@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260714-interface1">
-<link rel="icon" href="app-icon.png?v=20260714-interface1">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260714-interface3">
+<link rel="icon" href="app-icon.png?v=20260714-interface3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -1825,6 +1825,37 @@ select {
 }
 
 
+/* ===== Recent contacts import ===== */
+.quickFilters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recentContactsBtn {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 9px;
+  padding: 11px 14px;
+  border: 1px solid #bfdfcf;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #ffffff 0%, #edf9f3 100%);
+  color: var(--green-700);
+  box-shadow: none;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.recentContactsBtn:hover { background: var(--green-50); }
+.recentModalExplanation { margin: 0 0 13px; color: #557066; font-size: 13px; line-height: 1.65; }
+.recentModalCount { margin-bottom: 12px; padding: 12px 13px; border: 1px solid var(--green-200); border-radius: 14px; background: var(--green-50); color: #295746; font-size: 14px; font-weight: 750; line-height: 1.55; }
+.recentModalList { max-height: 260px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.recentModalList li { padding: 9px 2px; border-bottom: 1px solid #e6f0eb; color: #395d4f; font-size: 13px; line-height: 1.45; }
+.recentModalList li:last-child { border-bottom: 0; }
+.recentModalEmpty { padding: 18px 10px; color: #6c7f77; text-align: center; font-size: 13.5px; line-height: 1.55; }
+@media (max-width: 390px) {
+  .quickFilters { grid-template-columns: 1fr 1fr; }
+  .quickFilters .quickFilterBtn:last-child { grid-column: 1 / -1; }
+}
+
 /* ===== Interface update: saved login, recent contacts and activity ===== */
 .rememberDeviceOption {
   display: flex;
@@ -1996,7 +2027,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-icon.png?v=20260714-interface1" alt="לוגו ספר אנשי הקשר">
+      <img src="app-icon.png?v=20260714-interface3" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2087,7 +2118,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-icon.png?v=20260714-interface1" alt="App logo">
+        <img class="appHeaderLogo" src="app-icon.png?v=20260714-interface3" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2117,15 +2148,15 @@ select {
     <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')"><span class="quickFilterIcon" aria-hidden="true">📱</span>VPN</button>
     <button type="button" id="institutesFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('institutes')"><span class="quickFilterIcon" aria-hidden="true">🏥</span>מכונים</button>
     <button type="button" id="labsFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('labs')"><span class="quickFilterIcon" aria-hidden="true">🧪</span>מעבדות</button>
-    <button type="button" id="recentFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('recent')"><span class="quickFilterIcon" aria-hidden="true">🆕</span>חדשים</button>
   </div>
 
   <div id="resultsSummary" class="resultsSummary"></div>
 
   <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
+  <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-icon.png?v=20260714-interface1" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-icon.png?v=20260714-interface3" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2196,6 +2227,22 @@ select {
   <div id="adminList"></div>
 </div>
 
+
+<div id="recentContactsModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="recentContactsModalTitle">
+  <div class="adminModalCard">
+    <div class="adminModalHeader">
+      <h3 id="recentContactsModalTitle" class="adminModalTitle">אנשי קשר שנוספו לאחרונה</h3>
+      <button type="button" class="adminModalClose" onclick="closeRecentContactsModal()" aria-label="סגירה">×</button>
+    </div>
+    <p id="recentContactsExplanation" class="recentModalExplanation"></p>
+    <div id="recentContactsCount" class="recentModalCount"></div>
+    <ul id="recentContactsList" class="recentModalList"></ul>
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="closeRecentContactsModal()">סגירה</button>
+      <button type="button" id="recentContactsImportBtn" class="adminActionBtn primary" onclick="downloadRecentContacts()">ייבוא אנשי הקשר החדשים</button>
+    </div>
+  </div>
+</div>
 
 <div id="adminManagerModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="adminManagerModalTitle">
   <div class="adminModalCard">
@@ -2299,7 +2346,11 @@ const FIREBASE_SDK_VERSION = "12.16.0";
 const PASSWORD_AUTH_RETURN_URL =
   "https://schneider-contacts.github.io/contacts-app/";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
-const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at";
+const CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
+const CONTACT_BUNDLE_MANIFEST_ID = "manifest";
+const CONTACT_BUNDLE_CACHE_KEY = "contacts_bundle_cache_v1";
+const CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
+const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 
 let firebaseApi = null;
@@ -2424,7 +2475,10 @@ function isEmptyValue(value) {
 
 function mergeMissingFields(base, extra) {
   const merged = { ...base };
-  const fieldsToComplete = ["first", "last", "firstEn", "lastEn", "title", "role", "dept", "email"];
+  const fieldsToComplete = [
+    "first", "last", "firstEn", "lastEn", "title", "role", "dept",
+    "hospital", "email", "source", "status", "createdAt", "updatedAt", "docId"
+  ];
 
   fieldsToComplete.forEach(field => {
     if (isEmptyValue(merged[field]) && !isEmptyValue(extra[field])) {
@@ -2539,59 +2593,74 @@ function isInstituteLandline(phone) {
 
 function getRecentContactsCutoff() {
   const savedValue = Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0);
-
-  if (Number.isFinite(savedValue) && savedValue > 0) {
-    return savedValue;
-  }
-
+  if (Number.isFinite(savedValue) && savedValue > 0) return savedValue;
   return Date.now() - (RECENT_CONTACTS_DEFAULT_DAYS * 24 * 60 * 60 * 1000);
 }
 
 function parseContactDate(value) {
   if (!value) return null;
-
-  if (value && typeof value.toDate === "function") {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value.toDate === "function") {
     const converted = value.toDate();
     return Number.isNaN(converted.getTime()) ? null : converted;
   }
+  if (typeof value.toMillis === "function") {
+    const converted = new Date(value.toMillis());
+    return Number.isNaN(converted.getTime()) ? null : converted;
+  }
+  if (typeof value === "object" && typeof value.seconds === "number") {
+    const converted = new Date(value.seconds * 1000);
+    return Number.isNaN(converted.getTime()) ? null : converted;
+  }
+  if (typeof value === "number") {
+    const milliseconds = value < 100000000000 ? value * 1000 : value;
+    const converted = new Date(milliseconds);
+    return Number.isNaN(converted.getTime()) ? null : converted;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
 
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const israeliMatch = raw.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (israeliMatch) {
+    let [, day, month, year, hours = "0", minutes = "0", seconds = "0"] = israeliMatch;
+    if (year.length === 2) year = "20" + year;
+    const converted = new Date(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes), Number(seconds));
+    return Number.isNaN(converted.getTime()) ? null : converted;
+  }
+
+  const direct = new Date(raw);
+  return Number.isNaN(direct.getTime()) ? null : direct;
+}
+
+function getContactCreationDate(contact) {
+  const createdDate = parseContactDate(contact && contact.createdAt);
+  if (createdDate) return createdDate;
+  const source = normalizeSearchText(contact && contact.source);
+  if (source.includes("form") || source.includes("טופס")) return parseContactDate(contact && contact.updatedAt);
+  return null;
 }
 
 function isContactRecent(contact) {
-  const createdDate = parseContactDate(contact.createdAt);
+  const createdDate = getContactCreationDate(contact);
   return Boolean(createdDate && createdDate.getTime() > getRecentContactsCutoff());
 }
 
-function isQuickFilterActive() {
-  return ["vpn", "institutes", "labs", "recent"].includes(activeQuickFilter);
+function getRecentContacts() {
+  return contacts.filter(isContactRecent).sort((a, b) => {
+    const aDate = getContactCreationDate(a);
+    const bDate = getContactCreationDate(b);
+    return (bDate ? bDate.getTime() : 0) - (aDate ? aDate.getTime() : 0);
+  });
 }
 
-function canUseMultiSelection() {
-  return isSearchActive() || (isQuickFilterActive() && activeQuickFilter !== "recent");
-}
-
+function isQuickFilterActive() { return ["vpn", "institutes", "labs"].includes(activeQuickFilter); }
+function canUseMultiSelection() { return isSearchActive() || isQuickFilterActive(); }
 function contactMatchesQuickFilter(contact, filterName) {
   const department = normalizeSearchText(contact.dept);
   const belongsToVpnList = department.includes("vpn");
-
-  if (filterName === "vpn") {
-    return belongsToVpnList && isMobilePhone(contact.phone);
-  }
-
-  if (filterName === "institutes") {
-    return belongsToVpnList && isInstituteLandline(contact.phone);
-  }
-
-  if (filterName === "labs") {
-    return department.includes("מעבד");
-  }
-
-  if (filterName === "recent") {
-    return isContactRecent(contact);
-  }
-
+  if (filterName === "vpn") return belongsToVpnList && isMobilePhone(contact.phone);
+  if (filterName === "institutes") return belongsToVpnList && isInstituteLandline(contact.phone);
+  if (filterName === "labs") return department.includes("מעבד");
   return true;
 }
 
@@ -2604,8 +2673,7 @@ function updateQuickFilterButtons() {
   const buttons = {
     vpn: document.getElementById("vpnFilterBtn"),
     institutes: document.getElementById("institutesFilterBtn"),
-    labs: document.getElementById("labsFilterBtn"),
-    recent: document.getElementById("recentFilterBtn")
+    labs: document.getElementById("labsFilterBtn")
   };
 
   Object.entries(buttons).forEach(([filterName, button]) => {
@@ -2634,12 +2702,6 @@ function updateMainActionButton() {
     return;
   }
 
-  if (activeQuickFilter === "recent") {
-    btn.textContent = "ייבא את כל החדשים";
-    btn.disabled = currentDisplayedContacts.length === 0;
-    return;
-  }
-
   btn.disabled = false;
 
   if (canUseMultiSelection()) {
@@ -2653,11 +2715,6 @@ function updateMainActionButton() {
 function handleMainImportButton() {
   if (selectionMode) {
     exitSelectionMode();
-    return;
-  }
-
-  if (activeQuickFilter === "recent") {
-    downloadRecentContacts();
     return;
   }
 
@@ -2687,11 +2744,14 @@ function exitSelectionMode() {
 }
 
 function mapFirestoreContact(document, index = 0) {
-  const row = typeof document.data === "function"
+  const isSnapshot = typeof document.data === "function";
+  const row = isSnapshot
     ? document.data()
     : (document.data || document || {});
 
-  const documentId = document.id || row.contact_doc_id || "";
+  const documentId = isSnapshot
+    ? (document.id || "")
+    : (document.docId || row.docId || document.id || row.contact_doc_id || "");
 
   return {
     id: index,
@@ -2725,15 +2785,13 @@ async function loadContacts() {
   setLoginButtonDisabled(true);
 
   try {
-    const snapshot = await firebaseApi.getDocs(
-      firebaseApi.collection(db, "contacts")
-    );
+    const rawContacts = await loadContactsFromOptimizedBundle_();
 
-    const rawContacts = snapshot.docs
-      .map((document, index) => mapFirestoreContact(document, index))
-      .filter(contact => contact.phone);
-
-    contacts = deduplicateContacts(rawContacts).map((contact, index) => ({
+    contacts = deduplicateContacts(
+      rawContacts
+        .map((row, index) => mapFirestoreContact(row, index))
+        .filter(contact => contact.phone)
+    ).map((contact, index) => ({
       ...contact,
       id: index
     }));
@@ -2745,6 +2803,119 @@ async function loadContacts() {
   } finally {
     isLoadingContacts = false;
     setLoginButtonDisabled(false);
+  }
+}
+
+async function loadContactsFromOptimizedBundle_() {
+  const manifestRef = firebaseApi.doc(
+    db,
+    CONTACT_BUNDLE_COLLECTION_NAME,
+    CONTACT_BUNDLE_MANIFEST_ID
+  );
+
+  const manifestSnapshot = await firebaseApi.getDoc(manifestRef);
+
+  if (!manifestSnapshot.exists()) {
+    console.warn("Optimized contacts bundle not found; using legacy contacts collection.");
+    return loadContactsFromLegacyCollection_();
+  }
+
+  const manifest = manifestSnapshot.data() || {};
+  const version = String(manifest.version || "");
+  const chunkIds = Array.isArray(manifest.chunkIds) && manifest.chunkIds.length
+    ? manifest.chunkIds.map(value => String(value))
+    : Array.from(
+        { length: Number(manifest.chunkCount || CONTACT_BUNDLE_EXPECTED_CHUNKS) },
+        (_, index) => "chunk_" + index
+      );
+
+  const cached = readContactsBundleCache_();
+
+  if (
+    version &&
+    cached &&
+    cached.version === version &&
+    Array.isArray(cached.contacts)
+  ) {
+    return cached.contacts;
+  }
+
+  const chunkSnapshots = await Promise.all(
+    chunkIds.map(chunkId =>
+      firebaseApi.getDoc(
+        firebaseApi.doc(db, CONTACT_BUNDLE_COLLECTION_NAME, chunkId)
+      )
+    )
+  );
+
+  const rawContacts = [];
+
+  chunkSnapshots.forEach(snapshot => {
+    if (!snapshot.exists()) return;
+
+    const data = snapshot.data() || {};
+    const chunkContacts = Array.isArray(data.contacts)
+      ? data.contacts
+      : [];
+
+    chunkContacts.forEach(contact => {
+      rawContacts.push(contact);
+    });
+  });
+
+  if (!rawContacts.length && Number(manifest.contactCount || 0) > 0) {
+    throw new Error("חבילת אנשי הקשר קיימת אך מסמכי הנתונים חסרים.");
+  }
+
+  writeContactsBundleCache_(version, rawContacts);
+  return rawContacts;
+}
+
+async function loadContactsFromLegacyCollection_() {
+  const snapshot = await firebaseApi.getDocs(
+    firebaseApi.collection(db, "contacts")
+  );
+
+  return snapshot.docs.map(document => ({
+    id: document.id,
+    docId: document.id,
+    data: document.data() || {}
+  }));
+}
+
+function readContactsBundleCache_() {
+  try {
+    const raw = localStorage.getItem(CONTACT_BUNDLE_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (error) {
+    localStorage.removeItem(CONTACT_BUNDLE_CACHE_KEY);
+    return null;
+  }
+}
+
+function writeContactsBundleCache_(version, rawContacts) {
+  try {
+    localStorage.setItem(
+      CONTACT_BUNDLE_CACHE_KEY,
+      JSON.stringify({
+        version: String(version || ""),
+        contacts: rawContacts,
+        cachedAt: Date.now()
+      })
+    );
+  } catch (error) {
+    console.warn("Could not cache optimized contacts bundle", error);
+  }
+}
+
+function clearContactsBundleCache_() {
+  try {
+    localStorage.removeItem(CONTACT_BUNDLE_CACHE_KEY);
+  } catch (error) {
+    console.warn("Could not clear contacts bundle cache", error);
   }
 }
 
@@ -3369,6 +3540,7 @@ async function logout() {
     stopPermissionListener();
     await firebaseApi.signOut(auth);
     contacts = [];
+    clearContactsBundleCache_();
     currentUserIsAdmin = false;
     currentUserIsSuperAdmin = false;
     currentAdminRole = "";
@@ -3376,6 +3548,7 @@ async function logout() {
     const adminButton = document.getElementById("adminOpenBtn");
     if (adminButton) adminButton.classList.remove("visible");
     document.getElementById("adminPanel").style.display = "none";
+    closeRecentContactsModal();
     selectedContactIds.clear();
     currentDisplayedContacts = [];
     selectionMode = false;
@@ -3626,11 +3799,24 @@ async function loadAdminData() {
   document.getElementById("adminList").innerHTML = "";
 
   try {
+    // רשימת אנשי הקשר כבר נטענה מחבילת הנתונים המרוכזת.
+    // כך פתיחת מסך הניהול אינה קוראת שוב מאות מסמכי contacts.
+    adminContacts = contacts.map((contact, index) => ({
+      ...contact,
+      id: index,
+      deleted: false
+    }));
+
+    const activityQuery = firebaseApi.query(
+      firebaseApi.collection(db, "admin_actions"),
+      firebaseApi.orderBy("timestamp", "desc"),
+      firebaseApi.limit(150)
+    );
+
     const requests = [
-      firebaseApi.getDocs(firebaseApi.collection(db, "contacts")),
       firebaseApi.getDocs(firebaseApi.collection(db, "contactOverrides")),
       firebaseApi.getDocs(firebaseApi.collection(db, "allowedUsers")),
-      firebaseApi.getDocs(firebaseApi.collection(db, "admin_actions"))
+      firebaseApi.getDocs(activityQuery)
     ];
 
     if (currentUserIsSuperAdmin) {
@@ -3638,15 +3824,10 @@ async function loadAdminData() {
     }
 
     const results = await Promise.all(requests);
-    const contactsSnapshot = results[0];
-    const overridesSnapshot = results[1];
-    const usersSnapshot = results[2];
-    const activitySnapshot = results[3];
-    const managersSnapshot = results[4] || null;
-
-    adminContacts = contactsSnapshot.docs
-      .map((document, index) => mapFirestoreContact(document, index))
-      .filter(contact => contact.phone);
+    const overridesSnapshot = results[0];
+    const usersSnapshot = results[1];
+    const activitySnapshot = results[2];
+    const managersSnapshot = results[3] || null;
 
     adminRemovedContacts = overridesSnapshot.docs
       .map((document, index) => {
@@ -3670,13 +3851,18 @@ async function loadAdminData() {
       };
     });
 
-    adminActivity = activitySnapshot.docs.map(document => {
+    const recordedActivity = activitySnapshot.docs.map(document => {
       const data = document.data() || {};
       return {
         docId: document.id,
         ...data
       };
-    }).sort((a, b) => getActivityTimestamp(b) - getActivityTimestamp(a));
+    });
+
+    adminActivity = mergeActivityWithDetectedContacts(
+      recordedActivity,
+      adminContacts
+    );
 
     adminManagers = managersSnapshot
       ? managersSnapshot.docs.map(document => {
@@ -3763,6 +3949,41 @@ function adminManagerMatchesQuery(manager, query) {
 }
 
 
+function getDetectedContactActivityTimestamp(contact) {
+  const date = getContactCreationDate(contact);
+  return date ? date.getTime() : 0;
+}
+
+function getActivityTargetKey(activity) {
+  const phone = normalizePhone(activity && activity.targetPhone || "");
+  const email = normalizeEmail(activity && activity.targetEmail || "");
+  const timestamp = getActivityTimestamp(activity);
+  const day = timestamp ? new Date(timestamp).toISOString().slice(0, 10) : "";
+  return `${phone || email}|${day}`;
+}
+
+function mergeActivityWithDetectedContacts(activityItems, contactItems) {
+  const actualActivities = Array.isArray(activityItems) ? activityItems : [];
+  const additionKeys = new Set(actualActivities.filter(item => ["contact_add_form", "form_submission", "contact_add_detected"].includes(item.action)).map(getActivityTargetKey).filter(key => key !== "|"));
+  const detectedActivities = (Array.isArray(contactItems) ? contactItems : []).map(contact => {
+    const timestamp = getDetectedContactActivityTimestamp(contact);
+    if (!timestamp) return null;
+    return {
+      docId: `detected-${contact.docId || contact.phone}`,
+      action: "contact_add_detected",
+      targetId: contact.docId || "",
+      targetEmail: contact.email || "",
+      targetPhone: contact.phone || "",
+      displayName: contact.name || "",
+      actorEmail: "",
+      source: contact.source || "contacts-sync",
+      timestamp: new Date(timestamp).toISOString(),
+      detectedFromContact: true
+    };
+  }).filter(Boolean).filter(item => !additionKeys.has(getActivityTargetKey(item)));
+  return [...actualActivities, ...detectedActivities].sort((a, b) => getActivityTimestamp(b) - getActivityTimestamp(a));
+}
+
 function getActivityTimestamp(activity) {
   const value = activity && activity.timestamp;
 
@@ -3786,7 +4007,7 @@ function formatActivityTimestamp(activity) {
 }
 
 function getActivityCategory(action) {
-  if (["contact_add_form", "form_submission", "manager_add"].includes(action)) {
+  if (["contact_add_form", "form_submission", "contact_add_detected", "manager_add"].includes(action)) {
     return "added";
   }
 
@@ -3801,6 +4022,7 @@ function getActivityTitle(activity) {
   const labels = {
     contact_add_form: "נשלח טופס הצטרפות חדש",
     form_submission: "נשלח טופס הצטרפות",
+    contact_add_detected: "איש קשר נוסף למערכת",
     email_self_update: "כתובת מייל עודכנה",
     contact_edit: "פרטי איש קשר נערכו",
     contact_remove: "איש קשר הוסר מהאפליקציה",
@@ -3818,6 +4040,9 @@ function getActivityTitle(activity) {
 }
 
 function getActivityActor(activity) {
+  if (activity && activity.detectedFromContact === true) {
+    return activity.source ? `סנכרון (${activity.source})` : "סנכרון אנשי קשר";
+  }
   return normalizeEmail(
     activity.adminEmail ||
     activity.actorEmail ||
@@ -4437,6 +4662,7 @@ async function saveAdminContactEdit() {
     }
 
     await batch.commit();
+    await updateOptimizedContactBundle_(adminEditingContact.docId, payload, { deleted: false, countDelta: 0 });
     setAdminEditStatus("השינויים נשמרו.", "success");
     await loadContacts();
     await loadAdminData();
@@ -4450,6 +4676,130 @@ async function saveAdminContactEdit() {
   } finally {
     saveButton.disabled = false;
   }
+}
+
+function getContactBundleChunkIndex_(documentId) {
+  const value = String(documentId || "");
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index++) {
+    hash = ((hash * 31) + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash % CONTACT_BUNDLE_EXPECTED_CHUNKS;
+}
+
+function buildBundleContactFromPayload_(docId, payload) {
+  return {
+    docId: String(docId || ""),
+    id: String(payload.id || ""),
+    first_name_he: String(payload.first_name_he || ""),
+    last_name_he: String(payload.last_name_he || ""),
+    first_name_en: String(payload.first_name_en || ""),
+    last_name_en: String(payload.last_name_en || ""),
+    title_prefix: String(payload.title_prefix || ""),
+    role: String(payload.role || ""),
+    department: String(payload.department || ""),
+    hospital: String(payload.hospital || ""),
+    phone: String(payload.phone || ""),
+    email: normalizeEmail(payload.email),
+    source: String(payload.source || ""),
+    status: String(payload.status || ""),
+    created_at: String(payload.created_at || ""),
+    updated_at: String(payload.updated_at || "")
+  };
+}
+
+async function updateOptimizedContactBundle_(docId, payload, options = {}) {
+  const normalizedDocId = String(docId || "");
+  if (!normalizedDocId) return;
+
+  const deleted = options.deleted === true;
+  const countDelta = Number(options.countDelta || 0);
+  const chunkIndex = getContactBundleChunkIndex_(normalizedDocId);
+  const chunkId = "chunk_" + chunkIndex;
+  const chunkRef = firebaseApi.doc(db, CONTACT_BUNDLE_COLLECTION_NAME, chunkId);
+  const manifestRef = firebaseApi.doc(
+    db,
+    CONTACT_BUNDLE_COLLECTION_NAME,
+    CONTACT_BUNDLE_MANIFEST_ID
+  );
+
+  const [chunkSnapshot, manifestSnapshot] = await Promise.all([
+    firebaseApi.getDoc(chunkRef),
+    firebaseApi.getDoc(manifestRef)
+  ]);
+
+  if (!manifestSnapshot.exists()) {
+    clearContactsBundleCache_();
+    console.warn("Contacts bundle manifest is missing; run syncContactsToFirestore in Apps Script.");
+    return;
+  }
+
+  const chunkData = chunkSnapshot.exists()
+    ? (chunkSnapshot.data() || {})
+    : {};
+  const currentContacts = Array.isArray(chunkData.contacts)
+    ? [...chunkData.contacts]
+    : [];
+  const existingIndex = currentContacts.findIndex(
+    contact => String(contact && contact.docId || "") === normalizedDocId
+  );
+
+  if (deleted) {
+    if (existingIndex >= 0) currentContacts.splice(existingIndex, 1);
+  } else {
+    const nextContact = buildBundleContactFromPayload_(normalizedDocId, payload);
+    if (existingIndex >= 0) currentContacts[existingIndex] = nextContact;
+    else currentContacts.push(nextContact);
+  }
+
+  currentContacts.sort((a, b) => {
+    const lastCompare = String(a.last_name_he || "")
+      .localeCompare(String(b.last_name_he || ""), "he", { sensitivity: "base" });
+    if (lastCompare !== 0) return lastCompare;
+    return String(a.first_name_he || "")
+      .localeCompare(String(b.first_name_he || ""), "he", { sensitivity: "base" });
+  });
+
+  const manifest = manifestSnapshot.data() || {};
+  const nextVersion = new Date().toISOString() + "_" + Math.random().toString(36).slice(2, 10);
+  const previousCount = Number(manifest.contactCount || contacts.length || 0);
+  const nextCount = Math.max(0, previousCount + countDelta);
+  const batch = firebaseApi.writeBatch(db);
+  const now = firebaseApi.serverTimestamp();
+
+  batch.set(
+    chunkRef,
+    {
+      kind: "contacts_chunk",
+      version: nextVersion,
+      chunkIndex,
+      contacts: currentContacts,
+      updatedAt: now
+    },
+    { merge: false }
+  );
+
+  batch.set(
+    manifestRef,
+    {
+      kind: "contacts_manifest",
+      schemaVersion: 1,
+      version: nextVersion,
+      chunkCount: CONTACT_BUNDLE_EXPECTED_CHUNKS,
+      contactCount: nextCount,
+      chunkIds: Array.from(
+        { length: CONTACT_BUNDLE_EXPECTED_CHUNKS },
+        (_, index) => "chunk_" + index
+      ),
+      updatedAt: now
+    },
+    { merge: true }
+  );
+
+  await batch.commit();
+  clearContactsBundleCache_();
 }
 
 function contactToFirestorePayload(contact) {
@@ -4507,6 +4857,7 @@ async function removeAdminContact(docId) {
     });
 
     await batch.commit();
+    await updateOptimizedContactBundle_(docId, payload, { deleted: true, countDelta: -1 });
     await loadContacts();
     await loadAdminData();
     setAdminStatus("איש הקשר הוסר מהאפליקציה.", "success");
@@ -4551,6 +4902,7 @@ async function restoreAdminContact(docId) {
     });
 
     await batch.commit();
+    await updateOptimizedContactBundle_(docId, payload, { deleted: false, countDelta: 1 });
     await loadContacts();
     await loadAdminData();
     setAdminStatus("איש הקשר הוחזר לאפליקציה.", "success");
@@ -4670,7 +5022,10 @@ async function initializeFirebase() {
     addDoc: firestoreModule.addDoc,
     writeBatch: firestoreModule.writeBatch,
     serverTimestamp: firestoreModule.serverTimestamp,
-    onSnapshot: firestoreModule.onSnapshot
+    onSnapshot: firestoreModule.onSnapshot,
+    query: firestoreModule.query,
+    orderBy: firestoreModule.orderBy,
+    limit: firestoreModule.limit
   };
 
   firebaseApp = firebaseApi.initializeApp(FIREBASE_CONFIG);
@@ -4956,29 +5311,49 @@ async function downloadSelectedContacts() {
 }
 
 
-async function downloadRecentContacts() {
-  const recentContacts = contacts
-    .filter(isContactRecent)
-    .sort((a, b) => {
-      const aDate = parseContactDate(a.createdAt);
-      const bDate = parseContactDate(b.createdAt);
-      return (bDate ? bDate.getTime() : 0) - (aDate ? aDate.getTime() : 0);
-    });
+function openRecentContactsModal() {
+  const recentContacts = getRecentContacts();
+  const hasPreviousImport = Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0) > 0;
+  const explanation = document.getElementById("recentContactsExplanation");
+  const countBox = document.getElementById("recentContactsCount");
+  const list = document.getElementById("recentContactsList");
+  const importButton = document.getElementById("recentContactsImportBtn");
+  if (explanation) {
+    explanation.textContent = hasPreviousImport
+      ? "הרשימה כוללת אנשי קשר שנוספו למערכת מאז הייבוא האחרון שבוצע מהמכשיר הזה. האפליקציה אינה יכולה לבדוק אילו אנשי קשר כבר שמורים בפנקס הטלפון."
+      : `זהו השימוש הראשון בכפתור, ולכן מוצגים אנשי קשר שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. לאחר הייבוא הבא יוצגו רק אנשי קשר שנוספו מאז.`;
+  }
+  if (countBox) {
+    countBox.textContent = recentContacts.length === 1 ? "נמצא איש קשר חדש אחד לייבוא." : `נמצאו ${recentContacts.length} אנשי קשר חדשים לייבוא.`;
+  }
+  if (list) {
+    list.innerHTML = recentContacts.length ? recentContacts.slice(0, 50).map(contact => {
+      const date = getContactCreationDate(contact);
+      const dateLabel = date ? new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(date) : "";
+      return `<li><b>${escapeHtml(contact.name || formatPhoneForDisplay(contact.phone))}</b>${contact.dept ? " · " + escapeHtml(contact.dept) : ""}${dateLabel ? "<br><small>נוסף: " + escapeHtml(dateLabel) + "</small>" : ""}</li>`;
+    }).join("") : '<li class="recentModalEmpty">לא נמצאו כרגע אנשי קשר חדשים. לאחר סנכרון הנתונים, אנשי קשר שנוספו אחרי מועד החיתוך יופיעו כאן.</li>';
+  }
+  if (importButton) importButton.disabled = recentContacts.length === 0;
+  const modal = document.getElementById("recentContactsModal");
+  if (modal) modal.classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
 
+function closeRecentContactsModal() {
+  const modal = document.getElementById("recentContactsModal");
+  if (modal) modal.classList.remove("visible");
+  document.body.style.overflow = "";
+}
+
+async function downloadRecentContacts() {
+  const recentContacts = getRecentContacts();
   if (!recentContacts.length) {
     alert("לא נמצאו אנשי קשר חדשים לייבוא.");
     return;
   }
-
   const multiVCard = recentContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-
-  openImportGuide(
-    multiVCard,
-    "new-contacts.vcf",
-    recentContacts.length,
-    "ייבוא אנשי קשר חדשים",
-    { markRecentImported: true }
-  );
+  closeRecentContactsModal();
+  openImportGuide(multiVCard, "new-contacts.vcf", recentContacts.length, "ייבוא אנשי קשר חדשים", { markRecentImported: true });
 }
 
 async function downloadAllContacts() {
@@ -5197,15 +5572,6 @@ function search() {
   renderCurrentSearchResults();
 }
 
-
-window.addEventListener("storage", event => {
-  if (
-    event.key === RECENT_CONTACTS_STORAGE_KEY &&
-    activeQuickFilter === "recent"
-  ) {
-    renderCurrentSearchResults();
-  }
-});
 
 function init() {
   cleanupOldImportPayloads();
