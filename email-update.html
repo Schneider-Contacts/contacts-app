@@ -388,9 +388,11 @@
     const successDetails = document.getElementById("successDetails");
     const resetBtn = document.getElementById("resetBtn");
     const requestIdInput = document.getElementById("requestId");
+    const webAppUrl = form.action;
 
     let pendingRequestId = "";
     let responseTimer = null;
+    let statusPollTimer = null;
 
     function setStatus(message = "", type = "") {
       statusEl.textContent = message;
@@ -439,48 +441,54 @@
       }
     }
 
-    form.addEventListener("submit", event => {
-      const phone = document.getElementById("phone").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const confirmEmail = document
-        .getElementById("confirmEmail")
-        .value
-        .trim();
-
-      if (!phone || !email || !confirmEmail) {
-        event.preventDefault();
-        setStatus("יש למלא את כל השדות.", "error");
-        return;
+    function clearStatusPolling() {
+      if (statusPollTimer) {
+        clearTimeout(statusPollTimer);
+        statusPollTimer = null;
       }
+    }
 
-      if (email.toLowerCase() !== confirmEmail.toLowerCase()) {
-        event.preventDefault();
-        setStatus("כתובות המייל שהוזנו אינן תואמות.", "error");
-        return;
-      }
-
-      pendingRequestId = createRequestId();
-      requestIdInput.value = pendingRequestId;
-
-      setBusy(true);
-      setStatus("מעדכן את הפרטים...", "loading");
+    function clearPendingRequest() {
       clearResponseTimer();
+      clearStatusPolling();
+      pendingRequestId = "";
+    }
 
-      responseTimer = setTimeout(() => {
-        setBusy(false);
-        setStatus(
-          "לא התקבלה תשובה מהמערכת. בדקו בכניסה לאפליקציה אם המייל עודכן, או נסו שוב.",
-          "error"
-        );
-        pendingRequestId = "";
-      }, 45000);
-    });
+    function scheduleStatusPoll(delay = 1500) {
+      clearStatusPolling();
 
-    window.addEventListener("message", event => {
-      if (event.source !== submitFrame.contentWindow) return;
+      if (!pendingRequestId) return;
 
-      const data = event.data;
+      statusPollTimer = setTimeout(() => {
+        requestEmailUpdateStatus();
+      }, delay);
+    }
 
+    function requestEmailUpdateStatus() {
+      if (!pendingRequestId) return;
+
+      const script = document.createElement("script");
+      const separator = webAppUrl.includes("?") ? "&" : "?";
+
+      script.async = true;
+      script.src =
+        webAppUrl +
+        separator +
+        "action=emailUpdateStatus" +
+        "&requestId=" + encodeURIComponent(pendingRequestId) +
+        "&callback=receiveEmailUpdateStatus" +
+        "&_=" + Date.now();
+
+      script.onload = () => script.remove();
+      script.onerror = () => {
+        script.remove();
+        scheduleStatusPoll(2500);
+      };
+
+      document.head.appendChild(script);
+    }
+
+    function handleEmailUpdateResponse(data) {
       if (
         !data ||
         data.source !== "schneider-email-update" ||
@@ -490,9 +498,13 @@
         return;
       }
 
-      clearResponseTimer();
+      if (data.pending === true) {
+        scheduleStatusPoll(1500);
+        return;
+      }
+
+      clearPendingRequest();
       setBusy(false);
-      pendingRequestId = "";
 
       if (!data.success) {
         setStatus(
@@ -519,11 +531,56 @@
         "כתובת המייל המעודכנת: <b>" +
         safeEmail +
         "</b>";
+    }
+
+    window.receiveEmailUpdateStatus = data => {
+      handleEmailUpdateResponse(data);
+    };
+
+    form.addEventListener("submit", event => {
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const confirmEmail = document
+        .getElementById("confirmEmail")
+        .value
+        .trim();
+
+      if (!phone || !email || !confirmEmail) {
+        event.preventDefault();
+        setStatus("יש למלא את כל השדות.", "error");
+        return;
+      }
+
+      if (email.toLowerCase() !== confirmEmail.toLowerCase()) {
+        event.preventDefault();
+        setStatus("כתובות המייל שהוזנו אינן תואמות.", "error");
+        return;
+      }
+
+      pendingRequestId = createRequestId();
+      requestIdInput.value = pendingRequestId;
+
+      setBusy(true);
+      setStatus("מעדכן את הפרטים...", "loading");
+      clearResponseTimer();
+      scheduleStatusPoll(1800);
+
+      responseTimer = setTimeout(() => {
+        clearPendingRequest();
+        setBusy(false);
+        setStatus(
+          "העדכון נמשך זמן רב מהרגיל. בדקו בכניסה לאפליקציה אם המייל עודכן, או נסו שוב מאוחר יותר.",
+          "error"
+        );
+      }, 90000);
+    });
+
+    window.addEventListener("message", event => {
+      handleEmailUpdateResponse(event.data);
     });
 
     resetBtn.addEventListener("click", () => {
-      clearResponseTimer();
-      pendingRequestId = "";
+      clearPendingRequest();
       requestIdInput.value = "";
       form.reset();
       setBusy(false);
