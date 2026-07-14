@@ -350,17 +350,23 @@
 
         <div id="successDetails" class="successDetails"></div>
 
+        <p class="subtitle" style="margin-bottom:12px;">
+          כעת ניתן לפתוח חשבון באפליקציה באמצעות כתובת המייל החדשה.
+        </p>
+
         <ol class="successSteps">
-          <li>פתחו את האפליקציה.</li>
-          <li>בחרו הרשמה ראשונית והגדירו סיסמה.</li>
-          <li>אמתו את כתובת המייל פעם אחת דרך ההודעה שתישלח אליכם.</li>
+          <li>לחצו על הכפתור „פתיחת חשבון באפליקציה”.</li>
+          <li>בחרו „יצירת חשבון” והגדירו סיסמה.</li>
+          <li>פתחו את מייל האימות ולחצו על הקישור. ב-Gmail כדאי לבדוק גם בתיקיית הספאם.</li>
+          <li>חזרו לאפליקציה והתחברו עם המייל החדש והסיסמה שבחרתם.</li>
         </ol>
 
         <a
+          id="openAccountLink"
           class="appLink"
-          href="https://schneider-contacts.github.io/contacts-app/"
+          href="https://schneider-contacts.github.io/contacts-app/?authMode=register"
         >
-          מעבר לספר אנשי הקשר
+          פתיחת חשבון באפליקציה
         </a>
 
         <button type="button" class="secondaryBtn" id="resetBtn">
@@ -388,6 +394,7 @@
     const successDetails = document.getElementById("successDetails");
     const resetBtn = document.getElementById("resetBtn");
     const requestIdInput = document.getElementById("requestId");
+    const openAccountLink = document.getElementById("openAccountLink");
     const webAppUrl = form.action;
 
     let pendingRequestId = "";
@@ -519,6 +526,13 @@
       const safePhone = escapeHtml(result.phone || "");
       const safeEmail = escapeHtml(result.email || "");
 
+      if (openAccountLink && result.email) {
+        openAccountLink.href =
+          "https://schneider-contacts.github.io/contacts-app/" +
+          "?authMode=register&email=" +
+          encodeURIComponent(result.email);
+      }
+
       setStatus("");
       form.style.display = "none";
       successBox.classList.add("visible");
@@ -563,16 +577,16 @@
       setBusy(true);
       setStatus("מעדכן את הפרטים...", "loading");
       clearResponseTimer();
-      scheduleStatusPoll(1800);
+      scheduleStatusPoll(900);
 
       responseTimer = setTimeout(() => {
         clearPendingRequest();
         setBusy(false);
         setStatus(
-          "העדכון נמשך זמן רב מהרגיל. בדקו בכניסה לאפליקציה אם המייל עודכן, או נסו שוב מאוחר יותר.",
+          "הבקשה נשלחה אך אישור הסיום לא התקבל. המתינו רגע ובדקו אם ניתן לפתוח חשבון עם המייל החדש.",
           "error"
         );
-      }, 90000);
+      }, 60000);
     });
 
     window.addEventListener("message", event => {

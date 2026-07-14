@@ -3565,6 +3565,84 @@ function isPermissionDeniedError(error) {
   return code === "permission-denied" || code === "firestore/permission-denied";
 }
 
+async function finalizePendingReplacedEmailPermissions_(user) {
+  const currentEmail = normalizeEmail(user && user.email);
+
+  if (!currentEmail || !user || !user.emailVerified) return;
+
+  try {
+    const ownRef = firebaseApi.doc(db, "allowedUsers", currentEmail);
+    const ownSnapshot = await firebaseApi.getDoc(ownRef);
+
+    if (!ownSnapshot.exists()) return;
+
+    const ownData = ownSnapshot.data() || {};
+    const pendingOldEmails = Array.isArray(ownData.pendingOldEmails)
+      ? [
+          ...new Set(
+            ownData.pendingOldEmails
+              .map(normalizeEmail)
+              .filter(
+                email =>
+                  email &&
+                  email !== currentEmail
+              )
+          )
+        ]
+      : [];
+
+    if (
+      ownData.pendingEmailReplacement !== true ||
+      !pendingOldEmails.length
+    ) {
+      return;
+    }
+
+    const oldSnapshots = await Promise.all(
+      pendingOldEmails.map(email =>
+        firebaseApi.getDoc(
+          firebaseApi.doc(db, "allowedUsers", email)
+        )
+      )
+    );
+    const batch = firebaseApi.writeBatch(db);
+
+    oldSnapshots.forEach((snapshot, index) => {
+      if (!snapshot.exists()) return;
+
+      batch.set(
+        firebaseApi.doc(db, "allowedUsers", pendingOldEmails[index]),
+        {
+          active: false,
+          source: "replaced-after-verified-login",
+          updatedAt: firebaseApi.serverTimestamp()
+        },
+        { merge: true }
+      );
+    });
+
+    batch.set(
+      ownRef,
+      {
+        pendingOldEmails: [],
+        pendingEmailReplacement: false,
+        replacementCompletedAt: firebaseApi.serverTimestamp(),
+        updatedAt: firebaseApi.serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    await batch.commit();
+  } catch (error) {
+    // הכניסה עצמה אינה נחסמת אם סגירת ההרשאה הישנה נכשלה.
+    // המידע הממתין נשאר במסמך וינוסה שוב בכניסה הבאה.
+    console.error(
+      "Could not finalize replaced email permissions",
+      error
+    );
+  }
+}
+
 async function handleAuthenticatedUser(user) {
   if (!user) {
     contacts = [];
@@ -3591,10 +3669,13 @@ async function handleAuthenticatedUser(user) {
 
   try {
     setLoginStatus("טוען אנשי קשר...", "loading");
-    await detectAdminAccess(user);
-    await loadContacts();
+    await Promise.all([
+      detectAdminAccess(user),
+      loadContacts()
+    ]);
     showAppForUser(user);
     startPermissionListener(user);
+    finalizePendingReplacedEmailPermissions_(user);
   } catch (error) {
     if (isPermissionDeniedError(error)) {
       await firebaseApi.signOut(auth);
@@ -3618,7 +3699,8 @@ async function logout() {
     stopPermissionListener();
     await firebaseApi.signOut(auth);
     contacts = [];
-    clearContactsBundleCache_();
+    // המטמון נשמר במכשיר כדי שהכניסה הבאה תהיה מהירה.
+    // בכל כניסה עדיין נקרא manifest אחד שמוודא שהגרסה עדכנית.
     currentUserIsAdmin = false;
     currentUserIsSuperAdmin = false;
     currentAdminRole = "";
@@ -5668,7 +5750,19 @@ function init() {
     return;
   }
 
-  setAuthMode("login");
+  const requestedAuthMode =
+    params.get("authMode") === "register"
+      ? "register"
+      : "login";
+  const requestedEmail = normalizeEmail(params.get("email") || "");
+
+  setAuthMode(requestedAuthMode);
+
+  if (requestedEmail && isValidEmail(requestedEmail)) {
+    const emailInput = document.getElementById("emailInput");
+    if (emailInput) emailInput.value = requestedEmail;
+  }
+
   setLoginStatus("טוען את המערכת...", "loading");
   setLoginButtonDisabled(true);
 
