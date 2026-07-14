@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="//www.gstatic.com">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="apple-touch-icon" href="app-icon.png?v=20260714-ui1">
 <link rel="icon" href="app-icon.png?v=20260714-ui1">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2427,7 +2430,7 @@ const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
 const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v2";
-const CONTACT_DIRECTORY_TARGET_BYTES = 650000;
+const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
 
 // תמיכה זמנית בחבילה הישנה בזמן מעבר גרסה.
 const LEGACY_CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
@@ -2859,6 +2862,30 @@ function mapFirestoreContact(document, index = 0) {
   };
 }
 
+function applyRawContacts_(rawContacts) {
+  contacts = deduplicateContacts(
+    (Array.isArray(rawContacts) ? rawContacts : [])
+      .map((row, index) => mapFirestoreContact(row, index))
+      .filter(contact => contact.phone)
+  ).map((contact, index) => ({
+    ...contact,
+    id: index
+  }));
+
+  return contacts;
+}
+
+function loadContactsFromCache_() {
+  const cached = readContactsBundleCache_();
+
+  if (!cached || !Array.isArray(cached.contacts)) {
+    return false;
+  }
+
+  applyRawContacts_(cached.contacts);
+  return contacts.length > 0 || cached.contacts.length === 0;
+}
+
 async function loadContacts() {
   if (!firebaseApi || !db) {
     throw new Error("Firebase עדיין לא אותחל.");
@@ -2870,18 +2897,10 @@ async function loadContacts() {
 
   try {
     const rawContacts = await loadContactsFromOptimizedBundle_();
-
-    contacts = deduplicateContacts(
-      rawContacts
-        .map((row, index) => mapFirestoreContact(row, index))
-        .filter(contact => contact.phone)
-    ).map((contact, index) => ({
-      ...contact,
-      id: index
-    }));
+    applyRawContacts_(rawContacts);
+    return contacts;
   } catch (error) {
     console.error(error);
-    contacts = [];
     hasLoadError = true;
     throw error;
   } finally {
@@ -2899,8 +2918,9 @@ async function loadContactsFromOptimizedBundle_() {
   const metaSnapshot = await firebaseApi.getDoc(metaRef);
 
   if (!metaSnapshot.exists()) {
-    console.warn("Smart contacts directory not found; using previous optimized bundle.");
-    return loadContactsFromLegacyBundle_();
+    throw new Error(
+      "ספריית אנשי הקשר עדיין לא נבנתה. יש להריץ syncContactsToFirestore ב-Apps Script."
+    );
   }
 
   const meta = metaSnapshot.data() || {};
@@ -2922,11 +2942,21 @@ async function loadContactsFromOptimizedBundle_() {
     return cached.contacts;
   }
 
+  let loadedPages = 0;
   const pageSnapshots = await Promise.all(
     pageIds.map(pageId =>
       firebaseApi.getDoc(
         firebaseApi.doc(db, CONTACT_DIRECTORY_COLLECTION_NAME, pageId)
-      )
+      ).then(snapshot => {
+        loadedPages += 1;
+        if (!document.getElementById("app") || document.getElementById("app").style.display !== "block") {
+          setLoginStatus(
+            `טוען אנשי קשר... ${loadedPages}/${pageIds.length}`,
+            "loading"
+          );
+        }
+        return snapshot;
+      })
     )
   );
   const rawContacts = [];
@@ -3575,10 +3605,7 @@ function showLoginScreen() {
   document.getElementById("app").style.display = "none";
 }
 
-function showAppForUser(user) {
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "block";
-
+function updateUserInfoForUser_(user) {
   const normalizedUserEmail = normalizeEmail(user && user.email);
   const matchingContact = contacts.find(
     contact => normalizeEmail(contact.email) === normalizedUserEmail
@@ -3592,7 +3619,12 @@ function showAppForUser(user) {
   if (userInfoText) {
     userInfoText.textContent = "מחובר/ת כ: " + displayIdentity;
   }
+}
 
+function showAppForUser(user) {
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  updateUserInfoForUser_(user);
   setLoginStatus("", "");
   show([]);
 }
@@ -3687,7 +3719,9 @@ async function handleAuthenticatedUser(user) {
     return;
   }
 
-  await firebaseApi.reload(user);
+  if (!user.emailVerified) {
+    await firebaseApi.reload(user);
+  }
 
   if (!user.emailVerified) {
     lastUnverifiedEmail = normalizeEmail(user.email);
@@ -3705,14 +3739,54 @@ async function handleAuthenticatedUser(user) {
   }
 
   try {
-    setLoginStatus("טוען אנשי קשר...", "loading");
-    await Promise.all([
-      detectAdminAccess(user),
-      loadContacts()
+    setLoginStatus("בודק הרשאה...", "loading");
+
+    // שתי בדיקות קטנות במקביל. רק לאחר שאחת מהן מאשרת גישה
+    // מותר להציג נתונים שמורים מהמכשיר.
+    const [permission, isAdmin] = await Promise.all([
+      getCurrentUserPermission(user.email),
+      detectAdminAccess(user)
     ]);
-    showAppForUser(user);
-    startPermissionListener(user);
-    finalizePendingReplacedEmailPermissions_(user);
+
+    if (!(permission && permission.active) && !isAdmin) {
+      const accessError = new Error("הגישה לחשבון אינה פעילה.");
+      accessError.code = "permission-denied";
+      throw accessError;
+    }
+
+    const hasCachedContacts = loadContactsFromCache_();
+
+    if (hasCachedContacts) {
+      // מציגים מיד את הנתונים השמורים לאחר בדיקת ההרשאה.
+      showAppForUser(user);
+      startPermissionListener(user);
+
+      // בדיקת גרסה ועדכון הרשימה מתבצעים ברקע ואינם מעכבים כניסה.
+      loadContacts()
+        .then(() => {
+          updateUserInfoForUser_(user);
+          renderCurrentSearchResults();
+        })
+        .catch(error => {
+          console.error("Background contacts refresh failed", error);
+          setListStatus(
+            "מוצגים אנשי הקשר השמורים במכשיר. בדיקת העדכונים נכשלה זמנית.",
+            "empty"
+          );
+          setTimeout(() => setListStatus("", ""), 5000);
+        });
+    } else {
+      // במכשיר חדש אין עדיין מטמון, ולכן מורידים את העמודים הקטנים במקביל.
+      setLoginStatus("טוען אנשי קשר...", "loading");
+      await loadContacts();
+      showAppForUser(user);
+      startPermissionListener(user);
+    }
+
+    // פעולות תחזוקה שאינן נחוצות להצגת האפליקציה אינן מעכבות את הכניסה.
+    Promise.resolve()
+      .then(() => finalizePendingReplacedEmailPermissions_(user))
+      .catch(error => console.error("Email replacement finalization failed", error));
   } catch (error) {
     if (isPermissionDeniedError(error)) {
       await firebaseApi.signOut(auth);
@@ -4926,17 +5000,22 @@ function buildDirectoryContactFromMappedContact_(contact) {
 function packDirectoryContactsForClient_(items) {
   const pages = [];
   let currentPage = [];
+  let currentBytes = 1024;
 
   items.forEach(item => {
-    const candidate = currentPage.concat([item]);
-    const bytes = new Blob([JSON.stringify({ contacts: candidate })]).size;
+    const itemBytes = new Blob([JSON.stringify(item)]).size + 2;
 
-    if (currentPage.length && bytes > CONTACT_DIRECTORY_TARGET_BYTES) {
+    if (
+      currentPage.length &&
+      currentBytes + itemBytes > CONTACT_DIRECTORY_TARGET_BYTES
+    ) {
       pages.push(currentPage);
-      currentPage = [item];
-    } else {
-      currentPage = candidate;
+      currentPage = [];
+      currentBytes = 1024;
     }
+
+    currentPage.push(item);
+    currentBytes += itemBytes;
   });
 
   if (currentPage.length || pages.length === 0) pages.push(currentPage);
@@ -4996,7 +5075,7 @@ async function updateOptimizedContactBundle_(docId, payload, options = {}) {
       ),
       {
         kind: "contacts_page",
-        schemaVersion: 2,
+        schemaVersion: 3,
         version: nextVersion,
         pageIndex: index,
         contacts: pageContacts,
@@ -5018,7 +5097,7 @@ async function updateOptimizedContactBundle_(docId, payload, options = {}) {
     metaRef,
     {
       kind: "contacts_directory_meta",
-      schemaVersion: 2,
+      schemaVersion: 3,
       version: nextVersion,
       pageCount: pages.length,
       pageIds,
