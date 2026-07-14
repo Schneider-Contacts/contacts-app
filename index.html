@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="icon.PNG?v=20260713-auth2">
-<link rel="icon" href="icon.PNG?v=20260713-auth2">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260714-logo1">
+<link rel="icon" href="app-icon.png?v=20260714-logo1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -1826,6 +1826,63 @@ select {
 }
 
 </style>
+
+<style>
+/* ===== Logo separation: home-screen icon vs. in-app logo ===== */
+.authLogoBox {
+  width: 82px;
+  height: 82px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.authLogoBox img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0;
+  filter: drop-shadow(0 7px 10px rgba(15, 72, 50, 0.14));
+}
+.appHeaderLogoBox {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.appHeaderLogo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 0;
+  filter: drop-shadow(0 5px 8px rgba(15, 72, 50, 0.13));
+}
+#logo {
+  width: 46vw;
+  max-width: 185px;
+  min-width: 135px;
+  margin: 24px auto 16px;
+  border-radius: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(15, 72, 50, 0.14));
+}
+@media (max-width: 600px) {
+  .authLogoBox { width: 76px; height: 76px; }
+  .appHeaderLogoBox { width: 52px; height: 52px; min-width: 52px; }
+  .appHeaderLogo { width: 50px; height: 50px; }
+  #logo {
+    width: 44vw;
+    max-width: 170px;
+    min-width: 130px;
+    margin: 24px auto 14px;
+  }
+}
+</style>
 </head>
 <body>
 
@@ -1852,7 +1909,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="icon.PNG?v=20260713-auth2" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260714-logo1" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -1935,7 +1992,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="icon.PNG?v=20260713-auth2" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260714-logo1" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -1971,7 +2028,7 @@ select {
   <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
 </div>
 
-  <img id="logo" src="icon.PNG?v=20260713-auth2">
+  <img id="logo" src="app-logo.png?v=20260714-logo1">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
