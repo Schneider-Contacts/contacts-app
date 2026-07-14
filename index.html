@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260714-logo1">
-<link rel="icon" href="app-icon.png?v=20260714-logo1">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260714-interface1">
+<link rel="icon" href="app-icon.png?v=20260714-interface1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -251,25 +251,24 @@ button:disabled {
 }
 
 .appHeaderLogoBox {
-  width: 54px;
-  height: 54px;
-  min-width: 54px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid var(--border-strong);
+  background: transparent;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 8px 18px rgba(5, 150, 105, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  box-shadow: none;
 }
 
 .appHeaderLogo {
-  width: 38px;
-  height: 38px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: 14px;
+  display: block;
 }
 
 .appSubtitle {
@@ -375,14 +374,14 @@ select {
 
 #logo {
   display: block;
-  margin: 28px auto 20px;
-  width: 56vw;
-  max-width: 220px;
-  min-width: 150px;
+  margin: 24px auto 18px;
+  width: 48vw;
+  max-width: 180px;
+  min-width: 118px;
   height: auto;
-  border-radius: 28px;
-  overflow: hidden;
-  object-fit: cover;
+  border-radius: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(5, 150, 105, 0.16));
 }
 
 .hidden {
@@ -747,16 +746,16 @@ select {
   }
 
   .appHeaderLogoBox {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
     border-radius: 16px;
   }
 
   .appHeaderLogo {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
   }
 
   .appSubtitle {
@@ -826,11 +825,11 @@ select {
   }
 
   #logo {
-    width: 62vw;
-    max-width: 230px;
-    min-width: 160px;
-    margin: 30px auto 22px;
-    border-radius: 30px;
+    width: 50vw;
+    max-width: 190px;
+    min-width: 124px;
+    margin: 26px auto 18px;
+    border-radius: 24px;
   }
 }
 
@@ -1825,6 +1824,94 @@ select {
   width: 100%;
 }
 
+
+/* ===== Interface update: saved login, recent contacts and activity ===== */
+.rememberDeviceOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 13px 2px 0;
+  color: #4f6e61;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+#login .rememberDeviceOption input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: var(--green-600);
+  flex-shrink: 0;
+}
+
+.rememberDeviceHelp {
+  display: block;
+  margin-top: 2px;
+  color: #73847c;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.adminTabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adminTabs.hasManagers {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.activityCard {
+  border-right: 4px solid var(--green-300);
+}
+
+.activityCard.added {
+  border-right-color: var(--green-500);
+}
+
+.activityCard.changed {
+  border-right-color: #60a5fa;
+}
+
+.activityCard.removed {
+  border-right-color: #fb7185;
+}
+
+.activityTime {
+  margin-top: 7px;
+  color: #718078;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.activityDetails {
+  margin-top: 8px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: #f7fbf9;
+  color: #526b61;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+  .adminTabs {
+    gap: 4px;
+  }
+
+  .adminTabBtn {
+    padding: 8px 5px;
+    font-size: 12px;
+  }
+
+  .adminTabs.hasManagers .adminTabBtn {
+    font-size: 11.5px;
+  }
+}
+
 </style>
 
 <style>
@@ -1909,7 +1996,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260714-logo1" alt="לוגו ספר אנשי הקשר">
+      <img src="app-icon.png?v=20260714-interface1" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -1921,7 +2008,7 @@ select {
     <button type="button" id="authRegisterTab" class="authTab" role="tab" aria-selected="false" onclick="setAuthMode('register')">יצירת חשבון</button>
   </div>
 
-  <div class="authForm">
+  <form class="authForm" id="authForm" onsubmit="event.preventDefault(); handlePrimaryAuthAction();">
     <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
     <p id="authModeDescription" class="authModeDescription">למי שכבר יצר חשבון ויש לו סיסמה.</p>
 
@@ -1929,7 +2016,7 @@ select {
       <label for="emailInput">כתובת מייל</label>
       <div class="authInputShell">
         <span class="authFieldIcon" aria-hidden="true">✉</span>
-        <input type="email" id="emailInput" placeholder="name@example.com" autocomplete="email" inputmode="email">
+        <input type="email" id="emailInput" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email">
       </div>
     </div>
 
@@ -1937,7 +2024,7 @@ select {
       <label for="passwordInput">סיסמה</label>
       <div class="authInputShell">
         <span class="authFieldIcon" aria-hidden="true">●</span>
-        <input type="password" id="passwordInput" placeholder="הזינו סיסמה" autocomplete="current-password" onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()">
+        <input type="password" id="passwordInput" name="password" placeholder="הזינו סיסמה" autocomplete="current-password">
         <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
       </div>
     </div>
@@ -1946,12 +2033,20 @@ select {
       <label for="confirmPasswordInput">אימות סיסמה</label>
       <div class="authInputShell">
         <span class="authFieldIcon" aria-hidden="true">●</span>
-        <input type="password" id="confirmPasswordInput" placeholder="הזינו את הסיסמה פעם נוספת" autocomplete="new-password" onkeydown="if (event.key === 'Enter') handlePrimaryAuthAction()">
+        <input type="password" id="confirmPasswordInput" name="confirm_password" placeholder="הזינו את הסיסמה פעם נוספת" autocomplete="new-password">
         <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
       </div>
     </div>
 
-    <button id="loginButton" class="primaryAuthBtn" onclick="handlePrimaryAuthAction()">כניסה לחשבון</button>
+    <label class="rememberDeviceOption" for="rememberDeviceCheckbox">
+      <input type="checkbox" id="rememberDeviceCheckbox" checked>
+      <span>
+        הישארו מחוברים במכשיר זה
+        <span class="rememberDeviceHelp">הדפדפן יכול גם להציע לשמור את הסיסמה בצורה מאובטחת.</span>
+      </span>
+    </label>
+
+    <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
 
     <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח אליכם מייל אימות חד־פעמי.</div>
 
@@ -1959,7 +2054,7 @@ select {
       <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
       <button type="button" class="authLinkBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">שליחת אימות מחדש</button>
     </div>
-  </div>
+  </form>
 
   <div id="loginStatus" class="statusMessage"></div>
 
@@ -1992,7 +2087,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260714-logo1" alt="App logo">
+        <img class="appHeaderLogo" src="app-icon.png?v=20260714-interface1" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2019,8 +2114,10 @@ select {
   </div>
 
   <div class="quickFilters" aria-label="רשימות מהירות">
-    <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')"><span class="quickFilterIcon" aria-hidden="true">☎</span>תורנים</button>
-    <button type="button" id="labsFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('labs')"><span class="quickFilterIcon" aria-hidden="true">⚗</span>מעבדות</button>
+    <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')"><span class="quickFilterIcon" aria-hidden="true">📱</span>VPN</button>
+    <button type="button" id="institutesFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('institutes')"><span class="quickFilterIcon" aria-hidden="true">🏥</span>מכונים</button>
+    <button type="button" id="labsFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('labs')"><span class="quickFilterIcon" aria-hidden="true">🧪</span>מעבדות</button>
+    <button type="button" id="recentFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('recent')"><span class="quickFilterIcon" aria-hidden="true">🆕</span>חדשים</button>
   </div>
 
   <div id="resultsSummary" class="resultsSummary"></div>
@@ -2028,7 +2125,7 @@ select {
   <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260714-logo1">
+  <img id="logo" src="app-icon.png?v=20260714-interface1" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2055,7 +2152,8 @@ select {
 
     <div class="adminTabs" role="tablist">
       <button type="button" id="adminContactsTab" class="adminTabBtn active" onclick="setAdminTab('contacts')">אנשי קשר</button>
-      <button type="button" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">הרשאות משתמשים</button>
+      <button type="button" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">הרשאות</button>
+      <button type="button" id="adminActivityTab" class="adminTabBtn" onclick="setAdminTab('activity')">פעילות</button>
       <button type="button" id="adminManagersTab" class="adminTabBtn adminSuperOnly" onclick="setAdminTab('managers')">מנהלים</button>
     </div>
   </div>
@@ -2078,11 +2176,14 @@ select {
       <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">חסומים</button>
     </div>
 
-    <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
+    <div id="adminActivityFilters" class="adminFilterRow" style="display:none;">
       <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">פעילים</button>
-      <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">מושבתים</button>
-      <button type="button" class="adminFilterBtn" data-filter="super_admin" onclick="setAdminFilter('super_admin')">מנהלי־על</button>
+      <button type="button" class="adminFilterBtn" data-filter="added" onclick="setAdminFilter('added')">נוספו</button>
+      <button type="button" class="adminFilterBtn" data-filter="changed" onclick="setAdminFilter('changed')">שינויים</button>
+    </div>
+
+    <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
+      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">כל המנהלים</button>
     </div>
 
     <div class="adminToolbarTop">
@@ -2109,16 +2210,8 @@ select {
         <input id="adminManagerEmail" type="email" dir="ltr" placeholder="name@example.com">
       </div>
 
-      <div class="adminFormField full">
-        <label for="adminManagerRole">דרגת הרשאה</label>
-        <select id="adminManagerRole">
-          <option value="admin">מנהל רגיל — אנשי קשר והרשאות משתמשים</option>
-          <option value="super_admin">מנהל־על — כולל ניהול מנהלים</option>
-        </select>
-      </div>
-
       <div class="adminFormNote">
-        הוספת מנהל תוסיף אותו גם לרשימת המשתמשים המורשים. אם עדיין לא יצר חשבון, עליו לבצע „יצירת חשבון” ולאמת את המייל פעם אחת.
+        ניתן להוסיף מנהלים רגילים בלבד. מנהל חדש יוכל לערוך אנשי קשר ולנהל הרשאות משתמשים. אם עדיין לא יצר חשבון, עליו לבצע „יצירת חשבון” ולאמת את המייל פעם אחת.
       </div>
     </div>
 
@@ -2206,6 +2299,8 @@ const FIREBASE_SDK_VERSION = "12.16.0";
 const PASSWORD_AUTH_RETURN_URL =
   "https://schneider-contacts.github.io/contacts-app/";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
+const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at";
+const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 
 let firebaseApi = null;
 let firebaseApp = null;
@@ -2235,6 +2330,7 @@ let adminContacts = [];
 let adminRemovedContacts = [];
 let adminAllowedUsers = [];
 let adminManagers = [];
+let adminActivity = [];
 let adminEditingContact = null;
 let adminDataLoading = false;
 
@@ -2428,18 +2524,74 @@ function isSearchActive() {
   return !!input && normalizeSearchText(input.value).length >= 2;
 }
 
+function getLocalPhoneDigits(phone) {
+  const displayPhone = formatPhoneForDisplay(phone);
+  return displayPhone.replace(/\D/g, "");
+}
+
+function isMobilePhone(phone) {
+  return /^05\d{8}$/.test(getLocalPhoneDigits(phone));
+}
+
+function isInstituteLandline(phone) {
+  return /^03\d{7}$/.test(getLocalPhoneDigits(phone));
+}
+
+function getRecentContactsCutoff() {
+  const savedValue = Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0);
+
+  if (Number.isFinite(savedValue) && savedValue > 0) {
+    return savedValue;
+  }
+
+  return Date.now() - (RECENT_CONTACTS_DEFAULT_DAYS * 24 * 60 * 60 * 1000);
+}
+
+function parseContactDate(value) {
+  if (!value) return null;
+
+  if (value && typeof value.toDate === "function") {
+    const converted = value.toDate();
+    return Number.isNaN(converted.getTime()) ? null : converted;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isContactRecent(contact) {
+  const createdDate = parseContactDate(contact.createdAt);
+  return Boolean(createdDate && createdDate.getTime() > getRecentContactsCutoff());
+}
+
 function isQuickFilterActive() {
-  return activeQuickFilter === "vpn" || activeQuickFilter === "labs";
+  return ["vpn", "institutes", "labs", "recent"].includes(activeQuickFilter);
 }
 
 function canUseMultiSelection() {
-  return isSearchActive() || isQuickFilterActive();
+  return isSearchActive() || (isQuickFilterActive() && activeQuickFilter !== "recent");
 }
 
 function contactMatchesQuickFilter(contact, filterName) {
   const department = normalizeSearchText(contact.dept);
-  if (filterName === "vpn") return department.includes("vpn");
-  if (filterName === "labs") return department.includes("מעבד");
+  const belongsToVpnList = department.includes("vpn");
+
+  if (filterName === "vpn") {
+    return belongsToVpnList && isMobilePhone(contact.phone);
+  }
+
+  if (filterName === "institutes") {
+    return belongsToVpnList && isInstituteLandline(contact.phone);
+  }
+
+  if (filterName === "labs") {
+    return department.includes("מעבד");
+  }
+
+  if (filterName === "recent") {
+    return isContactRecent(contact);
+  }
+
   return true;
 }
 
@@ -2449,18 +2601,19 @@ function getQuickFilterContacts() {
 }
 
 function updateQuickFilterButtons() {
-  const vpnButton = document.getElementById("vpnFilterBtn");
-  const labsButton = document.getElementById("labsFilterBtn");
+  const buttons = {
+    vpn: document.getElementById("vpnFilterBtn"),
+    institutes: document.getElementById("institutesFilterBtn"),
+    labs: document.getElementById("labsFilterBtn"),
+    recent: document.getElementById("recentFilterBtn")
+  };
 
-  if (vpnButton) {
-    vpnButton.classList.toggle("active", activeQuickFilter === "vpn");
-    vpnButton.setAttribute("aria-pressed", activeQuickFilter === "vpn" ? "true" : "false");
-  }
-
-  if (labsButton) {
-    labsButton.classList.toggle("active", activeQuickFilter === "labs");
-    labsButton.setAttribute("aria-pressed", activeQuickFilter === "labs" ? "true" : "false");
-  }
+  Object.entries(buttons).forEach(([filterName, button]) => {
+    if (!button) return;
+    const isActive = activeQuickFilter === filterName;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
 }
 
 function toggleQuickFilter(filterName) {
@@ -2476,9 +2629,18 @@ function updateMainActionButton() {
   if (!btn) return;
 
   if (selectionMode) {
+    btn.disabled = false;
     btn.textContent = "בטל בחירה";
     return;
   }
+
+  if (activeQuickFilter === "recent") {
+    btn.textContent = "ייבא את כל החדשים";
+    btn.disabled = currentDisplayedContacts.length === 0;
+    return;
+  }
+
+  btn.disabled = false;
 
   if (canUseMultiSelection()) {
     btn.textContent = "בחירת כמה אנשי קשר";
@@ -2491,6 +2653,11 @@ function updateMainActionButton() {
 function handleMainImportButton() {
   if (selectionMode) {
     exitSelectionMode();
+    return;
+  }
+
+  if (activeQuickFilter === "recent") {
+    downloadRecentContacts();
     return;
   }
 
@@ -2811,7 +2978,26 @@ async function deleteNewAuthUserSafely(user) {
   }
 }
 
+async function applySelectedAuthPersistence() {
+  if (!firebaseApi || !auth) return;
+
+  const rememberCheckbox = document.getElementById("rememberDeviceCheckbox");
+  const persistence = rememberCheckbox && rememberCheckbox.checked
+    ? firebaseApi.browserLocalPersistence
+    : firebaseApi.browserSessionPersistence;
+
+  await firebaseApi.setPersistence(auth, persistence);
+}
+
 async function handlePrimaryAuthAction() {
+  try {
+    await applySelectedAuthPersistence();
+  } catch (error) {
+    console.error("Could not update authentication persistence", error);
+    setLoginStatus("לא הצלחנו לשמור את העדפת ההתחברות. נסו שוב.", "error");
+    return;
+  }
+
   if (authMode === "register") {
     await registerWithPassword();
   } else {
@@ -3267,11 +3453,8 @@ function startPermissionListener(user) {
       firebaseApi.doc(db, "admins", email),
       snapshot => {
         const data = snapshot.exists() ? snapshot.data() : null;
-        const nextRole = String(data && data.role || "");
-        const nextIsAdmin = Boolean(
-          data && data.active === true &&
-          (nextRole === "admin" || nextRole === "super_admin")
-        );
+        const nextRole = String(data && data.role || "admin");
+        const nextIsAdmin = Boolean(data && data.active === true);
 
         currentAdminRole = nextRole;
         currentUserIsAdmin = nextIsAdmin;
@@ -3350,7 +3533,7 @@ function closeAdminPanel() {
 }
 
 function setAdminTab(tabName) {
-  const requestedTab = ["contacts", "users", "managers"].includes(tabName)
+  const requestedTab = ["contacts", "users", "activity", "managers"].includes(tabName)
     ? tabName
     : "contacts";
 
@@ -3369,9 +3552,11 @@ function setAdminTab(tabName) {
 function updateAdminTabs() {
   const contactsTab = document.getElementById("adminContactsTab");
   const usersTab = document.getElementById("adminUsersTab");
+  const activityTab = document.getElementById("adminActivityTab");
   const managersTab = document.getElementById("adminManagersTab");
   const contactFilters = document.getElementById("adminContactFilters");
   const userFilters = document.getElementById("adminUserFilters");
+  const activityFilters = document.getElementById("adminActivityFilters");
   const managerFilters = document.getElementById("adminManagerFilters");
   const addManagerButton = document.getElementById("adminAddManagerBtn");
 
@@ -3381,10 +3566,12 @@ function updateAdminTabs() {
 
   contactsTab.classList.toggle("active", adminActiveTab === "contacts");
   usersTab.classList.toggle("active", adminActiveTab === "users");
+  activityTab.classList.toggle("active", adminActiveTab === "activity");
 
   if (managersTab) {
     managersTab.classList.toggle("visible", currentUserIsSuperAdmin);
     managersTab.classList.toggle("active", adminActiveTab === "managers");
+
     const tabsContainer = managersTab.closest(".adminTabs");
     if (tabsContainer) {
       tabsContainer.classList.toggle("hasManagers", currentUserIsSuperAdmin);
@@ -3393,9 +3580,8 @@ function updateAdminTabs() {
 
   contactFilters.style.display = adminActiveTab === "contacts" ? "flex" : "none";
   userFilters.style.display = adminActiveTab === "users" ? "flex" : "none";
-  if (managerFilters) {
-    managerFilters.style.display = adminActiveTab === "managers" ? "flex" : "none";
-  }
+  activityFilters.style.display = adminActiveTab === "activity" ? "flex" : "none";
+  managerFilters.style.display = adminActiveTab === "managers" ? "flex" : "none";
 
   if (addManagerButton) {
     addManagerButton.classList.toggle(
@@ -3418,7 +3604,9 @@ function updateAdminFilterButtons() {
     ? "adminContactFilters"
     : adminActiveTab === "users"
       ? "adminUserFilters"
-      : "adminManagerFilters";
+      : adminActiveTab === "activity"
+        ? "adminActivityFilters"
+        : "adminManagerFilters";
 
   document
     .querySelectorAll(`#${containerId} .adminFilterBtn`)
@@ -3441,7 +3629,8 @@ async function loadAdminData() {
     const requests = [
       firebaseApi.getDocs(firebaseApi.collection(db, "contacts")),
       firebaseApi.getDocs(firebaseApi.collection(db, "contactOverrides")),
-      firebaseApi.getDocs(firebaseApi.collection(db, "allowedUsers"))
+      firebaseApi.getDocs(firebaseApi.collection(db, "allowedUsers")),
+      firebaseApi.getDocs(firebaseApi.collection(db, "admin_actions"))
     ];
 
     if (currentUserIsSuperAdmin) {
@@ -3452,7 +3641,8 @@ async function loadAdminData() {
     const contactsSnapshot = results[0];
     const overridesSnapshot = results[1];
     const usersSnapshot = results[2];
-    const managersSnapshot = results[3] || null;
+    const activitySnapshot = results[3];
+    const managersSnapshot = results[4] || null;
 
     adminContacts = contactsSnapshot.docs
       .map((document, index) => mapFirestoreContact(document, index))
@@ -3479,6 +3669,14 @@ async function loadAdminData() {
         updatedAt: data.updatedAt || null
       };
     });
+
+    adminActivity = activitySnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        docId: document.id,
+        ...data
+      };
+    }).sort((a, b) => getActivityTimestamp(b) - getActivityTimestamp(a));
 
     adminManagers = managersSnapshot
       ? managersSnapshot.docs.map(document => {
@@ -3564,6 +3762,165 @@ function adminManagerMatchesQuery(manager, query) {
   return searchable.includes(query);
 }
 
+
+function getActivityTimestamp(activity) {
+  const value = activity && activity.timestamp;
+
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function formatActivityTimestamp(activity) {
+  const timestamp = getActivityTimestamp(activity);
+  if (!timestamp) return "מועד לא ידוע";
+
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(timestamp));
+}
+
+function getActivityCategory(action) {
+  if (["contact_add_form", "form_submission", "manager_add"].includes(action)) {
+    return "added";
+  }
+
+  if (["contact_remove", "manager_remove", "permission_delete"].includes(action)) {
+    return "removed";
+  }
+
+  return "changed";
+}
+
+function getActivityTitle(activity) {
+  const labels = {
+    contact_add_form: "נשלח טופס הצטרפות חדש",
+    form_submission: "נשלח טופס הצטרפות",
+    email_self_update: "כתובת מייל עודכנה",
+    contact_edit: "פרטי איש קשר נערכו",
+    contact_remove: "איש קשר הוסר מהאפליקציה",
+    contact_restore: "איש קשר הוחזר לאפליקציה",
+    user_block: "גישה נחסמה",
+    user_unblock: "גישה הוחזרה",
+    permission_delete: "הרשאת כניסה נמחקה",
+    manager_add: "מנהל נוסף",
+    manager_remove: "מנהל הוסר",
+    manager_enable: "מנהל הופעל",
+    manager_disable: "מנהל הושבת"
+  };
+
+  return labels[activity.action] || "פעילות מערכת";
+}
+
+function getActivityActor(activity) {
+  return normalizeEmail(
+    activity.adminEmail ||
+    activity.actorEmail ||
+    activity.performedBy ||
+    ""
+  ) || String(activity.source || "מערכת");
+}
+
+function adminActivityMatchesQuery(activity, query) {
+  if (!query) return true;
+
+  const searchable = normalizeSearchText([
+    getActivityTitle(activity),
+    activity.action,
+    activity.targetEmail,
+    activity.targetPhone,
+    activity.displayName,
+    getActivityActor(activity),
+    activity.source,
+    Array.isArray(activity.changedFields)
+      ? activity.changedFields.join(" ")
+      : activity.changedFields
+  ].filter(Boolean).join(" "));
+
+  return searchable.includes(query);
+}
+
+function renderAdminActivity() {
+  const query = getAdminSearchQuery();
+
+  const activities = adminActivity
+    .filter(activity => {
+      const category = getActivityCategory(activity.action);
+
+      if (adminActiveFilter === "added" && category !== "added") return false;
+      if (adminActiveFilter === "changed" && category === "added") return false;
+
+      return adminActivityMatchesQuery(activity, query);
+    })
+    .slice(0, 150);
+
+  document.getElementById("adminSummary").textContent =
+    activities.length === 1
+      ? "נמצאה פעולה אחת"
+      : `נמצאו ${activities.length} פעולות אחרונות`;
+
+  if (!activities.length) {
+    document.getElementById("adminList").innerHTML =
+      '<div class="adminEmpty">עדיין לא נרשמה פעילות התואמת לחיפוש.</div>';
+    return;
+  }
+
+  document.getElementById("adminList").innerHTML = activities.map(activity => {
+    const category = getActivityCategory(activity.action);
+    const target = activity.displayName ||
+      activity.targetEmail ||
+      activity.targetPhone ||
+      activity.targetId ||
+      "ללא יעד";
+    const actor = getActivityActor(activity);
+    const changedFields = Array.isArray(activity.changedFields)
+      ? activity.changedFields.filter(Boolean)
+      : [];
+    const oldEmails = Array.isArray(activity.oldEmails)
+      ? activity.oldEmails.filter(Boolean)
+      : [];
+
+    const details = [
+      changedFields.length
+        ? "שדות ששונו: " + changedFields.join(", ")
+        : "",
+      oldEmails.length
+        ? "מייל קודם: " + oldEmails.join(", ")
+        : "",
+      activity.newEmail
+        ? "מייל חדש: " + activity.newEmail
+        : "",
+      activity.source
+        ? "מקור: " + activity.source
+        : ""
+    ].filter(Boolean);
+
+    return `
+      <div class="adminCard activityCard ${category}">
+        <div class="adminCardTop">
+          <div>
+            <div class="adminCardName">${escapeHtml(getActivityTitle(activity))}</div>
+            <div class="adminCardMeta">
+              יעד: ${escapeHtml(target)}<br>
+              בוצע על ידי: ${escapeHtml(actor)}
+            </div>
+            <div class="activityTime">${escapeHtml(formatActivityTimestamp(activity))}</div>
+          </div>
+          <span class="adminStatusBadge">${category === "added" ? "נוסף" : category === "removed" ? "הוסר" : "עודכן"}</span>
+        </div>
+        ${details.length
+          ? `<div class="activityDetails">${details.map(escapeHtml).join("<br>")}</div>`
+          : ""}
+      </div>
+    `;
+  }).join("");
+}
+
 function findContactByEmail(email) {
   const normalized = normalizeEmail(email);
   return [...adminContacts, ...adminRemovedContacts].find(
@@ -3585,6 +3942,8 @@ function renderAdminList() {
 
   if (adminActiveTab === "users") {
     renderAdminUsers();
+  } else if (adminActiveTab === "activity") {
+    renderAdminActivity();
   } else if (adminActiveTab === "managers") {
     renderAdminManagers();
   } else {
@@ -3726,12 +4085,7 @@ function renderAdminManagers() {
   const query = getAdminSearchQuery();
 
   const managers = adminManagers
-    .filter(manager => {
-      if (adminActiveFilter === "active" && !manager.active) return false;
-      if (adminActiveFilter === "blocked" && manager.active) return false;
-      if (adminActiveFilter === "super_admin" && manager.role !== "super_admin") return false;
-      return adminManagerMatchesQuery(manager, query);
-    })
+    .filter(manager => adminManagerMatchesQuery(manager, query))
     .sort((a, b) => {
       if (a.role !== b.role) {
         return a.role === "super_admin" ? -1 : 1;
@@ -3752,10 +4106,8 @@ function renderAdminManagers() {
 
   document.getElementById("adminList").innerHTML = managers.map(manager => {
     const contact = findContactByEmail(manager.email);
-    const isSelf = manager.email === currentAdminEmail;
-    const roleLabel = manager.role === "super_admin" ? "מנהל־על" : "מנהל רגיל";
-    const nextRole = manager.role === "super_admin" ? "admin" : "super_admin";
-    const nextRoleLabel = manager.role === "super_admin" ? "הפיכה למנהל רגיל" : "הפיכה למנהל־על";
+    const isSuperAdmin = manager.role === "super_admin";
+    const roleLabel = isSuperAdmin ? "מנהל־על קבוע" : "מנהל רגיל";
 
     return `
       <div class="adminCard ${manager.active ? "" : "blocked"}">
@@ -3768,17 +4120,15 @@ function renderAdminManagers() {
               ${contact && contact.dept ? " · " + escapeHtml(contact.dept) : ""}
               ${manager.createdBy ? "<br>נוסף על ידי: " + escapeHtml(manager.createdBy) : ""}
             </div>
-            <span class="adminRoleBadge ${manager.role === "super_admin" ? "super" : ""}">${roleLabel}</span>
+            <span class="adminRoleBadge ${isSuperAdmin ? "super" : ""}">${roleLabel}</span>
           </div>
           <span class="adminStatusBadge ${manager.active ? "" : "blocked"}">${manager.active ? "פעיל" : "מושבת"}</span>
         </div>
 
         <div class="adminCardActions">
-          ${isSelf
-            ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון מנהל־העל הנוכחי</button>'
-            : `<button type="button" class="adminActionBtn ${manager.active ? "warning" : "primary"}" onclick="toggleManagerActive('${escapeJsString(manager.email)}', ${!manager.active})">${manager.active ? "השבתת מנהל" : "הפעלת מנהל"}</button>
-               <button type="button" class="adminActionBtn secondary" onclick="changeManagerRole('${escapeJsString(manager.email)}', '${nextRole}')">${nextRoleLabel}</button>
-               <button type="button" class="adminActionBtn danger" onclick="removeManager('${escapeJsString(manager.email)}')">הסרת מנהל</button>`}
+          ${isSuperAdmin
+            ? '<button type="button" class="adminActionBtn secondary" disabled>לא ניתן לשנות את מנהל־העל</button>'
+            : `<button type="button" class="adminActionBtn danger" onclick="removeManager('${escapeJsString(manager.email)}')">הסרת מנהל</button>`}
         </div>
       </div>
     `;
@@ -3796,8 +4146,7 @@ function openAddManagerModal() {
   }
 
   document.getElementById("adminManagerEmail").value = "";
-  document.getElementById("adminManagerRole").value = "admin";
-  document.getElementById("adminManagerModalTitle").textContent = "הוספת מנהל";
+  document.getElementById("adminManagerModalTitle").textContent = "הוספת מנהל רגיל";
   document.getElementById("adminSaveManagerBtn").textContent = "הוספת מנהל";
   setAdminManagerModalStatus("", "");
   document.getElementById("adminManagerModal").classList.add("visible");
@@ -3816,9 +4165,7 @@ async function saveNewManager() {
   if (!currentUserIsSuperAdmin) return;
 
   const email = normalizeEmail(document.getElementById("adminManagerEmail").value);
-  const role = document.getElementById("adminManagerRole").value === "super_admin"
-    ? "super_admin"
-    : "admin";
+  const role = "admin";
 
   if (!isValidEmail(email)) {
     setAdminManagerModalStatus("כתובת המייל אינה תקינה.", "error");
@@ -3884,103 +4231,22 @@ async function saveNewManager() {
   }
 }
 
-async function toggleManagerActive(email, shouldActivate) {
-  if (!currentUserIsSuperAdmin) return;
-
-  const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
-    alert("לא ניתן להשבית את חשבון מנהל־העל הנוכחי.");
-    return;
-  }
-
-  const actionLabel = shouldActivate ? "להפעיל" : "להשבית";
-  if (!confirm(`האם ${actionLabel} את הרשאת הניהול של ${normalizedEmail}?`)) return;
-
-  try {
-    const batch = firebaseApi.writeBatch(db);
-    const now = firebaseApi.serverTimestamp();
-
-    batch.set(
-      firebaseApi.doc(db, "admins", normalizedEmail),
-      {
-        active: shouldActivate,
-        updatedBy: currentAdminEmail,
-        updatedAt: now
-      },
-      { merge: true }
-    );
-
-    batch.set(
-      firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
-      {
-        action: shouldActivate ? "manager_enable" : "manager_disable",
-        targetEmail: normalizedEmail,
-        adminEmail: currentAdminEmail,
-        timestamp: now
-      }
-    );
-
-    await batch.commit();
-    await loadAdminData();
-  } catch (error) {
-    console.error("Manager status update failed", error);
-    alert("לא הצלחנו לעדכן את הרשאת המנהל.");
-  }
+async function toggleManagerActive() {
+  alert("ניהול מנהלים מתבצע כעת באמצעות הוספה או הסרה בלבד.");
 }
 
-async function changeManagerRole(email, newRole) {
-  if (!currentUserIsSuperAdmin) return;
-
-  const normalizedEmail = normalizeEmail(email);
-  const safeRole = newRole === "super_admin" ? "super_admin" : "admin";
-
-  if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
-    alert("לא ניתן לשנות את דרגת החשבון שמחובר כעת.");
-    return;
-  }
-
-  const roleLabel = safeRole === "super_admin" ? "מנהל־על" : "מנהל רגיל";
-  if (!confirm(`לשנות את ${normalizedEmail} ל-${roleLabel}?`)) return;
-
-  try {
-    const batch = firebaseApi.writeBatch(db);
-    const now = firebaseApi.serverTimestamp();
-
-    batch.set(
-      firebaseApi.doc(db, "admins", normalizedEmail),
-      {
-        role: safeRole,
-        updatedBy: currentAdminEmail,
-        updatedAt: now
-      },
-      { merge: true }
-    );
-
-    batch.set(
-      firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
-      {
-        action: "manager_role_change",
-        targetEmail: normalizedEmail,
-        newRole: safeRole,
-        adminEmail: currentAdminEmail,
-        timestamp: now
-      }
-    );
-
-    await batch.commit();
-    await loadAdminData();
-  } catch (error) {
-    console.error("Manager role update failed", error);
-    alert("לא הצלחנו לשנות את דרגת המנהל.");
-  }
+async function changeManagerRole() {
+  alert("קיים מנהל־על יחיד ולא ניתן לשנות דרגת מנהל דרך האפליקציה.");
 }
 
 async function removeManager(email) {
   if (!currentUserIsSuperAdmin) return;
 
   const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
-    alert("לא ניתן להסיר את חשבון מנהל־העל הנוכחי.");
+  const manager = adminManagers.find(item => item.email === normalizedEmail);
+
+  if (!manager || manager.role === "super_admin" || normalizedEmail === currentAdminEmail) {
+    alert("לא ניתן להסיר את מנהל־העל.");
     return;
   }
 
@@ -4108,10 +4374,31 @@ async function saveAdminContactEdit() {
       updatedAt: firebaseApi.serverTimestamp()
     }, { merge: false });
 
+    const changedFieldMap = {
+      first_name_he: "שם פרטי בעברית",
+      last_name_he: "שם משפחה בעברית",
+      first_name_en: "שם פרטי באנגלית",
+      last_name_en: "שם משפחה באנגלית",
+      title_prefix: "תואר",
+      role: "תפקיד",
+      department: "מחלקה / מכון",
+      hospital: "בית חולים",
+      email: "מייל"
+    };
+
+    const originalPayload = contactToFirestorePayload(adminEditingContact);
+    const changedFields = Object.keys(changedFieldMap).filter(field =>
+      String(originalPayload[field] || "").trim() !==
+      String(payload[field] || "").trim()
+    ).map(field => changedFieldMap[field]);
+
     batch.set(actionRef, {
       action: "contact_edit",
       targetId: adminEditingContact.docId,
       targetEmail: payload.email || "",
+      targetPhone: adminEditingContact.phone || "",
+      displayName: [payload.first_name_he, payload.last_name_he].filter(Boolean).join(" "),
+      changedFields,
       adminEmail: currentAdminEmail,
       timestamp: firebaseApi.serverTimestamp()
     });
@@ -4363,6 +4650,7 @@ async function initializeFirebase() {
     getAuth: authModule.getAuth,
     setPersistence: authModule.setPersistence,
     browserLocalPersistence: authModule.browserLocalPersistence,
+    browserSessionPersistence: authModule.browserSessionPersistence,
     createUserWithEmailAndPassword: authModule.createUserWithEmailAndPassword,
     signInWithEmailAndPassword: authModule.signInWithEmailAndPassword,
     sendEmailVerification: authModule.sendEmailVerification,
@@ -4577,13 +4865,14 @@ function cleanupOldImportPayloads() {
   }
 }
 
-function saveImportPayload(vcardContent, fileName, count, titleText) {
+function saveImportPayload(vcardContent, fileName, count, titleText, options = {}) {
   const key = IMPORT_STORAGE_PREFIX + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   const payload = {
     vcardContent,
     fileName,
     count,
     titleText,
+    markRecentImported: options.markRecentImported === true,
     createdAt: Date.now()
   };
 
@@ -4591,8 +4880,14 @@ function saveImportPayload(vcardContent, fileName, count, titleText) {
   return key;
 }
 
-function openImportGuide(vcardContent, fileName, count, titleText) {
-  const key = saveImportPayload(vcardContent, fileName, count, titleText);
+function openImportGuide(vcardContent, fileName, count, titleText, options = {}) {
+  const key = saveImportPayload(
+    vcardContent,
+    fileName,
+    count,
+    titleText,
+    options
+  );
   const guideUrl = window.location.pathname + "?importKey=" + encodeURIComponent(key);
   window.open(guideUrl, "_blank");
 }
@@ -4638,6 +4933,13 @@ function renderImportGuide(importKey) {
   const finalBtn = document.getElementById("finalGuideBtn");
   finalBtn.onclick = async function () {
     await shareOrDownloadVCard(payload.vcardContent, payload.fileName);
+
+    if (payload.markRecentImported === true) {
+      localStorage.setItem(
+        RECENT_CONTACTS_STORAGE_KEY,
+        String(Date.now())
+      );
+    }
   };
 }
 
@@ -4651,6 +4953,32 @@ async function downloadSelectedContacts() {
 
   const multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
   openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "ייבוא אנשי קשר");
+}
+
+
+async function downloadRecentContacts() {
+  const recentContacts = contacts
+    .filter(isContactRecent)
+    .sort((a, b) => {
+      const aDate = parseContactDate(a.createdAt);
+      const bDate = parseContactDate(b.createdAt);
+      return (bDate ? bDate.getTime() : 0) - (aDate ? aDate.getTime() : 0);
+    });
+
+  if (!recentContacts.length) {
+    alert("לא נמצאו אנשי קשר חדשים לייבוא.");
+    return;
+  }
+
+  const multiVCard = recentContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+
+  openImportGuide(
+    multiVCard,
+    "new-contacts.vcf",
+    recentContacts.length,
+    "ייבוא אנשי קשר חדשים",
+    { markRecentImported: true }
+  );
 }
 
 async function downloadAllContacts() {
@@ -4868,6 +5196,16 @@ function renderCurrentSearchResults() {
 function search() {
   renderCurrentSearchResults();
 }
+
+
+window.addEventListener("storage", event => {
+  if (
+    event.key === RECENT_CONTACTS_STORAGE_KEY &&
+    activeQuickFilter === "recent"
+  ) {
+    renderCurrentSearchResults();
+  }
+});
 
 function init() {
   cleanupOldImportPayloads();
