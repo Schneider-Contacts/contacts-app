@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260714-logo-fix1">
-<link rel="icon" href="app-icon.png?v=20260714-logo-fix1">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260714-logo2">
+<link rel="icon" href="app-icon.png?v=20260714-logo2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -2027,7 +2027,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-icon.png?v=20260714-logo-fix1" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260714-logo2" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2118,7 +2118,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-icon.png?v=20260714-logo-fix1" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260714-logo2" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2156,7 +2156,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-icon.png?v=20260714-logo-fix1" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260714-logo2" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2633,14 +2633,13 @@ function parseContactDate(value) {
 }
 
 function getContactCreationDate(contact) {
-  const createdDate = parseContactDate(contact && contact.createdAt);
-  if (createdDate) return createdDate;
-  const source = normalizeSearchText(contact && contact.source);
-  if (source.includes("form") || source.includes("טופס")) return parseContactDate(contact && contact.updatedAt);
-  return null;
+  const firstSeenDate = parseContactDate(contact && contact.firstSeenAt);
+  if (firstSeenDate) return firstSeenDate;
+  return parseContactDate(contact && contact.createdAt);
 }
 
 function isContactRecent(contact) {
+  if (!contact || contact.isNewContact !== true) return false;
   const createdDate = getContactCreationDate(contact);
   return Boolean(createdDate && createdDate.getTime() > getRecentContactsCutoff());
 }
@@ -2771,6 +2770,8 @@ function mapFirestoreContact(document, index = 0) {
     status: (row.status || "").toString().trim(),
     createdAt: (row.created_at || "").toString().trim(),
     updatedAt: (row.updated_at || "").toString().trim(),
+    firstSeenAt: (row.first_seen_at || row.created_at || "").toString().trim(),
+    isNewContact: row.is_new_contact === true || String(row.is_new_contact || "").toLowerCase() === "true",
     raw: row
   };
 }
@@ -4562,6 +4563,8 @@ function buildAdminContactPayload(contact) {
     source: String(contact.source || contact.raw && contact.raw.source || "admin"),
     status: String(contact.status || contact.raw && contact.raw.status || ""),
     created_at: String(contact.createdAt || contact.raw && contact.raw.created_at || ""),
+    first_seen_at: String(contact.firstSeenAt || contact.raw && contact.raw.first_seen_at || contact.createdAt || ""),
+    is_new_contact: contact.isNewContact === true,
     updated_at: now
   };
 }
@@ -4706,6 +4709,8 @@ function buildBundleContactFromPayload_(docId, payload) {
     source: String(payload.source || ""),
     status: String(payload.status || ""),
     created_at: String(payload.created_at || ""),
+    first_seen_at: String(payload.first_seen_at || payload.created_at || ""),
+    is_new_contact: payload.is_new_contact === true,
     updated_at: String(payload.updated_at || "")
   };
 }
@@ -4818,6 +4823,8 @@ function contactToFirestorePayload(contact) {
     source: String(contact.source || ""),
     status: String(contact.status || ""),
     created_at: String(contact.createdAt || ""),
+    first_seen_at: String(contact.firstSeenAt || contact.createdAt || ""),
+    is_new_contact: contact.isNewContact === true,
     updated_at: new Date().toISOString()
   };
 }
@@ -5320,8 +5327,8 @@ function openRecentContactsModal() {
   const importButton = document.getElementById("recentContactsImportBtn");
   if (explanation) {
     explanation.textContent = hasPreviousImport
-      ? "הרשימה כוללת אנשי קשר שנוספו למערכת מאז הייבוא האחרון שבוצע מהמכשיר הזה. האפליקציה אינה יכולה לבדוק אילו אנשי קשר כבר שמורים בפנקס הטלפון."
-      : `זהו השימוש הראשון בכפתור, ולכן מוצגים אנשי קשר שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. לאחר הייבוא הבא יוצגו רק אנשי קשר שנוספו מאז.`;
+      ? "הרשימה כוללת רק אנשי קשר חדשים באמת שנוספו למערכת מאז הייבוא האחרון מהמכשיר הזה. רישום חוזר של מספר שכבר היה במערכת אינו נכלל. האפליקציה אינה יכולה לבדוק אילו אנשי קשר כבר שמורים בפנקס הטלפון."
+      : `זהו השימוש הראשון בכפתור, ולכן מוצגים רק אנשי קשר חדשים באמת שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. רישום חוזר של מספר שכבר היה במערכת אינו נכלל.`;
   }
   if (countBox) {
     countBox.textContent = recentContacts.length === 1 ? "נמצא איש קשר חדש אחד לייבוא." : `נמצאו ${recentContacts.length} אנשי קשר חדשים לייבוא.`;
