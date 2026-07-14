@@ -248,13 +248,6 @@
       text-decoration: none;
     }
 
-    #submitFrame {
-      display: none;
-      width: 0;
-      height: 0;
-      border: 0;
-    }
-
     @media (max-width: 600px) {
       body {
         padding: 16px 12px 24px;
@@ -289,11 +282,9 @@
         id="emailForm"
         action="https://script.google.com/macros/s/AKfycbw1aJRjfWl-fYiZveZ5oKdvtv9v_UGUa6JUzv9G1GKQZVK4SKsYdt0GTCgI50fyLE5V/exec"
         method="post"
-        target="submitFrame"
         novalidate
       >
         <input type="hidden" name="action" value="emailUpdate">
-        <input type="hidden" id="requestId" name="requestId" value="">
 
         <label for="phone">מספר טלפון</label>
         <input
@@ -345,62 +336,19 @@
         <div id="status" class="status"></div>
       </form>
 
-      <div id="successBox" class="successBox">
-        <div class="successTitle">המייל עודכן בהצלחה</div>
-
-        <div id="successDetails" class="successDetails"></div>
-
-        <p class="subtitle" style="margin-bottom:12px;">
-          כעת ניתן לפתוח חשבון באפליקציה באמצעות כתובת המייל החדשה.
-        </p>
-
-        <ol class="successSteps">
-          <li>לחצו על הכפתור „פתיחת חשבון באפליקציה”.</li>
-          <li>בחרו „יצירת חשבון” והגדירו סיסמה.</li>
-          <li>פתחו את מייל האימות ולחצו על הקישור. ב-Gmail כדאי לבדוק גם בתיקיית הספאם.</li>
-          <li>חזרו לאפליקציה והתחברו עם המייל החדש והסיסמה שבחרתם.</li>
-        </ol>
-
-        <a
-          id="openAccountLink"
-          class="appLink"
-          href="https://schneider-contacts.github.io/contacts-app/?authMode=register"
-        >
-          פתיחת חשבון באפליקציה
-        </a>
-
-        <button type="button" class="secondaryBtn" id="resetBtn">
-          עדכון כתובת נוספת
-        </button>
-      </div>
-
       <a
         class="backLink"
         href="https://schneider-contacts.github.io/contacts-app/"
       >
         חזרה לאפליקציה
       </a>
-
-      <iframe id="submitFrame" name="submitFrame" title="שליחת טופס"></iframe>
     </section>
   </main>
 
   <script>
     const form = document.getElementById("emailForm");
-    const submitFrame = document.getElementById("submitFrame");
     const submitBtn = document.getElementById("submitBtn");
     const statusEl = document.getElementById("status");
-    const successBox = document.getElementById("successBox");
-    const successDetails = document.getElementById("successDetails");
-    const resetBtn = document.getElementById("resetBtn");
-    const requestIdInput = document.getElementById("requestId");
-    const openAccountLink = document.getElementById("openAccountLink");
-    const webAppUrl = form.action;
-
-    let pendingRequestId = "";
-    let responseTimer = null;
-    let statusPollTimer = null;
-    let formWasSubmitted = false;
 
     function setStatus(message = "", type = "") {
       statusEl.textContent = message;
@@ -418,140 +366,6 @@
         ? "מעדכן..."
         : "עדכון כתובת המייל";
     }
-
-    function createRequestId() {
-      if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
-      }
-
-      return (
-        Date.now().toString(36) +
-        "-" +
-        Math.random().toString(36).slice(2) +
-        "-" +
-        Math.random().toString(36).slice(2)
-      );
-    }
-
-    function escapeHtml(value) {
-      return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function clearResponseTimer() {
-      if (responseTimer) {
-        clearTimeout(responseTimer);
-        responseTimer = null;
-      }
-    }
-
-    function clearStatusPolling() {
-      if (statusPollTimer) {
-        clearTimeout(statusPollTimer);
-        statusPollTimer = null;
-      }
-    }
-
-    function clearPendingRequest() {
-      clearResponseTimer();
-      clearStatusPolling();
-      pendingRequestId = "";
-    }
-
-    function scheduleStatusPoll(delay = 1500) {
-      clearStatusPolling();
-
-      if (!pendingRequestId) return;
-
-      statusPollTimer = setTimeout(() => {
-        requestEmailUpdateStatus();
-      }, delay);
-    }
-
-    function requestEmailUpdateStatus() {
-      if (!pendingRequestId) return;
-
-      const script = document.createElement("script");
-      const separator = webAppUrl.includes("?") ? "&" : "?";
-
-      script.async = true;
-      script.src =
-        webAppUrl +
-        separator +
-        "action=emailUpdateStatus" +
-        "&requestId=" + encodeURIComponent(pendingRequestId) +
-        "&callback=receiveEmailUpdateStatus" +
-        "&_=" + Date.now();
-
-      script.onload = () => script.remove();
-      script.onerror = () => {
-        script.remove();
-        scheduleStatusPoll(2500);
-      };
-
-      document.head.appendChild(script);
-    }
-
-    function handleEmailUpdateResponse(data) {
-      if (
-        !data ||
-        data.source !== "schneider-email-update" ||
-        !pendingRequestId ||
-        data.requestId !== pendingRequestId
-      ) {
-        return;
-      }
-
-      if (data.pending === true) {
-        scheduleStatusPoll(1500);
-        return;
-      }
-
-      clearPendingRequest();
-      formWasSubmitted = false;
-      setBusy(false);
-
-      if (!data.success) {
-        setStatus(
-          data.message || "העדכון נכשל. נסו שוב.",
-          "error"
-        );
-        return;
-      }
-
-      const result = data.result || {};
-      const safeName = escapeHtml(result.displayName || "איש הקשר");
-      const safePhone = escapeHtml(result.phone || "");
-      const safeEmail = escapeHtml(result.email || "");
-
-      if (openAccountLink && result.email) {
-        openAccountLink.href =
-          "https://schneider-contacts.github.io/contacts-app/" +
-          "?authMode=register&email=" +
-          encodeURIComponent(result.email);
-      }
-
-      setStatus("");
-      form.style.display = "none";
-      successBox.classList.add("visible");
-
-      successDetails.innerHTML =
-        "<b>" +
-        safeName +
-        "</b><br>" +
-        (safePhone ? safePhone + "<br>" : "") +
-        "כתובת המייל המעודכנת: <b>" +
-        safeEmail +
-        "</b>";
-    }
-
-    window.receiveEmailUpdateStatus = data => {
-      handleEmailUpdateResponse(data);
-    };
 
     form.addEventListener("submit", event => {
       const phone = document.getElementById("phone").value.trim();
@@ -573,44 +387,8 @@
         return;
       }
 
-      pendingRequestId = createRequestId();
-      requestIdInput.value = pendingRequestId;
-
       setBusy(true);
-      setStatus("מעדכן את הפרטים...", "loading");
-      clearResponseTimer();
-      formWasSubmitted = true;
-      scheduleStatusPoll(500);
-
-      responseTimer = setTimeout(() => {
-        clearPendingRequest();
-        setBusy(false);
-        setStatus(
-          "העדכון נשלח, אך אישור הסיום לא התקבל בזמן. רעננו את העמוד ובדקו אם ניתן לפתוח חשבון עם המייל החדש.",
-          "error"
-        );
-      }, 120000);
-    });
-
-    window.addEventListener("message", event => {
-      handleEmailUpdateResponse(event.data);
-    });
-
-    submitFrame.addEventListener("load", () => {
-      if (!formWasSubmitted || !pendingRequestId) return;
-      requestEmailUpdateStatus();
-    });
-
-    resetBtn.addEventListener("click", () => {
-      clearPendingRequest();
-      formWasSubmitted = false;
-      requestIdInput.value = "";
-      form.reset();
-      setBusy(false);
-      setStatus("");
-      successBox.classList.remove("visible");
-      form.style.display = "block";
-      document.getElementById("phone").focus();
+      setStatus("מעדכן את הפרטים. בסיום ייפתח מסך אישור מסודר...", "loading");
     });
   </script>
 </body>
