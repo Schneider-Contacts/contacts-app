@@ -400,6 +400,7 @@
     let pendingRequestId = "";
     let responseTimer = null;
     let statusPollTimer = null;
+    let formWasSubmitted = false;
 
     function setStatus(message = "", type = "") {
       statusEl.textContent = message;
@@ -511,6 +512,7 @@
       }
 
       clearPendingRequest();
+      formWasSubmitted = false;
       setBusy(false);
 
       if (!data.success) {
@@ -577,24 +579,31 @@
       setBusy(true);
       setStatus("מעדכן את הפרטים...", "loading");
       clearResponseTimer();
-      scheduleStatusPoll(900);
+      formWasSubmitted = true;
+      scheduleStatusPoll(500);
 
       responseTimer = setTimeout(() => {
         clearPendingRequest();
         setBusy(false);
         setStatus(
-          "הבקשה נשלחה אך אישור הסיום לא התקבל. המתינו רגע ובדקו אם ניתן לפתוח חשבון עם המייל החדש.",
+          "העדכון נשלח, אך אישור הסיום לא התקבל בזמן. רעננו את העמוד ובדקו אם ניתן לפתוח חשבון עם המייל החדש.",
           "error"
         );
-      }, 60000);
+      }, 120000);
     });
 
     window.addEventListener("message", event => {
       handleEmailUpdateResponse(event.data);
     });
 
+    submitFrame.addEventListener("load", () => {
+      if (!formWasSubmitted || !pendingRequestId) return;
+      requestEmailUpdateStatus();
+    });
+
     resetBtn.addEventListener("click", () => {
       clearPendingRequest();
+      formWasSubmitted = false;
       requestIdInput.value = "";
       form.reset();
       setBusy(false);

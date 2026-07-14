@@ -2423,10 +2423,16 @@ const FIREBASE_SDK_VERSION = "12.16.0";
 const PASSWORD_AUTH_RETURN_URL =
   "https://schneider-contacts.github.io/contacts-app/";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
-const CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
-const CONTACT_BUNDLE_MANIFEST_ID = "manifest";
-const CONTACT_BUNDLE_CACHE_KEY = "contacts_bundle_cache_v1";
-const CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
+const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
+const CONTACT_DIRECTORY_META_ID = "meta";
+const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
+const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v2";
+const CONTACT_DIRECTORY_TARGET_BYTES = 650000;
+
+// תמיכה זמנית בחבילה הישנה בזמן מעבר גרסה.
+const LEGACY_CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
+const LEGACY_CONTACT_BUNDLE_MANIFEST_ID = "manifest";
+const LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 
@@ -2885,28 +2891,26 @@ async function loadContacts() {
 }
 
 async function loadContactsFromOptimizedBundle_() {
-  const manifestRef = firebaseApi.doc(
+  const metaRef = firebaseApi.doc(
     db,
-    CONTACT_BUNDLE_COLLECTION_NAME,
-    CONTACT_BUNDLE_MANIFEST_ID
+    CONTACT_DIRECTORY_COLLECTION_NAME,
+    CONTACT_DIRECTORY_META_ID
   );
+  const metaSnapshot = await firebaseApi.getDoc(metaRef);
 
-  const manifestSnapshot = await firebaseApi.getDoc(manifestRef);
-
-  if (!manifestSnapshot.exists()) {
-    console.warn("Optimized contacts bundle not found; using legacy contacts collection.");
-    return loadContactsFromLegacyCollection_();
+  if (!metaSnapshot.exists()) {
+    console.warn("Smart contacts directory not found; using previous optimized bundle.");
+    return loadContactsFromLegacyBundle_();
   }
 
-  const manifest = manifestSnapshot.data() || {};
-  const version = String(manifest.version || "");
-  const chunkIds = Array.isArray(manifest.chunkIds) && manifest.chunkIds.length
-    ? manifest.chunkIds.map(value => String(value))
+  const meta = metaSnapshot.data() || {};
+  const version = String(meta.version || "");
+  const pageIds = Array.isArray(meta.pageIds) && meta.pageIds.length
+    ? meta.pageIds.map(value => String(value))
     : Array.from(
-        { length: Number(manifest.chunkCount || CONTACT_BUNDLE_EXPECTED_CHUNKS) },
-        (_, index) => "chunk_" + index
+        { length: Math.max(1, Number(meta.pageCount || 1)) },
+        (_, index) => CONTACT_DIRECTORY_PAGE_PREFIX + index
       );
-
   const cached = readContactsBundleCache_();
 
   if (
@@ -2918,34 +2922,67 @@ async function loadContactsFromOptimizedBundle_() {
     return cached.contacts;
   }
 
-  const chunkSnapshots = await Promise.all(
-    chunkIds.map(chunkId =>
+  const pageSnapshots = await Promise.all(
+    pageIds.map(pageId =>
       firebaseApi.getDoc(
-        firebaseApi.doc(db, CONTACT_BUNDLE_COLLECTION_NAME, chunkId)
+        firebaseApi.doc(db, CONTACT_DIRECTORY_COLLECTION_NAME, pageId)
       )
     )
   );
-
   const rawContacts = [];
 
-  chunkSnapshots.forEach(snapshot => {
+  pageSnapshots.forEach(snapshot => {
     if (!snapshot.exists()) return;
-
     const data = snapshot.data() || {};
-    const chunkContacts = Array.isArray(data.contacts)
-      ? data.contacts
-      : [];
-
-    chunkContacts.forEach(contact => {
-      rawContacts.push(contact);
-    });
+    const pageContacts = Array.isArray(data.contacts) ? data.contacts : [];
+    pageContacts.forEach(contact => rawContacts.push(contact));
   });
 
-  if (!rawContacts.length && Number(manifest.contactCount || 0) > 0) {
-    throw new Error("חבילת אנשי הקשר קיימת אך מסמכי הנתונים חסרים.");
+  if (!rawContacts.length && Number(meta.contactCount || 0) > 0) {
+    throw new Error("ספריית אנשי הקשר קיימת אך מסמכי הנתונים חסרים.");
   }
 
   writeContactsBundleCache_(version, rawContacts);
+  return rawContacts;
+}
+
+async function loadContactsFromLegacyBundle_() {
+  const manifestRef = firebaseApi.doc(
+    db,
+    LEGACY_CONTACT_BUNDLE_COLLECTION_NAME,
+    LEGACY_CONTACT_BUNDLE_MANIFEST_ID
+  );
+  const manifestSnapshot = await firebaseApi.getDoc(manifestRef);
+
+  if (!manifestSnapshot.exists()) {
+    throw new Error(
+      "ספריית אנשי הקשר עדיין לא נבנתה. יש להריץ syncContactsToFirestore ב-Apps Script."
+    );
+  }
+
+  const manifest = manifestSnapshot.data() || {};
+  const chunkIds = Array.isArray(manifest.chunkIds) && manifest.chunkIds.length
+    ? manifest.chunkIds.map(value => String(value))
+    : Array.from(
+        { length: Number(manifest.chunkCount || LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS) },
+        (_, index) => "chunk_" + index
+      );
+  const snapshots = await Promise.all(
+    chunkIds.map(chunkId =>
+      firebaseApi.getDoc(
+        firebaseApi.doc(db, LEGACY_CONTACT_BUNDLE_COLLECTION_NAME, chunkId)
+      )
+    )
+  );
+  const rawContacts = [];
+
+  snapshots.forEach(snapshot => {
+    if (!snapshot.exists()) return;
+    const data = snapshot.data() || {};
+    (Array.isArray(data.contacts) ? data.contacts : [])
+      .forEach(contact => rawContacts.push(contact));
+  });
+
   return rawContacts;
 }
 
@@ -2963,13 +3000,13 @@ async function loadContactsFromLegacyCollection_() {
 
 function readContactsBundleCache_() {
   try {
-    const raw = localStorage.getItem(CONTACT_BUNDLE_CACHE_KEY);
+    const raw = localStorage.getItem(CONTACT_DIRECTORY_CACHE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch (error) {
-    localStorage.removeItem(CONTACT_BUNDLE_CACHE_KEY);
+    localStorage.removeItem(CONTACT_DIRECTORY_CACHE_KEY);
     return null;
   }
 }
@@ -2977,7 +3014,7 @@ function readContactsBundleCache_() {
 function writeContactsBundleCache_(version, rawContacts) {
   try {
     localStorage.setItem(
-      CONTACT_BUNDLE_CACHE_KEY,
+      CONTACT_DIRECTORY_CACHE_KEY,
       JSON.stringify({
         version: String(version || ""),
         contacts: rawContacts,
@@ -2991,7 +3028,7 @@ function writeContactsBundleCache_(version, rawContacts) {
 
 function clearContactsBundleCache_() {
   try {
-    localStorage.removeItem(CONTACT_BUNDLE_CACHE_KEY);
+    localStorage.removeItem(CONTACT_DIRECTORY_CACHE_KEY);
   } catch (error) {
     console.warn("Could not clear contacts bundle cache", error);
   }
@@ -4840,17 +4877,6 @@ async function saveAdminContactEdit() {
   }
 }
 
-function getContactBundleChunkIndex_(documentId) {
-  const value = String(documentId || "");
-  let hash = 0;
-
-  for (let index = 0; index < value.length; index++) {
-    hash = ((hash * 31) + value.charCodeAt(index)) >>> 0;
-  }
-
-  return hash % CONTACT_BUNDLE_EXPECTED_CHUNKS;
-}
-
 function buildBundleContactFromPayload_(docId, payload) {
   return {
     docId: String(docId || ""),
@@ -4874,51 +4900,69 @@ function buildBundleContactFromPayload_(docId, payload) {
   };
 }
 
+function buildDirectoryContactFromMappedContact_(contact) {
+  return {
+    docId: String(contact.docId || normalizePhone(contact.phone).replace(/\D/g, "")),
+    id: String(contact.raw && contact.raw.id || ""),
+    first_name_he: String(contact.first || ""),
+    last_name_he: String(contact.last || ""),
+    first_name_en: String(contact.firstEn || ""),
+    last_name_en: String(contact.lastEn || ""),
+    title_prefix: String(contact.title || ""),
+    role: String(contact.role || ""),
+    department: String(contact.dept || ""),
+    hospital: String(contact.hospital || ""),
+    phone: String(contact.phone || ""),
+    email: normalizeEmail(contact.email),
+    source: String(contact.source || ""),
+    status: String(contact.status || ""),
+    created_at: String(contact.createdAt || ""),
+    first_seen_at: String(contact.firstSeenAt || contact.createdAt || ""),
+    is_new_contact: contact.isNewContact === true,
+    updated_at: String(contact.updatedAt || "")
+  };
+}
+
+function packDirectoryContactsForClient_(items) {
+  const pages = [];
+  let currentPage = [];
+
+  items.forEach(item => {
+    const candidate = currentPage.concat([item]);
+    const bytes = new Blob([JSON.stringify({ contacts: candidate })]).size;
+
+    if (currentPage.length && bytes > CONTACT_DIRECTORY_TARGET_BYTES) {
+      pages.push(currentPage);
+      currentPage = [item];
+    } else {
+      currentPage = candidate;
+    }
+  });
+
+  if (currentPage.length || pages.length === 0) pages.push(currentPage);
+  return pages;
+}
+
 async function updateOptimizedContactBundle_(docId, payload, options = {}) {
   const normalizedDocId = String(docId || "");
   if (!normalizedDocId) return;
 
   const deleted = options.deleted === true;
-  const countDelta = Number(options.countDelta || 0);
-  const chunkIndex = getContactBundleChunkIndex_(normalizedDocId);
-  const chunkId = "chunk_" + chunkIndex;
-  const chunkRef = firebaseApi.doc(db, CONTACT_BUNDLE_COLLECTION_NAME, chunkId);
-  const manifestRef = firebaseApi.doc(
-    db,
-    CONTACT_BUNDLE_COLLECTION_NAME,
-    CONTACT_BUNDLE_MANIFEST_ID
-  );
-
-  const [chunkSnapshot, manifestSnapshot] = await Promise.all([
-    firebaseApi.getDoc(chunkRef),
-    firebaseApi.getDoc(manifestRef)
-  ]);
-
-  if (!manifestSnapshot.exists()) {
-    clearContactsBundleCache_();
-    console.warn("Contacts bundle manifest is missing; run syncContactsToFirestore in Apps Script.");
-    return;
-  }
-
-  const chunkData = chunkSnapshot.exists()
-    ? (chunkSnapshot.data() || {})
-    : {};
-  const currentContacts = Array.isArray(chunkData.contacts)
-    ? [...chunkData.contacts]
-    : [];
-  const existingIndex = currentContacts.findIndex(
-    contact => String(contact && contact.docId || "") === normalizedDocId
+  const sourceContacts = adminContacts.length ? adminContacts : contacts;
+  const directoryContacts = sourceContacts.map(buildDirectoryContactFromMappedContact_);
+  const existingIndex = directoryContacts.findIndex(
+    contact => String(contact.docId || "") === normalizedDocId
   );
 
   if (deleted) {
-    if (existingIndex >= 0) currentContacts.splice(existingIndex, 1);
+    if (existingIndex >= 0) directoryContacts.splice(existingIndex, 1);
   } else {
     const nextContact = buildBundleContactFromPayload_(normalizedDocId, payload);
-    if (existingIndex >= 0) currentContacts[existingIndex] = nextContact;
-    else currentContacts.push(nextContact);
+    if (existingIndex >= 0) directoryContacts[existingIndex] = nextContact;
+    else directoryContacts.push(nextContact);
   }
 
-  currentContacts.sort((a, b) => {
+  directoryContacts.sort((a, b) => {
     const lastCompare = String(a.last_name_he || "")
       .localeCompare(String(b.last_name_he || ""), "he", { sensitivity: "base" });
     if (lastCompare !== 0) return lastCompare;
@@ -4926,40 +4970,63 @@ async function updateOptimizedContactBundle_(docId, payload, options = {}) {
       .localeCompare(String(b.first_name_he || ""), "he", { sensitivity: "base" });
   });
 
-  const manifest = manifestSnapshot.data() || {};
+  const pages = packDirectoryContactsForClient_(directoryContacts);
+  const pageIds = pages.map((_, index) => CONTACT_DIRECTORY_PAGE_PREFIX + index);
+  const metaRef = firebaseApi.doc(
+    db,
+    CONTACT_DIRECTORY_COLLECTION_NAME,
+    CONTACT_DIRECTORY_META_ID
+  );
+  const previousMetaSnapshot = await firebaseApi.getDoc(metaRef);
+  const previousPageIds = previousMetaSnapshot.exists()
+    ? (Array.isArray(previousMetaSnapshot.data().pageIds)
+        ? previousMetaSnapshot.data().pageIds.map(String)
+        : [])
+    : [];
   const nextVersion = new Date().toISOString() + "_" + Math.random().toString(36).slice(2, 10);
-  const previousCount = Number(manifest.contactCount || contacts.length || 0);
-  const nextCount = Math.max(0, previousCount + countDelta);
   const batch = firebaseApi.writeBatch(db);
   const now = firebaseApi.serverTimestamp();
 
+  pages.forEach((pageContacts, index) => {
+    batch.set(
+      firebaseApi.doc(
+        db,
+        CONTACT_DIRECTORY_COLLECTION_NAME,
+        pageIds[index]
+      ),
+      {
+        kind: "contacts_page",
+        schemaVersion: 2,
+        version: nextVersion,
+        pageIndex: index,
+        contacts: pageContacts,
+        updatedAt: now
+      },
+      { merge: false }
+    );
+  });
+
+  previousPageIds
+    .filter(pageId => !pageIds.includes(pageId))
+    .forEach(pageId => {
+      batch.delete(
+        firebaseApi.doc(db, CONTACT_DIRECTORY_COLLECTION_NAME, pageId)
+      );
+    });
+
   batch.set(
-    chunkRef,
+    metaRef,
     {
-      kind: "contacts_chunk",
+      kind: "contacts_directory_meta",
+      schemaVersion: 2,
       version: nextVersion,
-      chunkIndex,
-      contacts: currentContacts,
+      pageCount: pages.length,
+      pageIds,
+      contactCount: directoryContacts.length,
+      rebuildPending: false,
       updatedAt: now
     },
     { merge: false }
-  );
-
-  batch.set(
-    manifestRef,
-    {
-      kind: "contacts_manifest",
-      schemaVersion: 1,
-      version: nextVersion,
-      chunkCount: CONTACT_BUNDLE_EXPECTED_CHUNKS,
-      contactCount: nextCount,
-      chunkIds: Array.from(
-        { length: CONTACT_BUNDLE_EXPECTED_CHUNKS },
-        (_, index) => "chunk_" + index
-      ),
-      updatedAt: now
-    },
-    { merge: true }
   );
 
   await batch.commit();
