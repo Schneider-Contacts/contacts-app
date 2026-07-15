@@ -1094,6 +1094,21 @@ select {
   text-decoration: underline;
 }
 
+#login #passwordResetBtn {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--green-200);
+  border-radius: 12px;
+  background: var(--green-50);
+  color: var(--green-700);
+  text-decoration: none;
+}
+#login #passwordResetBtn:hover {
+  background: #eef9f3;
+  text-decoration: none;
+}
+
 #loginStatus {
   margin-top: 14px;
   text-align: right;
@@ -2155,7 +2170,7 @@ select {
 
 
 
-/* ===== v12: guided authentication and contact reports ===== */
+/* ===== v13: guided authentication, verification assistance and contact reports ===== */
 .authStageBack {
   width: auto;
   margin: 0 0 10px auto;
@@ -2358,6 +2373,82 @@ select {
   white-space: pre-wrap;
 }
 
+.passwordGuidance {
+  display: grid;
+  gap: 9px;
+  margin: 0 0 13px;
+}
+.passwordGuidanceItem {
+  padding: 10px 12px;
+  border-radius: 13px;
+  border: 1px solid #d7ebe1;
+  background: #f7fcf9;
+  color: #3d5d51;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.passwordGuidanceItem strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #17352d;
+  font-size: 13.5px;
+}
+#login .authStageBack.bottom {
+  display: block;
+  width: auto;
+  margin: 12px auto 0;
+  padding: 5px 0;
+}
+#login .manualApprovalRequestBtn {
+  background: #fff8e8;
+  color: #7a5714;
+  border: 1px solid #f3d990;
+  box-shadow: none;
+}
+#login .manualApprovalRequestBtn:disabled {
+  opacity: .72;
+  cursor: default;
+}
+.manualApprovalRequestStatus {
+  display: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7fbf9;
+  border: 1px solid #d7ebe1;
+  color: #49685c;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.manualApprovalRequestStatus.visible { display: block; }
+.accessStateLine {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #e1eee8;
+  color: #31584a;
+  font-weight: 750;
+}
+.accessStateLine.pending { color: #895f12; }
+.accessStateLine.manual { color: #7a4d11; }
+.accessStateLine.verified { color: #17603f; }
+.accessStateLine.unknown { color: #667b72; }
+.accessStateNote {
+  display: block;
+  margin-top: 3px;
+  color: #71847c;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.adminStatusBadge.manual {
+  background: #fff4d8;
+  color: #7a5310;
+  border-color: #f1d58b;
+}
+.adminStatusBadge.pending {
+  background: #fff8e8;
+  color: #865f16;
+  border-color: #f2dc9f;
+}
+
 @media (max-width: 600px) {
   .adminTabs,
   .adminTabs.hasManagers {
@@ -2467,7 +2558,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260715-v12-3" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260715-v13" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2491,7 +2582,6 @@ select {
     </div>
 
     <div id="authPhoneStep" style="display:none;">
-      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
       <h3 class="authModeHeading">בדיקת מספר הטלפון</h3>
       <p class="authModeDescription">כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
 
@@ -2504,12 +2594,22 @@ select {
       </div>
 
       <button type="button" id="phoneContinueBtn" class="primaryAuthBtn" onclick="continueFromPhoneStep()">המשך</button>
+      <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
     </div>
 
     <div id="authPasswordStep" style="display:none;">
-      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
-      <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
-      <p id="authModeDescription" class="authModeDescription">הזינו את הסיסמה שלכם.</p>
+      <h3 id="loginTitle" class="authModeHeading">כניסה או יצירת חשבון</h3>
+      <p id="authModeDescription" class="authModeDescription">הזינו סיסמה בהתאם למצב החשבון שלכם.</p>
+      <div class="passwordGuidance" aria-label="הנחיות סיסמה">
+        <div class="passwordGuidanceItem">
+          <strong>זו הפעם הראשונה שלך באפליקציה?</strong>
+          בחרו סיסמה חדשה. לאחר מכן יישלח אליכם מייל אימות.
+        </div>
+        <div class="passwordGuidanceItem">
+          <strong>כבר השתמשת באפליקציה בעבר?</strong>
+          הקלידו את הסיסמה שכבר קבעתם כדי להיכנס.
+        </div>
+      </div>
       <div id="selectedAuthEmail" class="selectedAuthEmail"></div>
 
       <div class="authField">
@@ -2531,11 +2631,11 @@ select {
       </div>
 
       <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
-      <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
-
       <div class="authSecondaryLinks">
         <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
       </div>
+      <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
+      <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
     </div>
   </form>
 
@@ -2548,6 +2648,8 @@ select {
       <button type="button" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
       <button type="button" class="verificationSecondary" onclick="openGmailInbox()">פתיחת Gmail</button>
       <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
+      <button type="button" id="manualApprovalRequestBtn" class="manualApprovalRequestBtn" onclick="requestManualApproval_()">לא קיבלתי מייל אימות — בקש אישור ממנהל־העל</button>
+      <div id="manualApprovalRequestStatus" class="manualApprovalRequestStatus" aria-live="polite"></div>
       <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">← חזרה למסך הראשי</button>
     </div>
   </div>
@@ -2570,7 +2672,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260715-v12-3" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260715-v13" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2608,7 +2710,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260715-v12-3" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260715-v13" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2659,6 +2761,9 @@ select {
       <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
       <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">פעילים</button>
       <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">חסומים</button>
+      <button type="button" class="adminFilterBtn" data-filter="verified" onclick="setAdminFilter('verified')">מייל מאומת</button>
+      <button type="button" class="adminFilterBtn" data-filter="manual" onclick="setAdminFilter('manual')">אישור ידני</button>
+      <button type="button" class="adminFilterBtn" data-filter="pending" onclick="setAdminFilter('pending')">בקשות אימות</button>
     </div>
 
     <div id="adminActivityFilters" class="adminFilterRow" style="display:none;">
@@ -2868,6 +2973,8 @@ const USAGE_SEARCH_FLUSH_THRESHOLD = 10;
 const USAGE_PENDING_STORAGE_KEY = "contacts_pending_usage_v2";
 const SEARCH_USAGE_DEBOUNCE_MS = 900;
 const LAST_LOGIN_EMAIL_STORAGE_KEY = "contacts_last_login_email_v1";
+const AUTH_STATUS_TELEMETRY_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const AUTH_STATUS_TELEMETRY_PREFIX = "contacts_auth_status_write_v1_";
 
 let firebaseApi = null;
 let firebaseApp = null;
@@ -2894,6 +3001,9 @@ let pendingAuthRedirectTimer = null;
 
 let currentUserIsAdmin = false;
 let currentUserIsSuperAdmin = false;
+let currentUserHasAppAccess = false;
+let verificationAccessListenerUnsubscribe = null;
+let verificationAccessTransitionInProgress = false;
 let currentAdminRole = "";
 let currentAdminEmail = "";
 let permissionListenerUnsubscribe = null;
@@ -2906,6 +3016,7 @@ let adminManagers = [];
 let adminActivity = [];
 let adminUsageDaily = [];
 let adminReports = [];
+let adminVerificationRequests = [];
 let pendingUsageByDate = {};
 let usageFlushTimer = null;
 let usageFlushScheduledAt = 0;
@@ -2979,7 +3090,7 @@ function getPendingSearchCount_() {
 }
 
 function queueUsageMetric_(metric, amount = 1) {
-  if (!auth || !auth.currentUser || !auth.currentUser.emailVerified || !db || !firebaseApi) return;
+  if (!auth || !auth.currentUser || !currentUserHasAppAccess || !db || !firebaseApi) return;
 
   const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
   if (!safeAmount) return;
@@ -3039,7 +3150,7 @@ async function writeUsageIncrement_(dateKey, loginDelta, searchDelta) {
 
 async function flushUsageMetrics_() {
   if (usageFlushInProgress) return;
-  if (!db || !firebaseApi || !auth || !auth.currentUser || !auth.currentUser.emailVerified) return;
+  if (!db || !firebaseApi || !auth || !auth.currentUser || !currentUserHasAppAccess) return;
 
   const snapshot = Object.fromEntries(
     Object.entries(pendingUsageByDate)
@@ -3804,8 +3915,7 @@ function setAuthMode(mode) {
   if (authPurpose === "guided") {
     if (title) title.textContent = "כניסה או יצירת חשבון";
     if (description) {
-      description.textContent =
-        "הזינו סיסמה. בחשבון קיים זו הסיסמה שכבר קבעתם; בכניסה הראשונה זו תהיה הסיסמה החדשה שלכם.";
+      description.textContent = "המערכת תזהה אוטומטית אם מדובר בכניסה קיימת או ביצירת חשבון חדש.";
     }
     if (button) button.textContent = "המשך";
     if (passwordInput) passwordInput.autocomplete = "current-password";
@@ -3815,7 +3925,7 @@ function setAuthMode(mode) {
     if (modeNote) {
       modeNote.style.display = "block";
       modeNote.textContent =
-        "המערכת תבדוק אוטומטית: חשבון קיים יתחבר; בכניסה ראשונה ייווצר חשבון ורק לאחר מכן יישלח מייל אימות.";
+        "בכניסה ראשונה החשבון ייווצר עם הסיסמה שהקלדת ורק לאחר מכן יישלח מייל אימות.";
     }
     return;
   }
@@ -3915,7 +4025,11 @@ function setVerificationPanelVisible_(visible) {
   const panel = document.getElementById("verificationPanel");
   if (form) form.style.display = visible ? "none" : "block";
   if (panel) panel.classList.toggle("visible", Boolean(visible));
-  if (visible) setAuthRedirectPanelVisible_(false);
+  if (visible) {
+    setAuthRedirectPanelVisible_(false);
+  } else {
+    stopVerificationAccessListener_();
+  }
 }
 
 function hideAllAuthFormSteps_() {
@@ -4251,6 +4365,8 @@ async function useDifferentAccount() {
     authActionInProgress = false;
   }
 
+  currentUserHasAppAccess = false;
+  stopVerificationAccessListener_();
   const emailInput = document.getElementById("emailInput");
   const phoneInput = document.getElementById("phoneInput");
   const passwordInput = document.getElementById("passwordInput");
@@ -4264,6 +4380,168 @@ async function useDifferentAccount() {
   showAuthEmailStep_({ forceEmailEntry: true });
 }
 
+function stopVerificationAccessListener_() {
+  if (typeof verificationAccessListenerUnsubscribe === "function") {
+    verificationAccessListenerUnsubscribe();
+  }
+  verificationAccessListenerUnsubscribe = null;
+}
+
+function setManualApprovalRequestState_(state = "idle", message = "") {
+  const button = document.getElementById("manualApprovalRequestBtn");
+  const status = document.getElementById("manualApprovalRequestStatus");
+  const normalizedState = String(state || "idle");
+
+  if (button) {
+    button.disabled = ["pending", "approved", "sending"].includes(normalizedState);
+    button.textContent = normalizedState === "pending"
+      ? "הבקשה נשלחה וממתינה לאישור מנהל־העל"
+      : normalizedState === "approved"
+        ? "הגישה אושרה על ידי מנהל־העל"
+        : normalizedState === "sending"
+          ? "שולח בקשה..."
+          : normalizedState === "rejected"
+            ? "שליחת בקשה חדשה למנהל־העל"
+            : "לא קיבלתי מייל אימות — בקש אישור ממנהל־העל";
+  }
+
+  if (status) {
+    status.textContent = message || "";
+    status.classList.toggle("visible", Boolean(message));
+  }
+}
+
+async function loadOwnVerificationRequestState_() {
+  if (!firebaseApi || !db || !auth || !auth.currentUser) return;
+  const email = normalizeEmail(auth.currentUser.email);
+  if (!email) return;
+
+  try {
+    const snapshot = await firebaseApi.getDoc(
+      firebaseApi.doc(db, "verificationRequests", email)
+    );
+    if (!snapshot.exists()) {
+      setManualApprovalRequestState_("idle", "");
+      return;
+    }
+
+    const data = snapshot.data() || {};
+    const state = String(data.status || "pending");
+    if (state === "pending") {
+      setManualApprovalRequestState_(
+        "pending",
+        "הבקשה התקבלה. ניתן להשאיר את המסך פתוח; לאחר אישור מנהל־העל הכניסה תתבצע אוטומטית."
+      );
+    } else if (state === "approved") {
+      setManualApprovalRequestState_(
+        "approved",
+        "הבקשה אושרה. המערכת בודקת כעת את ההרשאה."
+      );
+    } else if (state === "rejected" || state === "revoked") {
+      setManualApprovalRequestState_(
+        "rejected",
+        state === "revoked"
+          ? "האישור הידני הקודם בוטל. ניתן להשלים אימות מייל או לשלוח בקשה חדשה לפי הצורך."
+          : "הבקשה הקודמת נדחתה. ניתן לפנות למנהל־העל ולשלוח בקשה חדשה לפי הצורך."
+      );
+    } else {
+      setManualApprovalRequestState_("idle", "");
+    }
+  } catch (error) {
+    console.error("Could not load verification request state", error);
+    setManualApprovalRequestState_("idle", "");
+  }
+}
+
+function startVerificationAccessListener_(user) {
+  stopVerificationAccessListener_();
+  const email = normalizeEmail(user && user.email);
+  if (!email || !firebaseApi || !db) return;
+
+  verificationAccessListenerUnsubscribe = firebaseApi.onSnapshot(
+    firebaseApi.doc(db, "allowedUsers", email),
+    snapshot => {
+      const data = snapshot.exists() ? snapshot.data() || {} : null;
+      if (!data || data.active !== true) return;
+      if (data.manualApproved !== true || verificationAccessTransitionInProgress) return;
+      if (!auth || !auth.currentUser || normalizeEmail(auth.currentUser.email) !== email) return;
+
+      verificationAccessTransitionInProgress = true;
+      setManualApprovalRequestState_(
+        "approved",
+        "הגישה אושרה על ידי מנהל־העל. מכניסים אותך לאפליקציה..."
+      );
+      setLoginStatus("האישור התקבל. מכניסים אותך לאפליקציה...", "success");
+      handleAuthenticatedUser(auth.currentUser)
+        .catch(error => {
+          console.error("Manual approval transition failed", error);
+          setLoginStatus("האישור התקבל, אך הכניסה נכשלה זמנית. לחצו על ‘כבר אימתתי — המשך’.", "error");
+        })
+        .finally(() => {
+          verificationAccessTransitionInProgress = false;
+        });
+    },
+    error => {
+      console.error("Verification approval listener failed", error);
+    }
+  );
+}
+
+async function requestManualApproval_() {
+  if (!firebaseApi || !db || !auth || !auth.currentUser) {
+    setLoginStatus("החיבור לחשבון הסתיים. התחברו מחדש כדי לשלוח בקשה.", "error");
+    return;
+  }
+
+  const user = auth.currentUser;
+  const email = normalizeEmail(user.email);
+  if (!email || user.emailVerified) {
+    setLoginStatus("החשבון כבר מאומת או שאינו זמין לבקשה.", "error");
+    return;
+  }
+
+  setManualApprovalRequestState_("sending", "שולח בקשה למנהל־העל...");
+
+  try {
+    const permission = await getCurrentUserPermission(email);
+    if (!permission.exists || !permission.active) {
+      setManualApprovalRequestState_("idle", "");
+      setLoginStatus("כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר.", "error");
+      return;
+    }
+
+    if (permission.manualApproved) {
+      setManualApprovalRequestState_("approved", "הגישה כבר אושרה ידנית. מכניסים אותך לאפליקציה...");
+      await handleAuthenticatedUser(user);
+      return;
+    }
+
+    const now = firebaseApi.serverTimestamp();
+    await firebaseApi.setDoc(
+      firebaseApi.doc(db, "verificationRequests", email),
+      {
+        email,
+        status: "pending",
+        requestedAt: now,
+        updatedAt: now,
+        handledBy: "",
+        handledAt: null
+      },
+      { merge: false }
+    );
+
+    setManualApprovalRequestState_(
+      "pending",
+      "הבקשה נשלחה למנהל־העל. לאחר אישור, הכניסה תתבצע אוטומטית כל עוד המסך פתוח."
+    );
+    setLoginStatus("בקשת האישור נשלחה בהצלחה.", "success");
+  } catch (error) {
+    console.error("Manual approval request failed", error);
+    setManualApprovalRequestState_("idle", "");
+    setLoginStatus("לא הצלחנו לשלוח את הבקשה. בדקו את החיבור ונסו שוב.", "error");
+  }
+}
+
 function showVerificationPanel_(user, email = "") {
   const targetEmail = normalizeEmail(email || (user && user.email) || lastUnverifiedEmail);
   authStage = "verification";
@@ -4274,7 +4552,12 @@ function showVerificationPanel_(user, email = "") {
   setVerificationPanelVisible_(true);
   const emailLabel = document.getElementById("verificationEmail");
   if (emailLabel) emailLabel.textContent = targetEmail;
+  setManualApprovalRequestState_("idle", "");
   setLoginStatus("", "");
+  startVerificationAccessListener_(user || (auth && auth.currentUser));
+  loadOwnVerificationRequestState_().catch(error => {
+    console.error("Verification request state refresh failed", error);
+  });
 }
 
 function openGmailInbox() {
@@ -4294,8 +4577,11 @@ async function checkVerificationAndContinue() {
   try {
     await firebaseApi.reload(auth.currentUser);
     if (!auth.currentUser.emailVerified) {
-      setLoginStatus("כתובת המייל עדיין לא אומתה. פתחו את ההודעה ולחצו על קישור האימות.", "error");
-      return;
+      const permission = await getCurrentUserPermission(auth.currentUser.email);
+      if (!(permission && permission.active && permission.manualApproved)) {
+        setLoginStatus("כתובת המייל עדיין לא אומתה והאישור הידני טרם התקבל.", "error");
+        return;
+      }
     }
 
     rememberSuccessfulEmail_(auth.currentUser.email);
@@ -4329,6 +4615,7 @@ async function resendVerificationFromPanel() {
     }
     await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
     startAuthEmailCooldown("verification", email);
+    recordOwnAuthState_("verification_sent");
     setLoginStatus("נשלח מייל אימות חדש. ב־Gmail בדקו גם בתיקיית הספאם.", "success");
   } catch (error) {
     console.error("Verification resend failed", error);
@@ -4348,6 +4635,7 @@ async function sendVerificationForSignedInUser_(user, email) {
 
   await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
   startAuthEmailCooldown("verification", normalizedEmail);
+  recordOwnAuthState_("verification_sent");
   return true;
 }
 
@@ -4445,8 +4733,80 @@ async function getCurrentUserPermission(email) {
 
   return {
     exists: true,
-    active: data.active === true
+    active: data.active === true,
+    manualApproved: data.manualApproved === true,
+    authState: String(data.authState || ""),
+    verificationSentAt: data.verificationSentAt || null,
+    lastVerifiedLoginAt: data.lastVerifiedLoginAt || null,
+    lastAccessAt: data.lastAccessAt || null,
+    manualApprovedAt: data.manualApprovedAt || null,
+    manualApprovedBy: normalizeEmail(data.manualApprovedBy || ""),
+    manualApprovalReason: String(data.manualApprovalReason || "")
   };
+}
+
+async function recordOwnAuthState_(state) {
+  if (!firebaseApi || !db || !auth || !auth.currentUser) return;
+  const user = auth.currentUser;
+  const email = normalizeEmail(user.email);
+  if (!email) return;
+
+  const normalizedState = String(state || "");
+  const telemetryKey = AUTH_STATUS_TELEMETRY_PREFIX + normalizedState + "_" + email;
+  if (normalizedState !== "verification_sent") {
+    try {
+      const lastWrittenAt = Number(localStorage.getItem(telemetryKey) || 0);
+      if (lastWrittenAt && Date.now() - lastWrittenAt < AUTH_STATUS_TELEMETRY_INTERVAL_MS) {
+        return;
+      }
+    } catch (error) {
+      // Local storage is an optimization only.
+    }
+  }
+
+  const now = firebaseApi.serverTimestamp();
+  let payload = null;
+
+  if (normalizedState === "verification_sent") {
+    payload = {
+      authState: "verification_sent",
+      verificationSentAt: now,
+      updatedAt: now
+    };
+  } else if (normalizedState === "verified") {
+    payload = {
+      authState: "verified",
+      lastVerifiedLoginAt: now,
+      lastAccessAt: now,
+      updatedAt: now
+    };
+  } else if (normalizedState === "manual_approved") {
+    payload = {
+      authState: "manual_approved",
+      lastAccessAt: now,
+      updatedAt: now
+    };
+  }
+
+  if (!payload) return;
+
+  try {
+    await firebaseApi.setDoc(
+      firebaseApi.doc(db, "allowedUsers", email),
+      payload,
+      { merge: true }
+    );
+    if (normalizedState !== "verification_sent") {
+      try {
+        localStorage.setItem(telemetryKey, String(Date.now()));
+      } catch (error) {
+        // Local storage is an optimization only.
+      }
+    }
+  } catch (error) {
+    // Telemetry must never block login or verification.
+    console.warn("Could not update authentication status", error);
+  }
 }
 
 async function deleteNewAuthUserSafely(user) {
@@ -4646,6 +5006,7 @@ async function loginOrCreateWithPassword() {
       });
       verificationSent = true;
       startAuthEmailCooldown("verification", email);
+      recordOwnAuthState_("verification_sent");
 
       lastUnverifiedEmail = email;
       rememberPendingAuthEmail_(email);
@@ -4752,6 +5113,7 @@ async function registerWithPassword() {
 
     verificationSent = true;
     startAuthEmailCooldown("verification", email);
+    recordOwnAuthState_("verification_sent");
 
     lastUnverifiedEmail = email;
     document.getElementById("passwordInput").value = "";
@@ -4920,6 +5282,7 @@ async function resendVerification() {
     });
 
     startAuthEmailCooldown("verification", targetEmail);
+    await recordOwnAuthState_("verification_sent");
 
     await firebaseApi.signOut(auth);
     lastUnverifiedEmail = targetEmail;
@@ -5098,7 +5461,9 @@ async function finalizePendingReplacedEmailPermissions_(user) {
 
 async function handleAuthenticatedUser(user) {
   if (!user) {
+    currentUserHasAppAccess = false;
     contacts = [];
+    stopVerificationAccessListener_();
     showLoginScreen();
     return;
   }
@@ -5107,31 +5472,58 @@ async function handleAuthenticatedUser(user) {
     await firebaseApi.reload(user);
   }
 
-  if (!user.emailVerified) {
-    lastUnverifiedEmail = normalizeEmail(user.email);
-    showVerificationPanel_(user, user.email);
-    return;
-  }
-
   try {
     setLoginStatus("בודק הרשאה...", "loading");
 
-    // שתי בדיקות קטנות במקביל. רק לאחר שאחת מהן מאשרת גישה
-    // מותר להציג נתונים שמורים מהמכשיר.
-    const [permission, isAdmin] = await Promise.all([
-      getCurrentUserPermission(user.email),
-      detectAdminAccess(user)
-    ]);
+    let permission = null;
+    let isAdmin = false;
 
-    if (!(permission && permission.active) && !isAdmin) {
+    if (user.emailVerified) {
+      // משתמש מאומת: בדיקת הרשאה ובדיקת מנהל רצות במקביל.
+      [permission, isAdmin] = await Promise.all([
+        getCurrentUserPermission(user.email),
+        detectAdminAccess(user)
+      ]);
+    } else {
+      // משתמש שלא אימת מייל יכול להיכנס רק לאחר אישור ידני של מנהל־על.
+      permission = await getCurrentUserPermission(user.email);
+      currentUserIsAdmin = false;
+      currentUserIsSuperAdmin = false;
+      currentAdminRole = "";
+      currentAdminEmail = normalizeEmail(user.email);
+      const adminButton = document.getElementById("adminOpenBtn");
+      if (adminButton) adminButton.classList.remove("visible");
+
+      if (!(permission && permission.active && permission.manualApproved)) {
+        currentUserHasAppAccess = false;
+        lastUnverifiedEmail = normalizeEmail(user.email);
+        showVerificationPanel_(user, user.email);
+        return;
+      }
+    }
+
+    const permissionAllowsAccess = Boolean(
+      permission &&
+      permission.active &&
+      (user.emailVerified || permission.manualApproved)
+    );
+
+    if (!permissionAllowsAccess && !isAdmin) {
       const accessError = new Error("הגישה לחשבון אינה פעילה.");
       accessError.code = "permission-denied";
       throw accessError;
     }
 
+    currentUserHasAppAccess = true;
     rememberSuccessfulEmail_(user.email);
     setVerificationPanelVisible_(false);
-    if (getPendingSearchCount_() > 0) scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+
+    // עדכון סטטוס ההתחברות הוא כתיבה קטנה שאינה מעכבת את פתיחת האפליקציה.
+    recordOwnAuthState_(user.emailVerified ? "verified" : "manual_approved");
+
+    if (getPendingSearchCount_() > 0) {
+      scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+    }
     recordAppEntryOnce_(user);
 
     const hasCachedContacts = loadContactsFromCache_();
@@ -5164,10 +5556,13 @@ async function handleAuthenticatedUser(user) {
     }
 
     // פעולות תחזוקה שאינן נחוצות להצגת האפליקציה אינן מעכבות את הכניסה.
-    Promise.resolve()
-      .then(() => finalizePendingReplacedEmailPermissions_(user))
-      .catch(error => console.error("Email replacement finalization failed", error));
+    if (user.emailVerified) {
+      Promise.resolve()
+        .then(() => finalizePendingReplacedEmailPermissions_(user))
+        .catch(error => console.error("Email replacement finalization failed", error));
+    }
   } catch (error) {
+    currentUserHasAppAccess = false;
     if (isPermissionDeniedError(error)) {
       await firebaseApi.signOut(auth);
       showLoginScreen();
@@ -5188,8 +5583,10 @@ async function logout() {
 
   try {
     stopPermissionListener();
+    stopVerificationAccessListener_();
     await flushUsageMetrics_().catch(() => {});
     await firebaseApi.signOut(auth);
+    currentUserHasAppAccess = false;
     contacts = [];
     // המטמון נשמר במכשיר כדי שהכניסה הבאה תהיה מהירה.
     // בכל כניסה עדיין נקרא manifest אחד שמוודא שהגרסה עדכנית.
@@ -5316,13 +5713,23 @@ function startPermissionListener(user) {
     snapshot => {
       const data = snapshot.exists() ? snapshot.data() : null;
 
-      if (!data || data.active !== true) {
+      const verified = Boolean(auth && auth.currentUser && auth.currentUser.emailVerified);
+      const hasAccess = Boolean(
+        data &&
+        data.active === true &&
+        (verified || data.manualApproved === true)
+      );
+
+      if (!hasAccess) {
+        currentUserHasAppAccess = false;
         contacts = [];
         document.getElementById("list").innerHTML = "";
         firebaseApi.signOut(auth).catch(() => {});
         showLoginScreen();
         setLoginStatus(
-          "הגישה לחשבון נחסמה על ידי מנהל המערכת.",
+          data && data.active === true
+            ? "האישור הידני בוטל. יש להשלים אימות מייל כדי להיכנס מחדש."
+            : "הגישה לחשבון נחסמה על ידי מנהל המערכת.",
           "error"
         );
       }
@@ -5499,6 +5906,10 @@ async function loadAdminData() {
       firebaseApi.getDocs(reportsQuery).catch(error => {
         console.error("Reports data load failed", error);
         return { docs: [] };
+      }),
+      firebaseApi.getDocs(firebaseApi.collection(db, "verificationRequests")).catch(error => {
+        console.error("Verification requests load failed", error);
+        return { docs: [] };
       })
     ];
 
@@ -5512,7 +5923,8 @@ async function loadAdminData() {
     const activitySnapshot = results[2];
     const usageSnapshot = results[3];
     const reportsSnapshot = results[4];
-    const managersSnapshot = results[5] || null;
+    const verificationRequestsSnapshot = results[5];
+    const managersSnapshot = results[6] || null;
 
     adminRemovedContacts = overridesSnapshot.docs
       .map((document, index) => {
@@ -5532,7 +5944,15 @@ async function loadAdminData() {
         email: normalizeEmail(data.email || document.id),
         active: data.active === true,
         source: String(data.source || ""),
-        updatedAt: data.updatedAt || null
+        updatedAt: data.updatedAt || null,
+        authState: String(data.authState || ""),
+        verificationSentAt: data.verificationSentAt || null,
+        lastVerifiedLoginAt: data.lastVerifiedLoginAt || null,
+        lastAccessAt: data.lastAccessAt || null,
+        manualApproved: data.manualApproved === true,
+        manualApprovedAt: data.manualApprovedAt || null,
+        manualApprovedBy: normalizeEmail(data.manualApprovedBy || ""),
+        manualApprovalReason: String(data.manualApprovalReason || "")
       };
     });
 
@@ -5572,6 +5992,21 @@ async function loadAdminData() {
         createdAt: data.createdAt || null,
         resolvedAt: data.resolvedAt || null,
         resolvedBy: normalizeEmail(data.resolvedBy || "")
+      };
+    });
+
+    adminVerificationRequests = verificationRequestsSnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        docId: document.id,
+        email: normalizeEmail(data.email || document.id),
+        status: ["pending", "approved", "rejected", "revoked"].includes(data.status)
+          ? data.status
+          : "pending",
+        requestedAt: data.requestedAt || null,
+        updatedAt: data.updatedAt || null,
+        handledAt: data.handledAt || null,
+        handledBy: normalizeEmail(data.handledBy || "")
       };
     });
 
@@ -5632,8 +6067,11 @@ function adminUserMatchesQuery(user, query) {
   if (!query) return true;
 
   const contact = findContactByEmail(user.email);
+  const accessState = getUserAccessState_(user);
   const searchable = normalizeSearchText([
     user.email,
+    accessState.label,
+    accessState.note,
     user.source,
     contact ? contact.name : "",
     contact ? contact.phone : "",
@@ -5744,7 +6182,10 @@ function getActivityTitle(activity) {
     manager_add: "מנהל נוסף",
     manager_remove: "מנהל הוסר",
     manager_enable: "מנהל הופעל",
-    manager_disable: "מנהל הושבת"
+    manager_disable: "מנהל הושבת",
+    manual_approval_grant: "גישה אושרה ידנית",
+    manual_approval_reject: "בקשת אישור נדחתה",
+    manual_approval_revoke: "אישור ידני בוטל"
   };
 
   return labels[activity.action] || "פעילות מערכת";
@@ -5833,6 +6274,9 @@ function renderAdminActivity() {
         : "",
       activity.source
         ? "מקור: " + activity.source
+        : "",
+      activity.reason
+        ? "הערה: " + activity.reason
         : ""
     ].filter(Boolean);
 
@@ -6108,7 +6552,7 @@ function renderAdminContacts() {
   document.getElementById("adminList").innerHTML = items.map(contact => {
     const user = contact.email ? getAllowedUserByEmail(contact.email) : null;
     const accessLabel = user
-      ? (user.active ? "גישה פעילה" : "גישה חסומה")
+      ? getUserAccessState_(user).label
       : "ללא הרשאת כניסה";
 
     const accessAction = contact.email && normalizeEmail(contact.email) !== currentAdminEmail
@@ -6142,21 +6586,271 @@ function renderAdminContacts() {
   }).join("");
 }
 
+function getVerificationRequestByEmail_(email) {
+  const normalized = normalizeEmail(email);
+  return adminVerificationRequests.find(
+    request => normalizeEmail(request.email) === normalized
+  ) || null;
+}
+
+function getUserAccessState_(user) {
+  const request = getVerificationRequestByEmail_(user && user.email);
+
+  if (!user || user.active !== true) {
+    return { key: "blocked", label: "גישה חסומה", note: "המשתמש אינו יכול להיכנס לאפליקציה.", badgeClass: "blocked" };
+  }
+
+  if (user.authState === "verified" || user.lastVerifiedLoginAt) {
+    return {
+      key: "verified",
+      label: "מייל מאומת ויכול להיכנס",
+      note: user.lastVerifiedLoginAt
+        ? "כניסה מאומתת אחרונה: " + formatAdminTimestamp_(user.lastVerifiedLoginAt)
+        : "החשבון השלים אימות מייל",
+      badgeClass: "verified"
+    };
+  }
+
+  if (user.manualApproved) {
+    return {
+      key: "manual",
+      label: "אושר ידנית ויכול להיכנס",
+      note: user.manualApprovedBy
+        ? `אושר על ידי ${user.manualApprovedBy}${user.manualApprovalReason ? " · " + user.manualApprovalReason : ""}`
+        : "אישור ידני של מנהל־על",
+      badgeClass: "manual"
+    };
+  }
+
+  if (request && request.status === "pending") {
+    return {
+      key: "pending",
+      label: "ממתין לאישור מנהל־על",
+      note: request.requestedAt
+        ? "הבקשה נשלחה: " + formatAdminTimestamp_(request.requestedAt)
+        : "נשלחה בקשת אישור ידני",
+      badgeClass: "pending"
+    };
+  }
+
+  if (user.authState === "verification_sent" || user.verificationSentAt) {
+    return {
+      key: "waiting",
+      label: "ממתין לאימות מייל",
+      note: user.verificationSentAt
+        ? "מייל אימות נשלח: " + formatAdminTimestamp_(user.verificationSentAt)
+        : "החשבון נוצר אך טרם נרשמה כניסה מאומתת",
+      badgeClass: "pending"
+    };
+  }
+
+  if (request && request.status === "rejected") {
+    return {
+      key: "rejected",
+      label: "בקשת האישור נדחתה",
+      note: request.handledAt ? "טופל: " + formatAdminTimestamp_(request.handledAt) : "",
+      badgeClass: "blocked"
+    };
+  }
+
+  return {
+    key: "unknown",
+    label: "סטטוס אימות טרם נבדק",
+    note: "הסטטוס יתעדכן לאחר כניסה או שליחת מייל אימות בגרסה זו.",
+    badgeClass: ""
+  };
+}
+
+function formatAdminTimestamp_(value) {
+  if (!value) return "מועד לא ידוע";
+  let date = null;
+  if (typeof value.toDate === "function") date = value.toDate();
+  else if (typeof value.toMillis === "function") date = new Date(value.toMillis());
+  else if (typeof value.seconds === "number") date = new Date(value.seconds * 1000);
+  else date = new Date(value);
+  if (!date || Number.isNaN(date.getTime())) return "מועד לא ידוע";
+  return new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+
+async function approveManualAccess_(email) {
+  if (!currentUserIsSuperAdmin) {
+    alert("רק מנהל־על יכול לאשר גישה ללא אימות מייל.");
+    return;
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const user = getAllowedUserByEmail(normalizedEmail);
+  const contact = findContactByEmail(normalizedEmail);
+  const request = getVerificationRequestByEmail_(normalizedEmail);
+  if (!user || !user.active || !request || request.status !== "pending") {
+    alert("לא נמצאה בקשת אישור פעילה עבור המשתמש.");
+    return;
+  }
+
+  const identity = [
+    contact && contact.name ? contact.name : "ללא שם",
+    normalizedEmail,
+    contact && contact.phone ? formatPhoneForDisplay(contact.phone) : "ללא טלפון"
+  ].join("\n");
+
+  const reason = window.prompt(
+    `אישור זה עוקף את אימות הבעלות על המייל.\nיש לוודא את זהות המשתמש מול הפרטים הבאים:\n\n${identity}\n\nרשמו בקצרה כיצד הזהות אומתה:`,
+    "זוהה טלפונית"
+  );
+
+  if (reason === null) return;
+  const cleanReason = String(reason || "").trim();
+  if (cleanReason.length < 3) {
+    alert("יש לרשום סיבה קצרה או אופן זיהוי לפני האישור.");
+    return;
+  }
+
+  setAdminStatus("מאשר גישה ידנית...", "loading");
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+    batch.set(
+      firebaseApi.doc(db, "allowedUsers", normalizedEmail),
+      {
+        manualApproved: true,
+        manualApprovedAt: now,
+        manualApprovedBy: currentAdminEmail,
+        manualApprovalReason: cleanReason.slice(0, 300),
+        updatedAt: now
+      },
+      { merge: true }
+    );
+    batch.set(
+      firebaseApi.doc(db, "verificationRequests", normalizedEmail),
+      {
+        status: "approved",
+        handledAt: now,
+        handledBy: currentAdminEmail,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+    batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
+      action: "manual_approval_grant",
+      targetEmail: normalizedEmail,
+      displayName: contact && contact.name ? contact.name : "",
+      adminEmail: currentAdminEmail,
+      reason: cleanReason.slice(0, 300),
+      timestamp: now
+    });
+    await batch.commit();
+    await loadAdminData();
+    setAdminStatus("הגישה אושרה ידנית. המשתמש יוכל להיכנס עם הסיסמה שקבע.", "success");
+  } catch (error) {
+    console.error("Manual approval failed", error);
+    setAdminStatus("אישור הגישה נכשל. בדקו את כללי Firestore ונסו שוב.", "error");
+  }
+}
+
+async function rejectManualAccess_(email) {
+  if (!currentUserIsSuperAdmin) return;
+  const normalizedEmail = normalizeEmail(email);
+  if (!confirm(`לדחות את בקשת האישור של ${normalizedEmail}?`)) return;
+
+  setAdminStatus("דוחה את הבקשה...", "loading");
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+    batch.set(
+      firebaseApi.doc(db, "verificationRequests", normalizedEmail),
+      {
+        status: "rejected",
+        handledAt: now,
+        handledBy: currentAdminEmail,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+    batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
+      action: "manual_approval_reject",
+      targetEmail: normalizedEmail,
+      adminEmail: currentAdminEmail,
+      timestamp: now
+    });
+    await batch.commit();
+    await loadAdminData();
+    setAdminStatus("הבקשה נדחתה.", "success");
+  } catch (error) {
+    console.error("Manual approval rejection failed", error);
+    setAdminStatus("דחיית הבקשה נכשלה.", "error");
+  }
+}
+
+async function revokeManualAccess_(email) {
+  if (!currentUserIsSuperAdmin) return;
+  const normalizedEmail = normalizeEmail(email);
+  if (!confirm(`לבטל את האישור הידני של ${normalizedEmail}?\nאם המייל לא אומת, המשתמש ינותק ויידרש להשלים אימות.`)) return;
+
+  setAdminStatus("מבטל אישור ידני...", "loading");
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+    batch.set(
+      firebaseApi.doc(db, "allowedUsers", normalizedEmail),
+      {
+        manualApproved: false,
+        manualApprovedAt: null,
+        manualApprovedBy: "",
+        manualApprovalReason: "",
+        updatedAt: now
+      },
+      { merge: true }
+    );
+    batch.set(
+      firebaseApi.doc(db, "verificationRequests", normalizedEmail),
+      {
+        status: "revoked",
+        handledAt: now,
+        handledBy: currentAdminEmail,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+    batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
+      action: "manual_approval_revoke",
+      targetEmail: normalizedEmail,
+      adminEmail: currentAdminEmail,
+      timestamp: now
+    });
+    await batch.commit();
+    await loadAdminData();
+    setAdminStatus("האישור הידני בוטל.", "success");
+  } catch (error) {
+    console.error("Manual approval revocation failed", error);
+    setAdminStatus("ביטול האישור נכשל.", "error");
+  }
+}
+
 function renderAdminUsers() {
   const query = getAdminSearchQuery();
 
   const users = adminAllowedUsers
     .filter(user => {
+      const accessState = getUserAccessState_(user);
       if (adminActiveFilter === "active" && !user.active) return false;
       if (adminActiveFilter === "blocked" && user.active) return false;
+      if (adminActiveFilter === "verified" && accessState.key !== "verified") return false;
+      if (adminActiveFilter === "manual" && accessState.key !== "manual") return false;
+      if (adminActiveFilter === "pending" && accessState.key !== "pending") return false;
       return adminUserMatchesQuery(user, query);
     })
-    .sort((a, b) => a.email.localeCompare(b.email));
+    .sort((a, b) => {
+      const aState = getUserAccessState_(a).key;
+      const bState = getUserAccessState_(b).key;
+      if (aState === "pending" && bState !== "pending") return -1;
+      if (bState === "pending" && aState !== "pending") return 1;
+      return a.email.localeCompare(b.email);
+    });
 
+  const pendingCount = adminAllowedUsers.filter(user => getUserAccessState_(user).key === "pending").length;
   document.getElementById("adminSummary").textContent =
-    users.length === 1
-      ? "נמצא משתמש אחד"
-      : `נמצאו ${users.length} משתמשים`;
+    `${users.length === 1 ? "נמצא משתמש אחד" : `נמצאו ${users.length} משתמשים`}` +
+    (pendingCount ? ` · ${pendingCount} בקשות אימות ממתינות` : "");
 
   if (!users.length) {
     document.getElementById("adminList").innerHTML =
@@ -6167,6 +6861,30 @@ function renderAdminUsers() {
   document.getElementById("adminList").innerHTML = users.map(user => {
     const contact = findContactByEmail(user.email);
     const isSelf = normalizeEmail(user.email) === currentAdminEmail;
+    const accessState = getUserAccessState_(user);
+    const request = getVerificationRequestByEmail_(user.email);
+    const lastAccess = user.lastAccessAt
+      ? `<span class="accessStateNote">גישה אחרונה שנרשמה: ${escapeHtml(formatAdminTimestamp_(user.lastAccessAt))}</span>`
+      : "";
+    const accessBadgeText = ({
+      blocked: "חסום",
+      verified: "מאומת",
+      manual: "ידני",
+      pending: "ממתין",
+      waiting: "אימות",
+      rejected: "נדחה",
+      unknown: "פעיל"
+    })[accessState.key] || (user.active ? "פעיל" : "חסום");
+
+    let approvalActions = "";
+    if (accessState.key === "pending" && request && request.status === "pending") {
+      approvalActions = currentUserIsSuperAdmin
+        ? `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}')">אישור גישה ידני</button>
+           <button type="button" class="adminActionBtn warning" onclick="rejectManualAccess_('${escapeJsString(user.email)}')">דחיית בקשה</button>`
+        : '<button type="button" class="adminActionBtn secondary" disabled>ממתין לאישור מנהל־על</button>';
+    } else if (user.manualApproved && currentUserIsSuperAdmin) {
+      approvalActions = `<button type="button" class="adminActionBtn warning" onclick="revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`;
+    }
 
     return `
       <div class="adminCard ${user.active ? "" : "blocked"}">
@@ -6178,12 +6896,18 @@ function renderAdminUsers() {
               ${contact && contact.phone ? "<br>" + escapeHtml(formatPhoneForDisplay(contact.phone)) : ""}
               ${contact && contact.dept ? " · " + escapeHtml(contact.dept) : ""}
               ${user.source ? "<br>מקור: " + escapeHtml(user.source) : ""}
+              <div class="accessStateLine ${escapeHtml(accessState.key)}">
+                ${escapeHtml(accessState.label)}
+                ${accessState.note ? `<span class="accessStateNote">${escapeHtml(accessState.note)}</span>` : ""}
+                ${lastAccess}
+              </div>
             </div>
           </div>
-          <span class="adminStatusBadge ${user.active ? "" : "blocked"}">${user.active ? "פעיל" : "חסום"}</span>
+          <span class="adminStatusBadge ${escapeHtml(accessState.badgeClass)}">${escapeHtml(accessBadgeText)}</span>
         </div>
 
         <div class="adminCardActions">
+          ${approvalActions}
           ${isSelf
             ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
             : `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>
