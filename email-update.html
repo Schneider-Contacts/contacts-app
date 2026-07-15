@@ -7,8 +7,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="icon" href="icon.PNG?v=20260713">
-  <link rel="apple-touch-icon" href="icon.PNG?v=20260713">
+  <link rel="icon" href="app-icon.png?v=20260715-v11">
+  <link rel="apple-touch-icon" href="app-icon.png?v=20260715-v11">
   <title>השלמת או עדכון כתובת מייל</title>
 
   <style>
@@ -127,6 +127,20 @@
       font-size: 12.5px;
       line-height: 1.5;
     }
+
+    .emailGuidance {
+      margin: 0 0 17px;
+      padding: 13px 14px;
+      border: 1px solid var(--green-200);
+      border-radius: 14px;
+      background: var(--green-50);
+      color: #315b4c;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .emailGuidance p { margin: 0; }
+    .emailGuidance p + p { margin-top: 7px; }
 
     .honeypot {
       position: absolute !important;
@@ -269,7 +283,7 @@
   <main class="page">
     <section class="card">
       <div class="logoBox">
-        <img src="icon.PNG?v=20260713" alt="">
+        <img src="app-logo.png?v=20260715-v11" alt="">
       </div>
 
       <h1>השלמת או עדכון כתובת מייל</h1>
@@ -277,6 +291,11 @@
       <p class="subtitle">
         הזינו את מספר הטלפון שמופיע בספר אנשי הקשר ואת כתובת המייל שבה תרצו להשתמש לכניסה.
       </p>
+
+      <div class="emailGuidance">
+        <p><b>מומלץ להשתמש בכתובת מייל אישית ונגישה מהטלפון</b>, כדי שתוכלו לפתוח את הודעת האימות ולאשר את זהותכם.</p>
+        <p>ב־Gmail ייתכן שמייל האימות יגיע לתיקיית <b>ספאם</b> או <b>דואר זבל</b> — מומלץ לבדוק גם שם.</p>
+      </div>
 
       <form
         id="emailForm"

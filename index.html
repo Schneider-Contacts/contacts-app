@@ -4,8 +4,8 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="//www.gstatic.com">
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260714-ui1">
-<link rel="icon" href="app-icon.png?v=20260714-ui1">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260715-v11">
+<link rel="icon" href="app-icon.png?v=20260715-v11">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -1950,11 +1950,11 @@ select {
 }
 
 .adminTabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .adminTabs.hasManagers {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .activityCard {
@@ -2002,6 +2002,321 @@ select {
 
   .adminTabs.hasManagers .adminTabBtn {
     font-size: 11.5px;
+  }
+}
+
+
+/* ===== Admin overview and lightweight usage analytics ===== */
+.adminOverview {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.adminOverviewCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.adminMetricCard {
+  min-width: 0;
+  padding: 14px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at top left, rgba(209, 250, 229, 0.42), transparent 45%),
+    #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
+  text-align: center;
+}
+
+.adminMetricValue {
+  display: block;
+  color: #0f6a4b;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.adminMetricLabel {
+  display: block;
+  margin-top: 7px;
+  color: #5b7167;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.adminUsagePanel {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
+}
+
+.adminUsageTitle {
+  margin: 0 0 10px;
+  color: #17352d;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.adminUsageRow {
+  display: grid;
+  grid-template-columns: minmax(92px, 1.2fr) 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2px;
+  border-bottom: 1px solid #e7f1ec;
+  color: #456257;
+  font-size: 13px;
+}
+
+.adminUsageRow:last-child {
+  border-bottom: 0;
+}
+
+.adminUsageRow.header {
+  padding-top: 2px;
+  color: #6a7d75;
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.adminUsageDate {
+  font-weight: 800;
+}
+
+.adminUsageNumber {
+  text-align: center;
+  font-weight: 850;
+}
+
+.adminUsageNote {
+  margin: 12px 0 0;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: #f7fbf9;
+  color: #657970;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.adminRefreshFooter {
+  display: none;
+  max-width: 560px;
+  margin: 16px auto 4px;
+  padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 4px);
+}
+
+#adminPanel[style*="block"] .adminRefreshFooter,
+.adminRefreshFooter.visible {
+  display: block;
+}
+
+.adminRefreshBtn {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--green-200);
+  border-radius: 15px;
+  background: var(--green-50);
+  color: var(--green-700);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.10);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.adminRefreshBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+@media (max-width: 600px) {
+  .adminOverviewCards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .adminMetricCard:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .adminMetricValue {
+    font-size: 25px;
+  }
+
+  .adminUsageRow {
+    grid-template-columns: minmax(82px, 1.15fr) 1fr 1fr;
+    font-size: 12.5px;
+  }
+}
+
+
+
+/* ===== v11: streamlined authentication and contact reports ===== */
+.authStageBack {
+  width: auto;
+  margin: 0 0 10px auto;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--green-700);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.savedAccountCard {
+  display: none;
+  position: relative;
+  z-index: 1;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid #d7ebe1;
+  border-radius: 16px;
+  background: rgba(247, 252, 249, 0.95);
+}
+
+.savedAccountCard.visible { display: block; }
+
+#login .savedAccountPrimary {
+  width: 100%;
+  min-height: 50px;
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 13px;
+  background: #ffffff;
+  border: 1px solid var(--green-200);
+  color: #244f40;
+  box-shadow: none;
+  text-align: right;
+}
+
+.savedAccountPrimary span,
+.savedAccountPrimary strong { display: block; }
+.savedAccountPrimary span { font-size: 12px; color: #6a7e75; margin-bottom: 2px; }
+.savedAccountPrimary strong { font-size: 14px; direction: ltr; text-align: right; overflow-wrap: anywhere; }
+
+#login .savedAccountOther {
+  width: auto;
+  min-height: 0;
+  margin: 9px auto 0;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--green-700);
+  box-shadow: none;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.selectedAuthEmail {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: #315b4c;
+  font-size: 13px;
+  direction: ltr;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.verificationPanel {
+  display: none;
+  position: relative;
+  z-index: 1;
+}
+.verificationPanel.visible { display: block; }
+.verificationPanel h3 { margin: 0 0 7px; color: #17352d; font-size: 21px; }
+.verificationLead { margin: 0 0 12px; color: var(--text-muted); font-size: 13.5px; line-height: 1.6; }
+.verificationEmail {
+  margin: 0 0 12px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: #295746;
+  font-weight: 800;
+  direction: ltr;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.verificationSpamNote {
+  margin: 0 0 14px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: #fffaf0;
+  border: 1px solid #fde7b2;
+  color: #765819;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.verificationActions { display: grid; gap: 9px; }
+#login .verificationActions button { margin: 0; }
+#login .verificationSecondary {
+  background: var(--green-50);
+  color: var(--green-700);
+  border: 1px solid var(--green-200);
+  box-shadow: none;
+}
+#login .verificationTextBtn {
+  min-height: 0;
+  padding: 5px 0;
+  background: transparent;
+  color: var(--green-700);
+  border: 0;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.contactReportBtn {
+  width: 100%;
+  min-height: 0;
+  margin: 9px 0 0;
+  padding: 7px 4px 1px;
+  border: 0;
+  background: transparent;
+  color: #667b72;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 750;
+}
+.contactReportBtn:hover { color: var(--green-700); text-decoration: underline; }
+
+.adminFormField textarea,
+.adminFormField select {
+  width: 100%;
+  padding: 12px 13px;
+  border: 1px solid #d3e8de;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  text-align: right;
+}
+.adminFormField textarea { min-height: 112px; resize: vertical; line-height: 1.55; }
+
+.reportCard { border-right: 4px solid #f59e0b; }
+.reportCard.resolved { border-right-color: var(--green-500); opacity: .9; }
+.reportDetails {
+  margin-top: 9px;
+  padding: 10px 11px;
+  border-radius: 11px;
+  background: #f7fbf9;
+  color: #405e52;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 600px) {
+  .adminTabs,
+  .adminTabs.hasManagers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2107,65 +2422,92 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260714-ui1" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260715-v11" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
     <div class="securityBadge">🔒 כניסה מאובטחת</div>
   </div>
 
-  <div class="authTabs" role="tablist" aria-label="בחירת אופן כניסה">
-    <button type="button" id="authLoginTab" class="authTab active" role="tab" aria-selected="true" onclick="setAuthMode('login')">כניסה</button>
-    <button type="button" id="authRegisterTab" class="authTab" role="tab" aria-selected="false" onclick="setAuthMode('register')">יצירת חשבון</button>
+  <div id="savedAccountCard" class="savedAccountCard">
+    <button type="button" class="savedAccountPrimary" onclick="continueWithSavedAccount()">
+      <span>המשך בתור</span>
+      <strong id="savedAccountEmail"></strong>
+    </button>
+    <button type="button" class="savedAccountOther" onclick="useDifferentAccount()">כניסה עם חשבון אחר</button>
   </div>
 
   <form class="authForm" id="authForm" onsubmit="event.preventDefault(); handlePrimaryAuthAction();">
-    <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
-    <p id="authModeDescription" class="authModeDescription">למי שכבר יצר חשבון ויש לו סיסמה.</p>
+    <div id="authEmailStep">
+      <h3 class="authModeHeading">כניסה לאפליקציה</h3>
+      <p class="authModeDescription">הזינו את כתובת המייל שבה אתם רשומים בספר אנשי הקשר.</p>
 
-    <div class="authField">
-      <label for="emailInput">כתובת מייל</label>
-      <div class="authInputShell">
-        <span class="authFieldIcon" aria-hidden="true">✉</span>
-        <input type="email" id="emailInput" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email">
+      <div class="authField">
+        <label for="emailInput">כתובת מייל</label>
+        <div class="authInputShell">
+          <span class="authFieldIcon" aria-hidden="true">✉</span>
+          <input type="email" id="emailInput" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email">
+        </div>
       </div>
+
+      <button type="button" id="emailContinueBtn" class="primaryAuthBtn" onclick="continueFromEmailStep()">המשך</button>
     </div>
 
-    <div class="authField">
-      <label for="passwordInput">סיסמה</label>
-      <div class="authInputShell">
-        <span class="authFieldIcon" aria-hidden="true">●</span>
-        <input type="password" id="passwordInput" name="password" placeholder="הזינו סיסמה" autocomplete="current-password">
-        <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
+    <div id="authPasswordStep" style="display:none;">
+      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true })">← שינוי כתובת המייל</button>
+      <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
+      <p id="authModeDescription" class="authModeDescription">הזינו את הסיסמה שלכם.</p>
+      <div id="selectedAuthEmail" class="selectedAuthEmail"></div>
+
+      <div class="authField">
+        <label for="passwordInput">סיסמה</label>
+        <div class="authInputShell">
+          <span class="authFieldIcon" aria-hidden="true">●</span>
+          <input type="password" id="passwordInput" name="password" placeholder="הזינו סיסמה" autocomplete="current-password">
+          <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
+        </div>
       </div>
-    </div>
 
-    <div class="authField" id="confirmPasswordGroup" style="display:none;">
-      <label for="confirmPasswordInput">אימות סיסמה</label>
-      <div class="authInputShell">
-        <span class="authFieldIcon" aria-hidden="true">●</span>
-        <input type="password" id="confirmPasswordInput" name="confirm_password" placeholder="הזינו את הסיסמה פעם נוספת" autocomplete="new-password">
-        <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
+      <div class="authField" id="confirmPasswordGroup" style="display:none;">
+        <label for="confirmPasswordInput">אימות סיסמה</label>
+        <div class="authInputShell">
+          <span class="authFieldIcon" aria-hidden="true">●</span>
+          <input type="password" id="confirmPasswordInput" name="confirm_password" placeholder="הזינו את הסיסמה פעם נוספת" autocomplete="new-password">
+          <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
+        </div>
       </div>
-    </div>
 
-    <label class="rememberDeviceOption" for="rememberDeviceCheckbox">
-      <input type="checkbox" id="rememberDeviceCheckbox" checked>
-      <span>
-        הישארו מחוברים במכשיר זה
-        <span class="rememberDeviceHelp">הדפדפן יכול גם להציע לשמור את הסיסמה בצורה מאובטחת.</span>
-      </span>
-    </label>
+      <label class="rememberDeviceOption" for="rememberDeviceCheckbox">
+        <input type="checkbox" id="rememberDeviceCheckbox" checked>
+        <span>
+          זהו מכשיר פרטי — השאירו אותי מחובר/ת
+          <span class="rememberDeviceHelp">במכשיר משותף ניתן להסיר את הסימון.</span>
+        </span>
+      </label>
 
-    <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
+      <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
+      <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
 
-    <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח אליכם מייל אימות חד־פעמי.</div>
-
-    <div class="authSecondaryLinks">
-      <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
-      <button type="button" class="authLinkBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">שליחת אימות מחדש</button>
+      <div class="authSecondaryLinks">
+        <button type="button" class="authLinkBtn" id="authSwitchModeBtn" onclick="toggleAuthMode()">שימוש ראשון? יצירת חשבון</button>
+        <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
+        <button type="button" class="authLinkBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">שליחת אימות מחדש</button>
+      </div>
     </div>
   </form>
+
+  <div id="verificationPanel" class="verificationPanel">
+    <h3>נשאר רק לאמת את כתובת המייל</h3>
+    <p class="verificationLead">שלחנו מייל אימות חד־פעמי לכתובת:</p>
+    <div id="verificationEmail" class="verificationEmail"></div>
+    <div class="verificationSpamNote"><b>לא מצאתם את ההודעה?</b> ב־Gmail ייתכן שהיא נמצאת בתיקיית ספאם או דואר זבל.</div>
+    <div class="verificationActions">
+      <button type="button" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
+      <button type="button" class="verificationSecondary" onclick="openGmailInbox()">פתיחת Gmail</button>
+      <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
+      <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">שימוש בכתובת מייל אחרת</button>
+    </div>
+  </div>
 
   <div id="loginStatus" class="statusMessage"></div>
 
@@ -2262,15 +2604,17 @@ select {
     </div>
 
     <div class="adminTabs" role="tablist">
-      <button type="button" id="adminContactsTab" class="adminTabBtn active" onclick="setAdminTab('contacts')">אנשי קשר</button>
+      <button type="button" id="adminGeneralTab" class="adminTabBtn active" onclick="setAdminTab('general')">כללי</button>
+      <button type="button" id="adminContactsTab" class="adminTabBtn" onclick="setAdminTab('contacts')">אנשי קשר</button>
       <button type="button" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">הרשאות</button>
       <button type="button" id="adminActivityTab" class="adminTabBtn" onclick="setAdminTab('activity')">פעילות</button>
+      <button type="button" id="adminReportsTab" class="adminTabBtn" onclick="setAdminTab('reports')">דיווחים</button>
       <button type="button" id="adminManagersTab" class="adminTabBtn adminSuperOnly" onclick="setAdminTab('managers')">מנהלים</button>
     </div>
   </div>
 
-  <div class="adminToolbar">
-    <div class="adminSearchWrap">
+  <div class="adminToolbar" id="adminToolbar">
+    <div class="adminSearchWrap" id="adminSearchWrap">
       <span class="adminSearchIcon" aria-hidden="true">⌕</span>
       <input type="text" id="adminSearchInput" placeholder="חיפוש לפי שם, מייל או טלפון" oninput="renderAdminList()">
     </div>
@@ -2293,6 +2637,12 @@ select {
       <button type="button" class="adminFilterBtn" data-filter="changed" onclick="setAdminFilter('changed')">שינויים</button>
     </div>
 
+    <div id="adminReportFilters" class="adminFilterRow" style="display:none;">
+      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
+      <button type="button" class="adminFilterBtn" data-filter="open" onclick="setAdminFilter('open')">פתוחים</button>
+      <button type="button" class="adminFilterBtn" data-filter="resolved" onclick="setAdminFilter('resolved')">טופלו</button>
+    </div>
+
     <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
       <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">כל המנהלים</button>
     </div>
@@ -2305,6 +2655,9 @@ select {
 
   <div id="adminStatus" class="statusMessage"></div>
   <div id="adminList"></div>
+  <div id="adminRefreshFooter" class="adminRefreshFooter visible">
+    <button type="button" id="adminRefreshBtn" class="adminRefreshBtn" onclick="refreshAdminPage()">↻ רענון נתוני העמוד</button>
+  </div>
 </div>
 
 
@@ -2320,6 +2673,38 @@ select {
     <div class="adminModalActions">
       <button type="button" class="adminActionBtn secondary" onclick="closeRecentContactsModal()">סגירה</button>
       <button type="button" id="recentContactsImportBtn" class="adminActionBtn primary" onclick="downloadRecentContacts()">ייבוא אנשי הקשר החדשים</button>
+    </div>
+  </div>
+</div>
+
+<div id="contactReportModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="contactReportModalTitle">
+  <div class="adminModalCard">
+    <div class="adminModalHeader">
+      <h3 id="contactReportModalTitle" class="adminModalTitle">דיווח על פרטים שגויים</h3>
+      <button type="button" class="adminModalClose" onclick="closeContactReportModal()" aria-label="סגירה">×</button>
+    </div>
+    <div id="contactReportContact" class="adminFormNote"></div>
+    <div class="adminFormGrid">
+      <div class="adminFormField full">
+        <label for="contactReportType">מה דורש תיקון?</label>
+        <select id="contactReportType">
+          <option value="phone">מספר טלפון</option>
+          <option value="email">כתובת מייל</option>
+          <option value="name">שם או תואר</option>
+          <option value="role">תפקיד</option>
+          <option value="department">מחלקה / מכון</option>
+          <option value="other">אחר</option>
+        </select>
+      </div>
+      <div class="adminFormField full">
+        <label for="contactReportDetails">מה צריך להיות מעודכן?</label>
+        <textarea id="contactReportDetails" maxlength="1000" placeholder="כתבו בקצרה מה שגוי ומה הפרט הנכון, אם ידוע."></textarea>
+      </div>
+    </div>
+    <div id="contactReportStatus" class="statusMessage adminSavingStatus"></div>
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="closeContactReportModal()">ביטול</button>
+      <button type="button" id="contactReportSubmitBtn" class="adminActionBtn primary" onclick="submitContactReport()">שליחת דיווח</button>
     </div>
   </div>
 </div>
@@ -2429,7 +2814,7 @@ const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
 const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
-const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v2";
+const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v3";
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
 
 // תמיכה זמנית בחבילה הישנה בזמן מעבר גרסה.
@@ -2438,6 +2823,13 @@ const LEGACY_CONTACT_BUNDLE_MANIFEST_ID = "manifest";
 const LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_DEFAULT_DAYS = 30;
+const USAGE_DAILY_COLLECTION_NAME = "usageDaily";
+const USAGE_SEARCH_FLUSH_DELAY_MS = 3 * 60 * 1000;
+const USAGE_LOGIN_FLUSH_DELAY_MS = 1200;
+const USAGE_SEARCH_FLUSH_THRESHOLD = 10;
+const USAGE_PENDING_STORAGE_KEY = "contacts_pending_usage_v2";
+const SEARCH_USAGE_DEBOUNCE_MS = 900;
+const LAST_LOGIN_EMAIL_STORAGE_KEY = "contacts_last_login_email_v1";
 
 let firebaseApi = null;
 let firebaseApp = null;
@@ -2453,6 +2845,8 @@ let selectionMode = false;
 let activeQuickFilter = "";
 
 let authMode = "login";
+let authStage = "email";
+let forceEmailEntry = false;
 let authActionInProgress = false;
 let lastUnverifiedEmail = "";
 
@@ -2461,15 +2855,233 @@ let currentUserIsSuperAdmin = false;
 let currentAdminRole = "";
 let currentAdminEmail = "";
 let permissionListenerUnsubscribe = null;
-let adminActiveTab = "contacts";
+let adminActiveTab = "general";
 let adminActiveFilter = "all";
 let adminContacts = [];
 let adminRemovedContacts = [];
 let adminAllowedUsers = [];
 let adminManagers = [];
 let adminActivity = [];
+let adminUsageDaily = [];
+let adminReports = [];
+let pendingUsageByDate = {};
+let usageFlushTimer = null;
+let usageFlushScheduledAt = 0;
+let usageFlushInProgress = false;
+let searchUsageTimer = null;
+let lastCountedSearchQuery = "";
 let adminEditingContact = null;
+let activeReportContact = null;
 let adminDataLoading = false;
+
+
+function getIsraelDateKey_(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+
+  const values = {};
+  parts.forEach(part => {
+    if (part.type !== "literal") values[part.type] = part.value;
+  });
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatUsageDate_(dateKey) {
+  const parsed = new Date(`${dateKey}T12:00:00+03:00`);
+  if (Number.isNaN(parsed.getTime())) return dateKey;
+
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit"
+  }).format(parsed);
+}
+
+function loadPendingUsage_() {
+  try {
+    const raw = localStorage.getItem(USAGE_PENDING_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    pendingUsageByDate = parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    pendingUsageByDate = {};
+    console.warn("Could not load pending usage metrics", error);
+  }
+}
+
+function persistPendingUsage_() {
+  try {
+    const clean = {};
+    Object.entries(pendingUsageByDate).forEach(([dateKey, counts]) => {
+      const logins = Math.max(0, Math.floor(Number(counts && counts.logins) || 0));
+      const searches = Math.max(0, Math.floor(Number(counts && counts.searches) || 0));
+      if (logins || searches) clean[dateKey] = { logins, searches };
+    });
+    pendingUsageByDate = clean;
+    localStorage.setItem(USAGE_PENDING_STORAGE_KEY, JSON.stringify(clean));
+  } catch (error) {
+    console.warn("Could not persist pending usage metrics", error);
+  }
+}
+
+function getPendingSearchCount_() {
+  return Object.values(pendingUsageByDate).reduce(
+    (sum, counts) => sum + Math.max(0, Number(counts && counts.searches) || 0),
+    0
+  );
+}
+
+function queueUsageMetric_(metric, amount = 1) {
+  if (!auth || !auth.currentUser || !auth.currentUser.emailVerified || !db || !firebaseApi) return;
+
+  const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!safeAmount) return;
+
+  const dateKey = getIsraelDateKey_();
+  const current = pendingUsageByDate[dateKey] || { logins: 0, searches: 0 };
+
+  if (metric === "login") current.logins += safeAmount;
+  if (metric === "search") current.searches += safeAmount;
+
+  pendingUsageByDate[dateKey] = current;
+  persistPendingUsage_();
+
+  if (metric === "login") {
+    scheduleUsageFlush_(USAGE_LOGIN_FLUSH_DELAY_MS);
+    return;
+  }
+
+  if (getPendingSearchCount_() >= USAGE_SEARCH_FLUSH_THRESHOLD) {
+    scheduleUsageFlush_(0);
+  } else {
+    scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+  }
+}
+
+function scheduleUsageFlush_(delayMs = USAGE_SEARCH_FLUSH_DELAY_MS) {
+  const safeDelay = Math.max(0, Number(delayMs) || 0);
+  const requestedAt = Date.now() + safeDelay;
+
+  if (usageFlushTimer && usageFlushScheduledAt && usageFlushScheduledAt <= requestedAt) {
+    return;
+  }
+
+  if (usageFlushTimer) clearTimeout(usageFlushTimer);
+  usageFlushScheduledAt = requestedAt;
+  usageFlushTimer = setTimeout(() => {
+    usageFlushTimer = null;
+    usageFlushScheduledAt = 0;
+    flushUsageMetrics_().catch(error => {
+      console.error("Usage metrics flush failed", error);
+    });
+  }, safeDelay);
+}
+
+async function writeUsageIncrement_(dateKey, loginDelta, searchDelta) {
+  await firebaseApi.setDoc(
+    firebaseApi.doc(db, USAGE_DAILY_COLLECTION_NAME, dateKey),
+    {
+      date: dateKey,
+      loginCount: firebaseApi.increment(loginDelta),
+      searchCount: firebaseApi.increment(searchDelta),
+      updatedAt: firebaseApi.serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
+async function flushUsageMetrics_() {
+  if (usageFlushInProgress) return;
+  if (!db || !firebaseApi || !auth || !auth.currentUser || !auth.currentUser.emailVerified) return;
+
+  const snapshot = Object.fromEntries(
+    Object.entries(pendingUsageByDate)
+      .map(([dateKey, counts]) => [dateKey, {
+        logins: Math.max(0, Math.floor(Number(counts && counts.logins) || 0)),
+        searches: Math.max(0, Math.floor(Number(counts && counts.searches) || 0))
+      }])
+      .filter(([, counts]) => counts.logins || counts.searches)
+  );
+
+  if (!Object.keys(snapshot).length) return;
+  usageFlushInProgress = true;
+
+  try {
+    for (const [dateKey, counts] of Object.entries(snapshot)) {
+      let remainingLogins = counts.logins;
+      let remainingSearches = counts.searches;
+
+      while (remainingLogins > 0 || remainingSearches > 0) {
+        const loginDelta = remainingLogins > 0 ? 1 : 0;
+        const searchDelta = Math.min(50, remainingSearches);
+        await writeUsageIncrement_(dateKey, loginDelta, searchDelta);
+        remainingLogins -= loginDelta;
+        remainingSearches -= searchDelta;
+
+        const current = pendingUsageByDate[dateKey] || { logins: 0, searches: 0 };
+        current.logins = Math.max(0, (Number(current.logins) || 0) - loginDelta);
+        current.searches = Math.max(0, (Number(current.searches) || 0) - searchDelta);
+        pendingUsageByDate[dateKey] = current;
+        persistPendingUsage_();
+      }
+    }
+  } catch (error) {
+    persistPendingUsage_();
+    scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+    throw error;
+  } finally {
+    usageFlushInProgress = false;
+  }
+}
+
+function recordAppEntryOnce_(user) {
+  const uid = String(user && user.uid || "");
+  if (!uid) return;
+
+  const dateKey = getIsraelDateKey_();
+  const storageKey = `contacts_usage_entry_${dateKey}_${uid}`;
+
+  try {
+    if (sessionStorage.getItem(storageKey) === "1") return;
+    sessionStorage.setItem(storageKey, "1");
+  } catch (error) {
+    console.warn("Could not store usage session marker", error);
+  }
+
+  queueUsageMetric_("login", 1);
+}
+
+function scheduleSearchUsageCount_(rawQuery) {
+  const query = normalizeSearchText(rawQuery);
+
+  if (searchUsageTimer) {
+    clearTimeout(searchUsageTimer);
+    searchUsageTimer = null;
+  }
+
+  if (query.length < 2) {
+    lastCountedSearchQuery = "";
+    return;
+  }
+
+  searchUsageTimer = setTimeout(() => {
+    searchUsageTimer = null;
+
+    const currentInput = document.getElementById("searchInput");
+    const currentQuery = normalizeSearchText(currentInput ? currentInput.value : "");
+
+    if (currentQuery.length < 2 || currentQuery !== query) return;
+    if (currentQuery === lastCountedSearchQuery) return;
+
+    lastCountedSearchQuery = currentQuery;
+    queueUsageMetric_("search", 1);
+  }, SEARCH_USAGE_DEBOUNCE_MS);
+}
 
 function setStatus(elementId, message = "", type = "") {
   const el = document.getElementById(elementId);
@@ -3125,14 +3737,13 @@ function setAuthMode(mode) {
   const title = document.getElementById("loginTitle");
   const description = document.getElementById("authModeDescription");
   const button = document.getElementById("loginButton");
-  const loginTab = document.getElementById("authLoginTab");
-  const registerTab = document.getElementById("authRegisterTab");
   const passwordInput = document.getElementById("passwordInput");
   const confirmGroup = document.getElementById("confirmPasswordGroup");
   const confirmInput = document.getElementById("confirmPasswordInput");
   const passwordResetButton = document.getElementById("passwordResetBtn");
   const resendButton = document.getElementById("resendVerificationBtn");
   const modeNote = document.getElementById("authModeNote");
+  const switchButton = document.getElementById("authSwitchModeBtn");
 
   [passwordInput, confirmInput].forEach(input => {
     if (input) input.type = "password";
@@ -3146,33 +3757,223 @@ function setAuthMode(mode) {
   if (resendButton) resendButton.style.display = "none";
   const isRegister = authMode === "register";
 
-  if (loginTab) {
-    loginTab.classList.toggle("active", !isRegister);
-    loginTab.setAttribute("aria-selected", isRegister ? "false" : "true");
-  }
-
-  if (registerTab) {
-    registerTab.classList.toggle("active", isRegister);
-    registerTab.setAttribute("aria-selected", isRegister ? "true" : "false");
-  }
-
   if (isRegister) {
     if (title) title.textContent = "יצירת חשבון";
-    if (description) description.textContent = "מיועד לשימוש הראשון באפליקציה. השתמשו במייל שמופיע בספר אנשי הקשר.";
+    if (description) description.textContent = "בחרו סיסמה חדשה. לאחר מכן יישלח מייל אימות חד־פעמי.";
     if (button) button.textContent = "יצירת חשבון";
     if (passwordInput) passwordInput.autocomplete = "new-password";
     if (confirmGroup) confirmGroup.style.display = "block";
     if (passwordResetButton) passwordResetButton.style.display = "none";
     if (modeNote) modeNote.style.display = "block";
+    if (switchButton) switchButton.textContent = "כבר יצרתם חשבון? חזרה לכניסה";
   } else {
     if (title) title.textContent = "כניסה לחשבון";
-    if (description) description.textContent = "למי שכבר יצר חשבון ויש לו סיסמה.";
+    if (description) description.textContent = "הזינו את הסיסמה שלכם.";
     if (button) button.textContent = "כניסה לחשבון";
     if (passwordInput) passwordInput.autocomplete = "current-password";
     if (confirmGroup) confirmGroup.style.display = "none";
     if (confirmInput) confirmInput.value = "";
     if (passwordResetButton) passwordResetButton.style.display = "inline-block";
     if (modeNote) modeNote.style.display = "none";
+    if (switchButton) switchButton.textContent = "שימוש ראשון? יצירת חשבון";
+  }
+}
+
+function getSavedLoginEmail_() {
+  try {
+    const email = normalizeEmail(localStorage.getItem(LAST_LOGIN_EMAIL_STORAGE_KEY) || "");
+    return isValidEmail(email) ? email : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function rememberSuccessfulEmail_(email) {
+  const normalized = normalizeEmail(email);
+  if (!isValidEmail(normalized)) return;
+  try {
+    localStorage.setItem(LAST_LOGIN_EMAIL_STORAGE_KEY, normalized);
+  } catch (error) {
+    console.warn("Could not remember login email", error);
+  }
+}
+
+function updateSavedAccountCard_() {
+  const card = document.getElementById("savedAccountCard");
+  const label = document.getElementById("savedAccountEmail");
+  if (!card || !label) return;
+
+  const savedEmail = getSavedLoginEmail_();
+  const shouldShow = authStage === "email" && Boolean(savedEmail) && !forceEmailEntry && !(auth && auth.currentUser);
+  card.classList.toggle("visible", shouldShow);
+  label.textContent = savedEmail;
+
+  const form = document.getElementById("authForm");
+  const verificationPanel = document.getElementById("verificationPanel");
+  const verificationVisible = verificationPanel && verificationPanel.classList.contains("visible");
+  if (form && authStage === "email" && !verificationVisible) {
+    form.style.display = shouldShow ? "none" : "block";
+  }
+}
+
+function setVerificationPanelVisible_(visible) {
+  const form = document.getElementById("authForm");
+  const panel = document.getElementById("verificationPanel");
+  if (form) form.style.display = visible ? "none" : "block";
+  if (panel) panel.classList.toggle("visible", Boolean(visible));
+  if (visible) {
+    const savedCard = document.getElementById("savedAccountCard");
+    if (savedCard) savedCard.classList.remove("visible");
+  }
+}
+
+function showAuthEmailStep_(options = {}) {
+  authStage = "email";
+  forceEmailEntry = options.forceEmailEntry === true;
+  setVerificationPanelVisible_(false);
+  const emailStep = document.getElementById("authEmailStep");
+  const passwordStep = document.getElementById("authPasswordStep");
+  if (emailStep) emailStep.style.display = "block";
+  if (passwordStep) passwordStep.style.display = "none";
+  if (!options.keepStatus) setLoginStatus("", "");
+  updateSavedAccountCard_();
+  setTimeout(() => {
+    const input = document.getElementById("emailInput");
+    if (input && !getSavedLoginEmail_()) input.focus();
+  }, 0);
+}
+
+function showAuthPasswordStep_(email, mode = "login") {
+  const normalized = normalizeEmail(email);
+  if (!isValidEmail(normalized)) {
+    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
+    return false;
+  }
+
+  authStage = "password";
+  forceEmailEntry = false;
+  setVerificationPanelVisible_(false);
+  const emailInput = document.getElementById("emailInput");
+  const emailStep = document.getElementById("authEmailStep");
+  const passwordStep = document.getElementById("authPasswordStep");
+  const selectedEmail = document.getElementById("selectedAuthEmail");
+  if (emailInput) emailInput.value = normalized;
+  if (selectedEmail) selectedEmail.textContent = normalized;
+  if (emailStep) emailStep.style.display = "none";
+  if (passwordStep) passwordStep.style.display = "block";
+  setAuthMode(mode);
+  updateSavedAccountCard_();
+  setTimeout(() => {
+    const password = document.getElementById("passwordInput");
+    if (password) password.focus();
+  }, 0);
+  return true;
+}
+
+function continueFromEmailStep() {
+  const input = document.getElementById("emailInput");
+  const email = normalizeEmail(input ? input.value : "");
+  const savedEmail = getSavedLoginEmail_();
+  const mode = email && email === savedEmail ? "login" : authMode;
+  showAuthPasswordStep_(email, mode);
+}
+
+function continueWithSavedAccount() {
+  const savedEmail = getSavedLoginEmail_();
+  if (!savedEmail) {
+    showAuthEmailStep_();
+    return;
+  }
+  showAuthPasswordStep_(savedEmail, "login");
+}
+
+async function useDifferentAccount() {
+  authActionInProgress = true;
+  try {
+    if (auth && auth.currentUser) await firebaseApi.signOut(auth);
+  } catch (error) {
+    console.error("Could not switch account", error);
+  } finally {
+    authActionInProgress = false;
+  }
+
+  const emailInput = document.getElementById("emailInput");
+  const passwordInput = document.getElementById("passwordInput");
+  const confirmInput = document.getElementById("confirmPasswordInput");
+  if (emailInput) emailInput.value = "";
+  if (passwordInput) passwordInput.value = "";
+  if (confirmInput) confirmInput.value = "";
+  setAuthMode("login");
+  showAuthEmailStep_({ forceEmailEntry: true });
+}
+
+function showVerificationPanel_(user, email = "") {
+  const targetEmail = normalizeEmail(email || (user && user.email) || lastUnverifiedEmail);
+  authStage = "verification";
+  lastUnverifiedEmail = targetEmail;
+  showLoginScreen();
+  setVerificationPanelVisible_(true);
+  const emailLabel = document.getElementById("verificationEmail");
+  if (emailLabel) emailLabel.textContent = targetEmail;
+  setLoginStatus("", "");
+}
+
+function openGmailInbox() {
+  window.open("https://mail.google.com/", "_blank", "noopener");
+}
+
+async function checkVerificationAndContinue() {
+  if (!firebaseApi || !auth || !auth.currentUser) {
+    setLoginStatus("החיבור לחשבון הסתיים. חזרו למסך הכניסה והתחברו מחדש.", "error");
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("בודק אם כתובת המייל אומתה...", "loading");
+  authActionInProgress = true;
+
+  try {
+    await firebaseApi.reload(auth.currentUser);
+    if (!auth.currentUser.emailVerified) {
+      setLoginStatus("כתובת המייל עדיין לא אומתה. פתחו את ההודעה ולחצו על קישור האימות.", "error");
+      return;
+    }
+
+    rememberSuccessfulEmail_(auth.currentUser.email);
+    setVerificationPanelVisible_(false);
+    await handleAuthenticatedUser(auth.currentUser);
+  } catch (error) {
+    console.error("Verification check failed", error);
+    setLoginStatus("לא הצלחנו לבדוק את האימות. בדקו את החיבור ונסו שוב.", "error");
+  } finally {
+    authActionInProgress = false;
+    setLoginButtonDisabled(false);
+  }
+}
+
+async function resendVerificationFromPanel() {
+  if (!firebaseApi || !auth || !db || !auth.currentUser) {
+    setLoginStatus("החיבור לחשבון הסתיים. התחברו מחדש כדי לשלוח אימות.", "error");
+    return;
+  }
+
+  const user = auth.currentUser;
+  const email = normalizeEmail(user.email);
+  if (!ensureAuthEmailCooldownFinished("verification", email)) return;
+
+  setLoginStatus("שולח מייל אימות חדש...", "loading");
+  try {
+    const permission = await getCurrentUserPermission(email);
+    if (!permission.exists || !permission.active) {
+      setLoginStatus("כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר.", "error");
+      return;
+    }
+    await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
+    startAuthEmailCooldown("verification", email);
+    setLoginStatus("נשלח מייל אימות חדש. ב־Gmail בדקו גם בתיקיית הספאם.", "success");
+  } catch (error) {
+    console.error("Verification resend failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
   }
 }
 
@@ -3306,6 +4107,11 @@ async function applySelectedAuthPersistence() {
 }
 
 async function handlePrimaryAuthAction() {
+  if (authStage === "email") {
+    continueFromEmailStep();
+    return;
+  }
+
   try {
     await applySelectedAuthPersistence();
   } catch (error) {
@@ -3391,25 +4197,10 @@ async function registerWithPassword() {
     verificationSent = true;
     startAuthEmailCooldown("verification", email);
 
-    await firebaseApi.signOut(auth);
     lastUnverifiedEmail = email;
-    setAuthMode("login");
-
-    document.getElementById("emailInput").value = email;
     document.getElementById("passwordInput").value = "";
-
-    const resendButton = document.getElementById(
-      "resendVerificationBtn"
-    );
-
-    if (resendButton) {
-      resendButton.style.display = "inline-block";
-    }
-
-    setLoginStatus(
-      "החשבון נוצר. שלחנו מייל אימות חד־פעמי. לאחר האימות חזרו לכאן והתחברו.",
-      "success"
-    );
+    document.getElementById("confirmPasswordInput").value = "";
+    showVerificationPanel_(createdUser, email);
   } catch (error) {
     console.error("Registration failed", error);
 
@@ -3453,26 +4244,29 @@ async function loginWithPassword() {
       password
     );
 
-    await firebaseApi.reload(credential.user);
+    if (!credential.user.emailVerified) {
+      await firebaseApi.reload(credential.user);
+    }
 
     if (!credential.user.emailVerified) {
       lastUnverifiedEmail = email;
-      await firebaseApi.signOut(auth);
-
-      const resendButton = document.getElementById("resendVerificationBtn");
-      if (resendButton) resendButton.style.display = "inline-block";
-
-      setLoginStatus(
-        "כתובת המייל עדיין לא אומתה. פתחו את מייל האימות או לחצו על ״שליחת אימות מחדש״.",
-        "error"
-      );
+      showVerificationPanel_(credential.user, email);
       return;
     }
 
+    rememberSuccessfulEmail_(email);
     await handleAuthenticatedUser(credential.user);
   } catch (error) {
     console.error("Password sign-in failed", error);
-    setLoginStatus(getAuthErrorMessage(error), "error");
+    const code = error && error.code ? error.code : "";
+    if (["auth/invalid-credential", "auth/invalid-login-credentials", "auth/wrong-password", "auth/user-not-found"].includes(code)) {
+      setLoginStatus(
+        "כתובת המייל או הסיסמה אינן נכונות. אם זה השימוש הראשון שלכם, לחצו על „שימוש ראשון? יצירת חשבון”.",
+        "error"
+      );
+    } else {
+      setLoginStatus(getAuthErrorMessage(error), "error");
+    }
   } finally {
     authActionInProgress = false;
     setLoginButtonDisabled(false);
@@ -3603,6 +4397,7 @@ async function sendPasswordReset() {
 function showLoginScreen() {
   document.getElementById("login").style.display = "block";
   document.getElementById("app").style.display = "none";
+  updateSavedAccountCard_();
 }
 
 function updateUserInfoForUser_(user) {
@@ -3725,16 +4520,7 @@ async function handleAuthenticatedUser(user) {
 
   if (!user.emailVerified) {
     lastUnverifiedEmail = normalizeEmail(user.email);
-    await firebaseApi.signOut(auth);
-    showLoginScreen();
-
-    const resendButton = document.getElementById("resendVerificationBtn");
-    if (resendButton) resendButton.style.display = "inline-block";
-
-    setLoginStatus(
-      "כתובת המייל עדיין לא אומתה. פתחו את מייל האימות ולאחר מכן התחברו.",
-      "error"
-    );
+    showVerificationPanel_(user, user.email);
     return;
   }
 
@@ -3753,6 +4539,11 @@ async function handleAuthenticatedUser(user) {
       accessError.code = "permission-denied";
       throw accessError;
     }
+
+    rememberSuccessfulEmail_(user.email);
+    setVerificationPanelVisible_(false);
+    if (getPendingSearchCount_() > 0) scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+    recordAppEntryOnce_(user);
 
     const hasCachedContacts = loadContactsFromCache_();
 
@@ -3808,6 +4599,7 @@ async function logout() {
 
   try {
     stopPermissionListener();
+    await flushUsageMetrics_().catch(() => {});
     await firebaseApi.signOut(auth);
     contacts = [];
     // המטמון נשמר במכשיר כדי שהכניסה הבאה תהיה מהירה.
@@ -3827,6 +4619,7 @@ async function logout() {
     updateQuickFilterButtons();
     document.getElementById("list").innerHTML = "";
     showLoginScreen();
+    showAuthEmailStep_({ keepStatus: true });
     setLoginStatus("התנתקת מהמערכת.", "empty");
   } catch (error) {
     console.error(error);
@@ -3960,7 +4753,7 @@ function openAdminPanel() {
   document.getElementById("app").style.display = "none";
   document.getElementById("adminPanel").style.display = "block";
   document.getElementById("adminSearchInput").value = "";
-  adminActiveTab = "contacts";
+  adminActiveTab = "general";
   adminActiveFilter = "all";
   updateAdminTabs();
   loadAdminData();
@@ -3977,9 +4770,9 @@ function closeAdminPanel() {
 }
 
 function setAdminTab(tabName) {
-  const requestedTab = ["contacts", "users", "activity", "managers"].includes(tabName)
+  const requestedTab = ["general", "contacts", "users", "activity", "reports", "managers"].includes(tabName)
     ? tabName
-    : "contacts";
+    : "general";
 
   if (requestedTab === "managers" && !currentUserIsSuperAdmin) {
     alert("רק מנהל־על יכול לנהל מנהלים.");
@@ -3994,23 +4787,29 @@ function setAdminTab(tabName) {
 }
 
 function updateAdminTabs() {
+  const generalTab = document.getElementById("adminGeneralTab");
   const contactsTab = document.getElementById("adminContactsTab");
   const usersTab = document.getElementById("adminUsersTab");
   const activityTab = document.getElementById("adminActivityTab");
+  const reportsTab = document.getElementById("adminReportsTab");
   const managersTab = document.getElementById("adminManagersTab");
+  const adminToolbar = document.getElementById("adminToolbar");
   const contactFilters = document.getElementById("adminContactFilters");
   const userFilters = document.getElementById("adminUserFilters");
   const activityFilters = document.getElementById("adminActivityFilters");
+  const reportFilters = document.getElementById("adminReportFilters");
   const managerFilters = document.getElementById("adminManagerFilters");
   const addManagerButton = document.getElementById("adminAddManagerBtn");
 
   if (adminActiveTab === "managers" && !currentUserIsSuperAdmin) {
-    adminActiveTab = "contacts";
+    adminActiveTab = "general";
   }
 
+  if (generalTab) generalTab.classList.toggle("active", adminActiveTab === "general");
   contactsTab.classList.toggle("active", adminActiveTab === "contacts");
   usersTab.classList.toggle("active", adminActiveTab === "users");
   activityTab.classList.toggle("active", adminActiveTab === "activity");
+  if (reportsTab) reportsTab.classList.toggle("active", adminActiveTab === "reports");
 
   if (managersTab) {
     managersTab.classList.toggle("visible", currentUserIsSuperAdmin);
@@ -4022,9 +4821,14 @@ function updateAdminTabs() {
     }
   }
 
+  if (adminToolbar) {
+    adminToolbar.style.display = adminActiveTab === "general" ? "none" : "block";
+  }
+
   contactFilters.style.display = adminActiveTab === "contacts" ? "flex" : "none";
   userFilters.style.display = adminActiveTab === "users" ? "flex" : "none";
   activityFilters.style.display = adminActiveTab === "activity" ? "flex" : "none";
+  if (reportFilters) reportFilters.style.display = adminActiveTab === "reports" ? "flex" : "none";
   managerFilters.style.display = adminActiveTab === "managers" ? "flex" : "none";
 
   if (addManagerButton) {
@@ -4036,7 +4840,6 @@ function updateAdminTabs() {
 
   updateAdminFilterButtons();
 }
-
 function setAdminFilter(filterName) {
   adminActiveFilter = filterName || "all";
   updateAdminFilterButtons();
@@ -4044,13 +4847,17 @@ function setAdminFilter(filterName) {
 }
 
 function updateAdminFilterButtons() {
+  if (adminActiveTab === "general") return;
+
   const containerId = adminActiveTab === "contacts"
     ? "adminContactFilters"
     : adminActiveTab === "users"
       ? "adminUserFilters"
       : adminActiveTab === "activity"
         ? "adminActivityFilters"
-        : "adminManagerFilters";
+        : adminActiveTab === "reports"
+          ? "adminReportFilters"
+          : "adminManagerFilters";
 
   document
     .querySelectorAll(`#${containerId} .adminFilterBtn`)
@@ -4061,7 +4868,6 @@ function updateAdminFilterButtons() {
       );
     });
 }
-
 async function loadAdminData() {
   if (!currentUserIsAdmin || adminDataLoading) return;
 
@@ -4084,10 +4890,27 @@ async function loadAdminData() {
       firebaseApi.limit(150)
     );
 
+    const usageQuery = firebaseApi.query(
+      firebaseApi.collection(db, USAGE_DAILY_COLLECTION_NAME),
+      firebaseApi.orderBy("date", "desc"),
+      firebaseApi.limit(30)
+    );
+
+    const reportsQuery = firebaseApi.query(
+      firebaseApi.collection(db, "contactReports"),
+      firebaseApi.orderBy("createdAt", "desc"),
+      firebaseApi.limit(150)
+    );
+
     const requests = [
       firebaseApi.getDocs(firebaseApi.collection(db, "contactOverrides")),
       firebaseApi.getDocs(firebaseApi.collection(db, "allowedUsers")),
-      firebaseApi.getDocs(activityQuery)
+      firebaseApi.getDocs(activityQuery),
+      firebaseApi.getDocs(usageQuery),
+      firebaseApi.getDocs(reportsQuery).catch(error => {
+        console.error("Reports data load failed", error);
+        return { docs: [] };
+      })
     ];
 
     if (currentUserIsSuperAdmin) {
@@ -4098,7 +4921,9 @@ async function loadAdminData() {
     const overridesSnapshot = results[0];
     const usersSnapshot = results[1];
     const activitySnapshot = results[2];
-    const managersSnapshot = results[3] || null;
+    const usageSnapshot = results[3];
+    const reportsSnapshot = results[4];
+    const managersSnapshot = results[5] || null;
 
     adminRemovedContacts = overridesSnapshot.docs
       .map((document, index) => {
@@ -4134,6 +4959,32 @@ async function loadAdminData() {
       recordedActivity,
       adminContacts
     );
+
+    adminUsageDaily = usageSnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        date: String(data.date || document.id),
+        loginCount: Math.max(0, Number(data.loginCount) || 0),
+        searchCount: Math.max(0, Number(data.searchCount) || 0)
+      };
+    }).sort((a, b) => b.date.localeCompare(a.date));
+
+    adminReports = reportsSnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        docId: document.id,
+        contactDocId: String(data.contactDocId || ""),
+        contactPhone: String(data.contactPhone || ""),
+        contactName: String(data.contactName || ""),
+        issueType: String(data.issueType || "other"),
+        details: String(data.details || ""),
+        reporterEmail: normalizeEmail(data.reporterEmail || ""),
+        status: data.status === "resolved" ? "resolved" : "open",
+        createdAt: data.createdAt || null,
+        resolvedAt: data.resolvedAt || null,
+        resolvedBy: normalizeEmail(data.resolvedBy || "")
+      };
+    });
 
     adminManagers = managersSnapshot
       ? managersSnapshot.docs.map(document => {
@@ -4431,15 +5282,200 @@ function getAllowedUserByEmail(email) {
   ) || null;
 }
 
+
+function getReportTimestamp_(report) {
+  const value = report && report.createdAt;
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function formatReportTimestamp_(report) {
+  const timestamp = getReportTimestamp_(report);
+  return timestamp
+    ? new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(new Date(timestamp))
+    : "מועד לא ידוע";
+}
+
+function getReportTypeLabel_(type) {
+  return ({
+    phone: "מספר טלפון",
+    email: "כתובת מייל",
+    name: "שם או תואר",
+    role: "תפקיד",
+    department: "מחלקה / מכון",
+    other: "אחר"
+  })[type] || "אחר";
+}
+
+function adminReportMatchesQuery_(report, query) {
+  if (!query) return true;
+  return normalizeSearchText([
+    report.contactName,
+    report.contactPhone,
+    report.reporterEmail,
+    report.details,
+    getReportTypeLabel_(report.issueType)
+  ].join(" ")).includes(query);
+}
+
+async function setContactReportStatus_(reportId, status) {
+  if (!currentUserIsAdmin || !reportId) return;
+  const nextStatus = status === "resolved" ? "resolved" : "open";
+  try {
+    await firebaseApi.updateDoc(
+      firebaseApi.doc(db, "contactReports", reportId),
+      {
+        status: nextStatus,
+        resolvedAt: nextStatus === "resolved" ? firebaseApi.serverTimestamp() : null,
+        resolvedBy: nextStatus === "resolved" ? currentAdminEmail : ""
+      }
+    );
+    const report = adminReports.find(item => item.docId === reportId);
+    if (report) {
+      report.status = nextStatus;
+      report.resolvedBy = nextStatus === "resolved" ? currentAdminEmail : "";
+    }
+    renderAdminReports();
+  } catch (error) {
+    console.error("Report status update failed", error);
+    setAdminStatus("לא הצלחנו לעדכן את מצב הדיווח.", "error");
+  }
+}
+
+function renderAdminReports() {
+  const query = getAdminSearchQuery();
+  const reports = adminReports.filter(report => {
+    if (adminActiveFilter === "open" && report.status !== "open") return false;
+    if (adminActiveFilter === "resolved" && report.status !== "resolved") return false;
+    return adminReportMatchesQuery_(report, query);
+  });
+
+  document.getElementById("adminSummary").textContent = reports.length === 1
+    ? "נמצא דיווח אחד"
+    : `נמצאו ${reports.length} דיווחים`;
+
+  if (!reports.length) {
+    document.getElementById("adminList").innerHTML = '<div class="adminEmpty">אין דיווחים התואמים לסינון.</div>';
+    return;
+  }
+
+  document.getElementById("adminList").innerHTML = reports.map(report => `
+    <div class="adminCard reportCard ${report.status === "resolved" ? "resolved" : ""}">
+      <div class="adminCardTop">
+        <div>
+          <div class="adminCardName">${escapeHtml(report.contactName || formatPhoneForDisplay(report.contactPhone) || "איש קשר")}</div>
+          <div class="adminCardMeta">
+            ${escapeHtml(getReportTypeLabel_(report.issueType))}<br>
+            ${report.contactPhone ? escapeHtml(formatPhoneForDisplay(report.contactPhone)) + "<br>" : ""}
+            דווח על ידי: ${escapeHtml(report.reporterEmail || "לא ידוע")}<br>
+            ${escapeHtml(formatReportTimestamp_(report))}
+          </div>
+        </div>
+        <span class="adminStatusBadge ${report.status === "resolved" ? "" : "blocked"}">${report.status === "resolved" ? "טופל" : "פתוח"}</span>
+      </div>
+      <div class="reportDetails">${escapeHtml(report.details)}</div>
+      <div class="adminCardActions">
+        <button type="button" class="adminActionBtn ${report.status === "resolved" ? "secondary" : "primary"}" onclick="setContactReportStatus_('${report.docId}', '${report.status === "resolved" ? "open" : "resolved"}')">
+          ${report.status === "resolved" ? "פתיחה מחדש" : "סימון כטופל"}
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderAdminGeneral() {
+  const todayKey = getIsraelDateKey_();
+  const today = adminUsageDaily.find(item => item.date === todayKey) || {
+    date: todayKey,
+    loginCount: 0,
+    searchCount: 0
+  };
+
+  const searchesPerLogin = today.loginCount > 0
+    ? (today.searchCount / today.loginCount).toFixed(1)
+    : "0";
+
+  const recentDays = adminUsageDaily.slice(0, 14);
+  const rows = recentDays.length
+    ? recentDays.map(day => `
+        <div class="adminUsageRow">
+          <div class="adminUsageDate">${escapeHtml(formatUsageDate_(day.date))}</div>
+          <div class="adminUsageNumber">${escapeHtml(day.loginCount)}</div>
+          <div class="adminUsageNumber">${escapeHtml(day.searchCount)}</div>
+        </div>
+      `).join("")
+    : '<div class="adminEmpty">נתוני השימוש יתחילו להופיע לאחר כניסות וחיפושים בגרסה הזאת.</div>';
+
+  document.getElementById("adminList").innerHTML = `
+    <div class="adminOverview">
+      <div class="adminOverviewCards">
+        <div class="adminMetricCard">
+          <span class="adminMetricValue">${escapeHtml(today.loginCount)}</span>
+          <span class="adminMetricLabel">כניסות היום</span>
+        </div>
+        <div class="adminMetricCard">
+          <span class="adminMetricValue">${escapeHtml(today.searchCount)}</span>
+          <span class="adminMetricLabel">חיפושים היום</span>
+        </div>
+        <div class="adminMetricCard">
+          <span class="adminMetricValue">${escapeHtml(searchesPerLogin)}</span>
+          <span class="adminMetricLabel">חיפושים לכניסה</span>
+        </div>
+      </div>
+
+      <div class="adminUsagePanel">
+        <h3 class="adminUsageTitle">שימוש יומי — 14 הימים האחרונים</h3>
+        <div class="adminUsageRow header">
+          <div>תאריך</div>
+          <div class="adminUsageNumber">כניסות</div>
+          <div class="adminUsageNumber">חיפושים</div>
+        </div>
+        ${rows}
+        <p class="adminUsageNote">
+          כניסה נספרת פעם אחת בכל פתיחת אפליקציה/לשונית. החיפושים נצברים במכשיר ונשלחים במרוכז לאחר 10 חיפושים, כעבור מספר דקות או ביציאה. מילות החיפוש עצמן אינן נשמרות.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+async function refreshAdminPage() {
+  if (!currentUserIsAdmin || adminDataLoading) return;
+
+  const button = document.getElementById("adminRefreshBtn");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "מרענן...";
+  }
+
+  try {
+    await flushUsageMetrics_();
+    await loadAdminData();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "↻ רענון נתוני העמוד";
+    }
+  }
+}
+
 function renderAdminList() {
   if (!currentUserIsAdmin) return;
 
   updateAdminFilterButtons();
 
-  if (adminActiveTab === "users") {
+  if (adminActiveTab === "general") {
+    renderAdminGeneral();
+  } else if (adminActiveTab === "users") {
     renderAdminUsers();
   } else if (adminActiveTab === "activity") {
     renderAdminActivity();
+  } else if (adminActiveTab === "reports") {
+    renderAdminReports();
   } else if (adminActiveTab === "managers") {
     renderAdminManagers();
   } else {
@@ -5334,6 +6370,7 @@ async function initializeFirebase() {
     addDoc: firestoreModule.addDoc,
     writeBatch: firestoreModule.writeBatch,
     serverTimestamp: firestoreModule.serverTimestamp,
+    increment: firestoreModule.increment,
     onSnapshot: firestoreModule.onSnapshot,
     query: firestoreModule.query,
     orderBy: firestoreModule.orderBy,
@@ -5371,6 +6408,11 @@ function updateSearchUI() {
 }
 
 function clearSearch() {
+  lastCountedSearchQuery = "";
+  if (searchUsageTimer) {
+    clearTimeout(searchUsageTimer);
+    searchUsageTimer = null;
+  }
   const input = document.getElementById("searchInput");
   if (input) input.value = "";
   selectionMode = false;
@@ -5458,7 +6500,7 @@ function buildContactVCard(c) {
     "BEGIN:VCARD",
     "VERSION:3.0",
     "PRODID:-//Contacts App//HE",
-    `N;CHARSET=UTF-8:${escapeVCardValue(c.last)};${escapeVCardValue(c.first)};;;`,
+    `N;CHARSET=UTF-8:${escapeVCardValue(c.last)};${escapeVCardValue(c.first)};;${escapeVCardValue(c.title)};`,
     `FN;CHARSET=UTF-8:${escapeVCardValue(c.name)}`,
     `ORG;CHARSET=UTF-8:${escapeVCardValue(c.dept)}`,
     `TITLE;CHARSET=UTF-8:${escapeVCardValue(c.role)}`,
@@ -5623,6 +6665,75 @@ async function downloadSelectedContacts() {
 }
 
 
+function openContactReportModal(id) {
+  const contact = contacts.find(item => item.id === id);
+  if (!contact) return;
+
+  activeReportContact = contact;
+  const contactBox = document.getElementById("contactReportContact");
+  const details = document.getElementById("contactReportDetails");
+  const type = document.getElementById("contactReportType");
+  if (contactBox) {
+    contactBox.textContent = `${contact.name || "איש קשר"} · ${formatPhoneForDisplay(contact.phone)}`;
+  }
+  if (details) details.value = "";
+  if (type) type.value = "phone";
+  setStatus("contactReportStatus", "", "");
+  const modal = document.getElementById("contactReportModal");
+  if (modal) modal.classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
+function closeContactReportModal() {
+  const modal = document.getElementById("contactReportModal");
+  if (modal) modal.classList.remove("visible");
+  document.body.style.overflow = "";
+  activeReportContact = null;
+  setStatus("contactReportStatus", "", "");
+}
+
+async function submitContactReport() {
+  if (!activeReportContact || !auth || !auth.currentUser || !db || !firebaseApi) return;
+
+  const typeInput = document.getElementById("contactReportType");
+  const detailsInput = document.getElementById("contactReportDetails");
+  const button = document.getElementById("contactReportSubmitBtn");
+  const issueType = String(typeInput ? typeInput.value : "other");
+  const details = String(detailsInput ? detailsInput.value : "").trim();
+
+  if (details.length < 3) {
+    setStatus("contactReportStatus", "כתבו בקצרה מה דורש תיקון.", "error");
+    return;
+  }
+
+  if (button) button.disabled = true;
+  setStatus("contactReportStatus", "שולח את הדיווח...", "loading");
+
+  try {
+    await firebaseApi.addDoc(
+      firebaseApi.collection(db, "contactReports"),
+      {
+        contactDocId: String(activeReportContact.docId || ""),
+        contactPhone: String(activeReportContact.phone || ""),
+        contactName: String(activeReportContact.name || ""),
+        issueType,
+        details,
+        reporterEmail: normalizeEmail(auth.currentUser.email),
+        status: "open",
+        createdAt: firebaseApi.serverTimestamp()
+      }
+    );
+
+    setStatus("contactReportStatus", "הדיווח נשלח למנהלי האפליקציה. תודה.", "success");
+    setTimeout(closeContactReportModal, 1300);
+  } catch (error) {
+    console.error("Contact report submission failed", error);
+    setStatus("contactReportStatus", "לא הצלחנו לשלוח את הדיווח. נסו שוב.", "error");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 function openRecentContactsModal() {
   const recentContacts = getRecentContacts();
   const hasPreviousImport = Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0) > 0;
@@ -5733,6 +6844,27 @@ function renderContactName(contact) {
   return renderedName || escapeHtml(contact.name || formatPhoneForDisplay(contact.phone));
 }
 
+function getVisibleDepartment_(contact) {
+  const department = String(contact && contact.dept || "").trim();
+  if (!department || !activeQuickFilter) return department;
+
+  const normalized = normalizeSearchText(department);
+  const genericLabels = new Set([
+    "vpn",
+    "תורן vpn",
+    "תורנים vpn",
+    "תורני vpn",
+    "vpn תורן",
+    "vpn תורנים",
+    "מעבדה",
+    "מעבדות",
+    "מכון",
+    "מכונים"
+  ]);
+
+  return genericLabels.has(normalized) ? "" : department;
+}
+
 function show(list) {
   currentDisplayedContacts = list;
 
@@ -5774,8 +6906,9 @@ function show(list) {
       metaRows += `<div class="contactMetaRow">${escapeHtml(c.role)}</div>`;
     }
 
-    if (c.dept) {
-      metaRows += `<div class="contactMetaRow">${escapeHtml(c.dept)}</div>`;
+    const visibleDepartment = getVisibleDepartment_(c);
+    if (visibleDepartment) {
+      metaRows += `<div class="contactMetaRow">${escapeHtml(visibleDepartment)}</div>`;
     }
 
     metaRows += `
@@ -5837,6 +6970,7 @@ function show(list) {
         </div>
 
         <button class="addContactBtn" onclick="downloadContact(${c.id})">הוסף לאנשי קשר</button>
+        ${selectionMode ? "" : `<button class="contactReportBtn" onclick="openContactReportModal(${c.id})">הפרטים אינם מעודכנים? דווחו לנו</button>`}
       </div>
     `;
   });
@@ -5881,9 +7015,22 @@ function renderCurrentSearchResults() {
 }
 
 function search() {
+  const input = document.getElementById("searchInput");
+  scheduleSearchUsageCount_(input ? input.value : "");
   renderCurrentSearchResults();
 }
 
+
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    flushUsageMetrics_().catch(() => {});
+  }
+});
+
+window.addEventListener("pagehide", () => {
+  flushUsageMetrics_().catch(() => {});
+});
 
 function init() {
   cleanupOldImportPayloads();
@@ -5896,17 +7043,16 @@ function init() {
     return;
   }
 
-  const requestedAuthMode =
-    params.get("authMode") === "register"
-      ? "register"
-      : "login";
+  const requestedAuthMode = params.get("authMode") === "register" ? "register" : "login";
   const requestedEmail = normalizeEmail(params.get("email") || "");
 
+  loadPendingUsage_();
   setAuthMode(requestedAuthMode);
 
   if (requestedEmail && isValidEmail(requestedEmail)) {
-    const emailInput = document.getElementById("emailInput");
-    if (emailInput) emailInput.value = requestedEmail;
+    showAuthPasswordStep_(requestedEmail, requestedAuthMode);
+  } else {
+    showAuthEmailStep_({ keepStatus: true });
   }
 
   setLoginStatus("טוען את המערכת...", "loading");
