@@ -4,8 +4,8 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="//www.gstatic.com">
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260715-v11">
-<link rel="icon" href="app-icon.png?v=20260715-v11">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260715-v12">
+<link rel="icon" href="app-icon.png?v=20260715-v12">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -2155,7 +2155,7 @@ select {
 
 
 
-/* ===== v11: streamlined authentication and contact reports ===== */
+/* ===== v12: guided authentication and contact reports ===== */
 .authStageBack {
   width: auto;
   margin: 0 0 10px auto;
@@ -2271,6 +2271,51 @@ select {
   border: 0;
   box-shadow: none;
   font-size: 13px;
+}
+
+.authRedirectPanel {
+  display: none;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+.authRedirectPanel.visible { display: block; }
+.authRedirectIcon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--green-200);
+  border-radius: 18px;
+  background: var(--green-50);
+  color: var(--green-700);
+  font-size: 27px;
+  font-weight: 800;
+}
+.authRedirectPanel h3 {
+  margin: 0 0 8px;
+  color: #17352d;
+  font-size: 21px;
+}
+.authRedirectPanel p {
+  margin: 0 0 15px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+#login .authRedirectLink {
+  width: 100%;
+  margin: 0 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+#login .authRedirectPanel .verificationTextBtn {
+  width: auto;
+  margin: 0 auto;
 }
 
 .contactReportBtn {
@@ -2422,19 +2467,11 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260715-v11" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260715-v12" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
     <div class="securityBadge">🔒 כניסה מאובטחת</div>
-  </div>
-
-  <div id="savedAccountCard" class="savedAccountCard">
-    <button type="button" class="savedAccountPrimary" onclick="continueWithSavedAccount()">
-      <span>המשך בתור</span>
-      <strong id="savedAccountEmail"></strong>
-    </button>
-    <button type="button" class="savedAccountOther" onclick="useDifferentAccount()">כניסה עם חשבון אחר</button>
   </div>
 
   <form class="authForm" id="authForm" onsubmit="event.preventDefault(); handlePrimaryAuthAction();">
@@ -2453,8 +2490,24 @@ select {
       <button type="button" id="emailContinueBtn" class="primaryAuthBtn" onclick="continueFromEmailStep()">המשך</button>
     </div>
 
+    <div id="authPhoneStep" style="display:none;">
+      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה לכתובת המייל</button>
+      <h3 class="authModeHeading">בדיקת מספר הטלפון</h3>
+      <p class="authModeDescription">כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
+
+      <div class="authField">
+        <label for="phoneInput">מספר טלפון</label>
+        <div class="authInputShell">
+          <span class="authFieldIcon" aria-hidden="true">☎</span>
+          <input type="tel" id="phoneInput" name="phone" placeholder="למשל 050-123-4567" autocomplete="tel" inputmode="tel">
+        </div>
+      </div>
+
+      <button type="button" id="phoneContinueBtn" class="primaryAuthBtn" onclick="continueFromPhoneStep()">המשך</button>
+    </div>
+
     <div id="authPasswordStep" style="display:none;">
-      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true })">← שינוי כתובת המייל</button>
+      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← שינוי כתובת המייל</button>
       <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
       <p id="authModeDescription" class="authModeDescription">הזינו את הסיסמה שלכם.</p>
       <div id="selectedAuthEmail" class="selectedAuthEmail"></div>
@@ -2477,21 +2530,11 @@ select {
         </div>
       </div>
 
-      <label class="rememberDeviceOption" for="rememberDeviceCheckbox">
-        <input type="checkbox" id="rememberDeviceCheckbox" checked>
-        <span>
-          זהו מכשיר פרטי — השאירו אותי מחובר/ת
-          <span class="rememberDeviceHelp">במכשיר משותף ניתן להסיר את הסימון.</span>
-        </span>
-      </label>
-
       <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
       <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
 
       <div class="authSecondaryLinks">
-        <button type="button" class="authLinkBtn" id="authSwitchModeBtn" onclick="toggleAuthMode()">שימוש ראשון? יצירת חשבון</button>
         <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
-        <button type="button" class="authLinkBtn" id="resendVerificationBtn" onclick="resendVerification()" style="display:none;">שליחת אימות מחדש</button>
       </div>
     </div>
   </form>
@@ -2509,28 +2552,15 @@ select {
     </div>
   </div>
 
-  <div id="loginStatus" class="statusMessage"></div>
-
-  <div class="authHelp">
-    <div class="authHelpTitle">צריכים עזרה?</div>
-    <div class="helpActions">
-      <a class="helpAction" href="email-update.html">
-        <span class="helpActionText">
-          <span class="helpActionTitle">המייל חסר או לא מעודכן?</span>
-          <span class="helpActionSubtitle">השלמה או עדכון כתובת מייל</span>
-        </span>
-        <span class="helpActionArrow" aria-hidden="true">‹</span>
-      </a>
-
-      <a class="helpAction" href="https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header" target="_blank" rel="noopener">
-        <span class="helpActionText">
-          <span class="helpActionTitle">משתמש/ת חדש/ה בספר אנשי הקשר?</span>
-          <span class="helpActionSubtitle">מילוי טופס הצטרפות</span>
-        </span>
-        <span class="helpActionArrow" aria-hidden="true">‹</span>
-      </a>
-    </div>
+  <div id="authRedirectPanel" class="authRedirectPanel">
+    <div class="authRedirectIcon">↗</div>
+    <h3 id="authRedirectTitle">מעביר לטופס המתאים</h3>
+    <p id="authRedirectMessage"></p>
+    <a id="authRedirectLink" class="primaryAuthBtn authRedirectLink" href="#">המשך</a>
+    <button type="button" class="verificationTextBtn" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">חזרה לתיקון הפרטים</button>
   </div>
+
+  <div id="loginStatus" class="statusMessage"></div>
 </div>
 
 <div id="app" style="display:none;">
@@ -2540,7 +2570,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260714-ui1" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260715-v12" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2578,7 +2608,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260714-ui1" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260715-v12" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2810,6 +2840,14 @@ const FIREBASE_CONFIG = {
 const FIREBASE_SDK_VERSION = "12.16.0";
 const PASSWORD_AUTH_RETURN_URL =
   "https://schneider-contacts.github.io/contacts-app/";
+const AUTH_ROUTER_URL =
+  "https://script.google.com/macros/s/AKfycbw1aJRjfWl-fYiZveZ5oKdvtv9v_UGUa6JUzv9G1GKQZVK4SKsYdt0GTCgI50fyLE5V/exec";
+const REGISTRATION_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
+const AUTH_ROUTE_TIMEOUT_MS = 9000;
+const AUTH_ROUTE_CACHE_MS = 2 * 60 * 1000;
+const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v1_";
+const PENDING_AUTH_EMAIL_STORAGE_KEY = "contacts_pending_auth_email_v1";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
 const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
 const CONTACT_DIRECTORY_META_ID = "meta";
@@ -2845,10 +2883,14 @@ let selectionMode = false;
 let activeQuickFilter = "";
 
 let authMode = "login";
+let authPurpose = "login";
 let authStage = "email";
 let forceEmailEntry = false;
 let authActionInProgress = false;
 let lastUnverifiedEmail = "";
+let lastUnknownEmail = "";
+let authRouteRequestSequence = 0;
+let pendingAuthRedirectTimer = null;
 
 let currentUserIsAdmin = false;
 let currentUserIsSuperAdmin = false;
@@ -3731,7 +3773,14 @@ function getAuthErrorMessage(error) {
 }
 
 function setAuthMode(mode) {
-  authMode = mode === "register" ? "register" : "login";
+  authPurpose = ["login", "register", "verify_existing", "guided"].includes(mode)
+    ? mode
+    : "guided";
+  authMode = authPurpose === "register"
+    ? "register"
+    : authPurpose === "guided"
+      ? "guided"
+      : "login";
   setLoginStatus("", "");
 
   const title = document.getElementById("loginTitle");
@@ -3741,9 +3790,7 @@ function setAuthMode(mode) {
   const confirmGroup = document.getElementById("confirmPasswordGroup");
   const confirmInput = document.getElementById("confirmPasswordInput");
   const passwordResetButton = document.getElementById("passwordResetBtn");
-  const resendButton = document.getElementById("resendVerificationBtn");
   const modeNote = document.getElementById("authModeNote");
-  const switchButton = document.getElementById("authSwitchModeBtn");
 
   [passwordInput, confirmInput].forEach(input => {
     if (input) input.type = "password";
@@ -3754,28 +3801,54 @@ function setAuthMode(mode) {
     toggle.setAttribute("aria-label", "הצגת הסיסמה");
   });
 
-  if (resendButton) resendButton.style.display = "none";
-  const isRegister = authMode === "register";
+  if (authPurpose === "guided") {
+    if (title) title.textContent = "המשך לחשבון";
+    if (description) {
+      description.textContent =
+        "הזינו את הסיסמה שלכם. בכניסה הראשונה הסיסמה תשמש ליצירת החשבון.";
+    }
+    if (button) button.textContent = "המשך";
+    if (passwordInput) passwordInput.autocomplete = "current-password";
+    if (confirmGroup) confirmGroup.style.display = "none";
+    if (confirmInput) confirmInput.value = "";
+    if (passwordResetButton) passwordResetButton.style.display = "inline-block";
+    if (modeNote) {
+      modeNote.style.display = "block";
+      modeNote.textContent =
+        "אם עדיין אין חשבון, הוא ייווצר רק לאחר בדיקה שהמייל מורשה במערכת.";
+    }
+    return;
+  }
 
-  if (isRegister) {
+  if (authPurpose === "register") {
     if (title) title.textContent = "יצירת חשבון";
     if (description) description.textContent = "בחרו סיסמה חדשה. לאחר מכן יישלח מייל אימות חד־פעמי.";
     if (button) button.textContent = "יצירת חשבון";
     if (passwordInput) passwordInput.autocomplete = "new-password";
     if (confirmGroup) confirmGroup.style.display = "block";
     if (passwordResetButton) passwordResetButton.style.display = "none";
-    if (modeNote) modeNote.style.display = "block";
-    if (switchButton) switchButton.textContent = "כבר יצרתם חשבון? חזרה לכניסה";
+    if (modeNote) {
+      modeNote.style.display = "block";
+      modeNote.textContent =
+        "לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.";
+    }
+    return;
+  }
+
+  if (confirmGroup) confirmGroup.style.display = "none";
+  if (confirmInput) confirmInput.value = "";
+  if (passwordInput) passwordInput.autocomplete = "current-password";
+  if (passwordResetButton) passwordResetButton.style.display = "inline-block";
+  if (modeNote) modeNote.style.display = "none";
+
+  if (authPurpose === "verify_existing") {
+    if (title) title.textContent = "השלמת אימות החשבון";
+    if (description) description.textContent = "הזינו את הסיסמה שבחרתם כדי לקבל או להשלים את אימות המייל.";
+    if (button) button.textContent = "המשך לאימות";
   } else {
     if (title) title.textContent = "כניסה לחשבון";
     if (description) description.textContent = "הזינו את הסיסמה שלכם.";
     if (button) button.textContent = "כניסה לחשבון";
-    if (passwordInput) passwordInput.autocomplete = "current-password";
-    if (confirmGroup) confirmGroup.style.display = "none";
-    if (confirmInput) confirmInput.value = "";
-    if (passwordResetButton) passwordResetButton.style.display = "inline-block";
-    if (modeNote) modeNote.style.display = "none";
-    if (switchButton) switchButton.textContent = "שימוש ראשון? יצירת חשבון";
   }
 }
 
@@ -3788,32 +3861,53 @@ function getSavedLoginEmail_() {
   }
 }
 
+function getPendingAuthEmail_() {
+  try {
+    const email = normalizeEmail(localStorage.getItem(PENDING_AUTH_EMAIL_STORAGE_KEY) || "");
+    return isValidEmail(email) ? email : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function rememberPendingAuthEmail_(email) {
+  const normalized = normalizeEmail(email);
+  if (!isValidEmail(normalized)) return;
+  try {
+    localStorage.setItem(PENDING_AUTH_EMAIL_STORAGE_KEY, normalized);
+  } catch (error) {
+    console.warn("Could not remember pending auth email", error);
+  }
+}
+
+function clearPendingAuthEmail_() {
+  try {
+    localStorage.removeItem(PENDING_AUTH_EMAIL_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Could not clear pending auth email", error);
+  }
+}
+
 function rememberSuccessfulEmail_(email) {
   const normalized = normalizeEmail(email);
   if (!isValidEmail(normalized)) return;
   try {
     localStorage.setItem(LAST_LOGIN_EMAIL_STORAGE_KEY, normalized);
+    clearPendingAuthEmail_();
+    clearCachedAuthRoute_("email", normalized);
   } catch (error) {
     console.warn("Could not remember login email", error);
   }
 }
 
 function updateSavedAccountCard_() {
-  const card = document.getElementById("savedAccountCard");
-  const label = document.getElementById("savedAccountEmail");
-  if (!card || !label) return;
+  // v12: Firebase local persistence handles returning users automatically.
+  // The old account-choice card is intentionally no longer displayed.
+}
 
-  const savedEmail = getSavedLoginEmail_();
-  const shouldShow = authStage === "email" && Boolean(savedEmail) && !forceEmailEntry && !(auth && auth.currentUser);
-  card.classList.toggle("visible", shouldShow);
-  label.textContent = savedEmail;
-
-  const form = document.getElementById("authForm");
-  const verificationPanel = document.getElementById("verificationPanel");
-  const verificationVisible = verificationPanel && verificationPanel.classList.contains("visible");
-  if (form && authStage === "email" && !verificationVisible) {
-    form.style.display = shouldShow ? "none" : "block";
-  }
+function setAuthRedirectPanelVisible_(visible) {
+  const panel = document.getElementById("authRedirectPanel");
+  if (panel) panel.classList.toggle("visible", Boolean(visible));
 }
 
 function setVerificationPanelVisible_(visible) {
@@ -3821,25 +3915,59 @@ function setVerificationPanelVisible_(visible) {
   const panel = document.getElementById("verificationPanel");
   if (form) form.style.display = visible ? "none" : "block";
   if (panel) panel.classList.toggle("visible", Boolean(visible));
-  if (visible) {
-    const savedCard = document.getElementById("savedAccountCard");
-    if (savedCard) savedCard.classList.remove("visible");
-  }
+  if (visible) setAuthRedirectPanelVisible_(false);
+}
+
+function hideAllAuthFormSteps_() {
+  ["authEmailStep", "authPhoneStep", "authPasswordStep"].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) element.style.display = "none";
+  });
 }
 
 function showAuthEmailStep_(options = {}) {
   authStage = "email";
+  authPurpose = "login";
+  authMode = "login";
   forceEmailEntry = options.forceEmailEntry === true;
   setVerificationPanelVisible_(false);
+  setAuthRedirectPanelVisible_(false);
+  hideAllAuthFormSteps_();
+
   const emailStep = document.getElementById("authEmailStep");
-  const passwordStep = document.getElementById("authPasswordStep");
+  const form = document.getElementById("authForm");
+  const input = document.getElementById("emailInput");
+  if (form) form.style.display = "block";
   if (emailStep) emailStep.style.display = "block";
-  if (passwordStep) passwordStep.style.display = "none";
+
+  if (!options.preserveEmail && forceEmailEntry && input) input.value = "";
+  if (input && !input.value) {
+    input.value = getPendingAuthEmail_() || getSavedLoginEmail_() || "";
+  }
+
   if (!options.keepStatus) setLoginStatus("", "");
-  updateSavedAccountCard_();
   setTimeout(() => {
-    const input = document.getElementById("emailInput");
-    if (input && !getSavedLoginEmail_()) input.focus();
+    if (input) input.focus();
+  }, 0);
+}
+
+function showAuthPhoneStep_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  authStage = "phone";
+  lastUnknownEmail = normalizedEmail;
+  setVerificationPanelVisible_(false);
+  setAuthRedirectPanelVisible_(false);
+  hideAllAuthFormSteps_();
+
+  const form = document.getElementById("authForm");
+  const phoneStep = document.getElementById("authPhoneStep");
+  const phoneInput = document.getElementById("phoneInput");
+  if (form) form.style.display = "block";
+  if (phoneStep) phoneStep.style.display = "block";
+  if (phoneInput) phoneInput.value = "";
+  setLoginStatus("", "");
+  setTimeout(() => {
+    if (phoneInput) phoneInput.focus();
   }, 0);
 }
 
@@ -3853,16 +3981,19 @@ function showAuthPasswordStep_(email, mode = "login") {
   authStage = "password";
   forceEmailEntry = false;
   setVerificationPanelVisible_(false);
+  setAuthRedirectPanelVisible_(false);
+  hideAllAuthFormSteps_();
+
   const emailInput = document.getElementById("emailInput");
-  const emailStep = document.getElementById("authEmailStep");
+  const form = document.getElementById("authForm");
   const passwordStep = document.getElementById("authPasswordStep");
   const selectedEmail = document.getElementById("selectedAuthEmail");
   if (emailInput) emailInput.value = normalized;
   if (selectedEmail) selectedEmail.textContent = normalized;
-  if (emailStep) emailStep.style.display = "none";
+  if (form) form.style.display = "block";
   if (passwordStep) passwordStep.style.display = "block";
   setAuthMode(mode);
-  updateSavedAccountCard_();
+  setLoginStatus("", "");
   setTimeout(() => {
     const password = document.getElementById("passwordInput");
     if (password) password.focus();
@@ -3870,12 +4001,233 @@ function showAuthPasswordStep_(email, mode = "login") {
   return true;
 }
 
-function continueFromEmailStep() {
+function getAuthRouteCacheKey_(kind, value) {
+  return AUTH_ROUTE_CACHE_PREFIX + kind + "_" + encodeURIComponent(String(value || "").toLowerCase());
+}
+
+function getCachedAuthRoute_(kind, value) {
+  try {
+    const raw = sessionStorage.getItem(getAuthRouteCacheKey_(kind, value));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.savedAt || Date.now() - parsed.savedAt > AUTH_ROUTE_CACHE_MS) {
+      sessionStorage.removeItem(getAuthRouteCacheKey_(kind, value));
+      return null;
+    }
+    return parsed.payload || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveAuthRouteCache_(kind, value, payload) {
+  if (!payload || ["SYSTEM_ERROR", "WAIT"].includes(payload.route)) return;
+  try {
+    sessionStorage.setItem(
+      getAuthRouteCacheKey_(kind, value),
+      JSON.stringify({ savedAt: Date.now(), payload })
+    );
+  } catch (error) {
+    console.warn("Could not cache auth route", error);
+  }
+}
+
+function clearCachedAuthRoute_(kind, value) {
+  try {
+    sessionStorage.removeItem(getAuthRouteCacheKey_(kind, value));
+  } catch (error) {
+    console.warn("Could not clear auth route cache", error);
+  }
+}
+
+function requestPublicAuthRoute_(kind, value, options = {}) {
+  const normalizedValue = kind === "email"
+    ? normalizeEmail(value)
+    : normalizePhone(value);
+  const forceFresh = options.forceFresh === true;
+  const cached = forceFresh ? null : getCachedAuthRoute_(kind, normalizedValue);
+  if (cached) return Promise.resolve(cached);
+
+  return new Promise((resolve, reject) => {
+    const sequence = ++authRouteRequestSequence;
+    const callbackName = `__contactsAuthRoute_${Date.now()}_${sequence}`;
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch (error) { window[callbackName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("AUTH_ROUTE_TIMEOUT"));
+    }, AUTH_ROUTE_TIMEOUT_MS);
+
+    window[callbackName] = payload => {
+      cleanup();
+      if (!payload || payload.ok !== true) {
+        reject(new Error(payload && payload.message ? payload.message : "AUTH_ROUTE_FAILED"));
+        return;
+      }
+      saveAuthRouteCache_(kind, normalizedValue, payload);
+      resolve(payload);
+    };
+
+    const params = new URLSearchParams({
+      action: "authRoute",
+      kind,
+      value: normalizedValue,
+      callback: callbackName,
+      _: String(Date.now())
+    });
+    if (forceFresh) params.set("fresh", "1");
+    script.src = `${AUTH_ROUTER_URL}?${params.toString()}`;
+    script.async = true;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("AUTH_ROUTE_NETWORK"));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function setStepButtonBusy_(buttonId, busy, busyText, normalText) {
+  const button = document.getElementById(buttonId);
+  if (!button) return;
+  button.disabled = Boolean(busy);
+  button.textContent = busy ? busyText : normalText;
+}
+
+async function continueFromEmailStep(options = {}) {
   const input = document.getElementById("emailInput");
   const email = normalizeEmail(input ? input.value : "");
-  const savedEmail = getSavedLoginEmail_();
-  const mode = email && email === savedEmail ? "login" : authMode;
-  showAuthPasswordStep_(email, mode);
+
+  if (!isValidEmail(email)) {
+    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
+    return;
+  }
+
+  setStepButtonBusy_("emailContinueBtn", true, "בודק...", "המשך");
+  setLoginStatus("בודק את מסלול הכניסה המתאים...", "loading");
+
+  try {
+    const result = await requestPublicAuthRoute_("email", email, options);
+    const route = String(result.route || "SYSTEM_ERROR");
+
+    if (route === "PASSWORD") {
+      rememberPendingAuthEmail_(email);
+      showAuthPasswordStep_(email, "guided");
+      return;
+    }
+
+    if (route === "ASK_PHONE") {
+      showAuthPhoneStep_(email);
+      return;
+    }
+
+    if (route === "BLOCKED") {
+      setLoginStatus("הגישה לכתובת המייל הזו אינה פעילה. יש לפנות למנהל ספר אנשי הקשר.", "error");
+      return;
+    }
+
+    setLoginStatus("לא הצלחנו לבדוק את פרטי הכניסה כרגע. נסו שוב בעוד רגע.", "error");
+  } catch (error) {
+    console.error("Auth route lookup failed", error);
+    setLoginStatus("בדיקת פרטי הכניסה נכשלה זמנית. בדקו את החיבור ונסו שוב.", "error");
+  } finally {
+    setStepButtonBusy_("emailContinueBtn", false, "בודק...", "המשך");
+  }
+}
+
+function isValidPhoneForRouting_(phone) {
+  const digits = normalizePhone(phone).replace(/\D/g, "");
+  return digits.startsWith("972") && digits.length >= 11 && digits.length <= 12;
+}
+
+function showAuthRedirectPanel_(title, message, href, linkText, autoOpen = false) {
+  authStage = "redirect";
+  if (pendingAuthRedirectTimer) {
+    clearTimeout(pendingAuthRedirectTimer);
+    pendingAuthRedirectTimer = null;
+  }
+  setVerificationPanelVisible_(false);
+  const form = document.getElementById("authForm");
+  if (form) form.style.display = "none";
+  setAuthRedirectPanelVisible_(true);
+
+  const titleElement = document.getElementById("authRedirectTitle");
+  const messageElement = document.getElementById("authRedirectMessage");
+  const link = document.getElementById("authRedirectLink");
+  if (titleElement) titleElement.textContent = title;
+  if (messageElement) messageElement.textContent = message;
+  if (link) {
+    link.href = href;
+    link.textContent = linkText;
+  }
+  setLoginStatus("", "");
+
+  if (autoOpen) {
+    pendingAuthRedirectTimer = setTimeout(() => {
+      window.location.assign(href);
+    }, 650);
+  }
+}
+
+async function continueFromPhoneStep() {
+  const input = document.getElementById("phoneInput");
+  const phone = normalizePhone(input ? input.value : "");
+
+  if (!isValidPhoneForRouting_(phone)) {
+    setLoginStatus("הכניסו מספר טלפון ישראלי תקין.", "error");
+    return;
+  }
+
+  setStepButtonBusy_("phoneContinueBtn", true, "בודק...", "המשך");
+  setLoginStatus("מחפש את מספר הטלפון בספר אנשי הקשר...", "loading");
+
+  try {
+    const result = await requestPublicAuthRoute_("phone", phone, { forceFresh: true });
+    const route = String(result.route || "SYSTEM_ERROR");
+
+    if (route === "UPDATE_EMAIL") {
+      const params = new URLSearchParams({
+        phone: formatPhoneForDisplay(phone),
+        email: lastUnknownEmail,
+        from: "login"
+      });
+      const href = `email-update.html?${params.toString()}`;
+      showAuthRedirectPanel_(
+        "מספר הטלפון נמצא",
+        "מעביר אתכם לעדכון כתובת המייל. לאחר העדכון תחזרו ישירות למסלול הכניסה המתאים.",
+        href,
+        "מעבר לעדכון המייל",
+        true
+      );
+      return;
+    }
+
+    if (route === "OPEN_FORM") {
+      showAuthRedirectPanel_(
+        "מספר הטלפון אינו מופיע במערכת",
+        "מעביר אתכם לטופס ההצטרפות לספר אנשי הקשר.",
+        REGISTRATION_FORM_URL,
+        "מעבר לטופס ההצטרפות",
+        true
+      );
+      return;
+    }
+
+    setLoginStatus("לא הצלחנו לבדוק את מספר הטלפון כרגע. נסו שוב בעוד רגע.", "error");
+  } catch (error) {
+    console.error("Phone route lookup failed", error);
+    setLoginStatus("בדיקת מספר הטלפון נכשלה זמנית. בדקו את החיבור ונסו שוב.", "error");
+  } finally {
+    setStepButtonBusy_("phoneContinueBtn", false, "בודק...", "המשך");
+  }
 }
 
 function continueWithSavedAccount() {
@@ -3884,7 +4236,9 @@ function continueWithSavedAccount() {
     showAuthEmailStep_();
     return;
   }
-  showAuthPasswordStep_(savedEmail, "login");
+  const input = document.getElementById("emailInput");
+  if (input) input.value = savedEmail;
+  continueFromEmailStep();
 }
 
 async function useDifferentAccount() {
@@ -3898,12 +4252,15 @@ async function useDifferentAccount() {
   }
 
   const emailInput = document.getElementById("emailInput");
+  const phoneInput = document.getElementById("phoneInput");
   const passwordInput = document.getElementById("passwordInput");
   const confirmInput = document.getElementById("confirmPasswordInput");
   if (emailInput) emailInput.value = "";
+  if (phoneInput) phoneInput.value = "";
   if (passwordInput) passwordInput.value = "";
   if (confirmInput) confirmInput.value = "";
-  setAuthMode("login");
+  lastUnknownEmail = "";
+  clearPendingAuthEmail_();
   showAuthEmailStep_({ forceEmailEntry: true });
 }
 
@@ -3911,6 +4268,8 @@ function showVerificationPanel_(user, email = "") {
   const targetEmail = normalizeEmail(email || (user && user.email) || lastUnverifiedEmail);
   authStage = "verification";
   lastUnverifiedEmail = targetEmail;
+  rememberPendingAuthEmail_(targetEmail);
+  clearCachedAuthRoute_("email", targetEmail);
   showLoginScreen();
   setVerificationPanelVisible_(true);
   const emailLabel = document.getElementById("verificationEmail");
@@ -3977,10 +4336,21 @@ async function resendVerificationFromPanel() {
   }
 }
 
-function toggleAuthMode() {
-  setLoginStatus("", "");
-  setAuthMode(authMode === "login" ? "register" : "login");
+async function sendVerificationForSignedInUser_(user, email) {
+  const normalizedEmail = normalizeEmail(email || (user && user.email));
+  if (!user || !normalizedEmail) return false;
+  if (!ensureAuthEmailCooldownFinished("verification", normalizedEmail)) return false;
+
+  const permission = await getCurrentUserPermission(normalizedEmail);
+  if (!permission.exists || !permission.active) {
+    throw new Error("PERMISSION_INACTIVE");
+  }
+
+  await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
+  startAuthEmailCooldown("verification", normalizedEmail);
+  return true;
 }
+
 
 function togglePasswordVisibility(inputId, button) {
   const input = document.getElementById(inputId);
@@ -4097,18 +4467,18 @@ async function deleteNewAuthUserSafely(user) {
 
 async function applySelectedAuthPersistence() {
   if (!firebaseApi || !auth) return;
-
-  const rememberCheckbox = document.getElementById("rememberDeviceCheckbox");
-  const persistence = rememberCheckbox && rememberCheckbox.checked
-    ? firebaseApi.browserLocalPersistence
-    : firebaseApi.browserSessionPersistence;
-
-  await firebaseApi.setPersistence(auth, persistence);
+  // משתמש שכבר התחבר במכשיר נשאר מחובר עד יציאה יזומה.
+  await firebaseApi.setPersistence(auth, firebaseApi.browserLocalPersistence);
 }
 
 async function handlePrimaryAuthAction() {
   if (authStage === "email") {
-    continueFromEmailStep();
+    await continueFromEmailStep();
+    return;
+  }
+
+  if (authStage === "phone") {
+    await continueFromPhoneStep();
     return;
   }
 
@@ -4116,14 +4486,200 @@ async function handlePrimaryAuthAction() {
     await applySelectedAuthPersistence();
   } catch (error) {
     console.error("Could not update authentication persistence", error);
-    setLoginStatus("לא הצלחנו לשמור את העדפת ההתחברות. נסו שוב.", "error");
+    setLoginStatus("לא הצלחנו לשמור את ההתחברות במכשיר. נסו שוב.", "error");
     return;
   }
 
   if (authMode === "register") {
     await registerWithPassword();
+  } else if (authMode === "guided") {
+    await loginOrCreateWithPassword();
   } else {
     await loginWithPassword();
+  }
+}
+
+async function loginOrCreateWithPassword() {
+  if (!firebaseApi || !auth || !db) {
+    setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
+    return;
+  }
+
+  const { email, password } = getAuthInputs();
+
+  if (!isValidEmail(email)) {
+    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
+    return;
+  }
+
+  if (!password) {
+    setLoginStatus("הכניסו סיסמה.", "error");
+    return;
+  }
+
+  if (password.length < 6) {
+    setLoginStatus("הסיסמה חייבת להכיל לפחות 6 תווים.", "error");
+    return;
+  }
+
+  setLoginButtonDisabled(true);
+  setLoginStatus("בודק וממשיך לחשבון...", "loading");
+  authActionInProgress = true;
+
+  try {
+    try {
+      const credential = await firebaseApi.signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      if (!credential.user.emailVerified) {
+        await firebaseApi.reload(credential.user);
+      }
+
+      if (!credential.user.emailVerified) {
+        lastUnverifiedEmail = email;
+        showVerificationPanel_(credential.user, email);
+
+        try {
+          const remaining = getAuthEmailCooldownRemaining(
+            "verification",
+            email
+          );
+          if (remaining <= 0) {
+            const sent = await sendVerificationForSignedInUser_(
+              credential.user,
+              email
+            );
+            if (sent) {
+              setLoginStatus(
+                "נשלח מייל אימות. ב־Gmail בדקו גם בתיקיית הספאם.",
+                "success"
+              );
+            }
+          } else {
+            setLoginStatus(
+              "מייל אימות כבר נשלח לאחרונה. פתחו אותו ולחצו על הקישור.",
+              "success"
+            );
+          }
+        } catch (verificationError) {
+          console.error(
+            "Automatic verification send failed",
+            verificationError
+          );
+          if (
+            verificationError &&
+            verificationError.message === "PERMISSION_INACTIVE"
+          ) {
+            await firebaseApi.signOut(auth);
+            showAuthEmailStep_({
+              forceEmailEntry: true,
+              preserveEmail: true
+            });
+            setLoginStatus(
+              "הגישה לכתובת המייל הזו אינה פעילה.",
+              "error"
+            );
+          } else {
+            setLoginStatus(
+              "החשבון ממתין לאימות. ניתן לשלוח מייל אימות מחדש מהכפתור למטה.",
+              "error"
+            );
+          }
+        }
+        return;
+      }
+
+      rememberSuccessfulEmail_(email);
+      await handleAuthenticatedUser(credential.user);
+      return;
+    } catch (signInError) {
+      const code = signInError && signInError.code
+        ? signInError.code
+        : "";
+
+      const canTryCreate = [
+        "auth/invalid-credential",
+        "auth/invalid-login-credentials",
+        "auth/wrong-password",
+        "auth/user-not-found"
+      ].includes(code);
+
+      if (!canTryCreate) {
+        throw signInError;
+      }
+    }
+
+    setLoginStatus("בודק אם זו כניסה ראשונה...", "loading");
+
+    let createdUser = null;
+    let verificationSent = false;
+
+    try {
+      const credential = await firebaseApi.createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      createdUser = credential.user;
+
+      const permission = await getCurrentUserPermission(email);
+      if (!permission.exists || !permission.active) {
+        await deleteNewAuthUserSafely(createdUser);
+        createdUser = null;
+        showAuthEmailStep_({
+          forceEmailEntry: true,
+          preserveEmail: true
+        });
+        setLoginStatus(
+          "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר.",
+          "error"
+        );
+        return;
+      }
+
+      auth.languageCode = "he";
+      await firebaseApi.sendEmailVerification(createdUser, {
+        url: PASSWORD_AUTH_RETURN_URL
+      });
+      verificationSent = true;
+      startAuthEmailCooldown("verification", email);
+
+      lastUnverifiedEmail = email;
+      rememberPendingAuthEmail_(email);
+      document.getElementById("passwordInput").value = "";
+      document.getElementById("confirmPasswordInput").value = "";
+      showVerificationPanel_(createdUser, email);
+      setLoginStatus(
+        "החשבון נוצר ונשלח מייל אימות. ב־Gmail בדקו גם בתיקיית הספאם.",
+        "success"
+      );
+    } catch (createError) {
+      if (createdUser && !verificationSent) {
+        await deleteNewAuthUserSafely(createdUser);
+      }
+
+      const createCode =
+        createError && createError.code ? createError.code : "";
+
+      if (createCode === "auth/email-already-in-use") {
+        setLoginStatus(
+          "הסיסמה אינה נכונה. נסו שוב או השתמשו ב„שכחתי סיסמה”.",
+          "error"
+        );
+        return;
+      }
+
+      throw createError;
+    }
+  } catch (error) {
+    console.error("Guided password flow failed", error);
+    setLoginStatus(getAuthErrorMessage(error), "error");
+  } finally {
+    authActionInProgress = false;
+    setLoginButtonDisabled(false);
   }
 }
 
@@ -4182,7 +4738,7 @@ async function registerWithPassword() {
       createdUser = null;
 
       setLoginStatus(
-        "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר. בדקו שהמייל הוזן נכון או עדכנו אותו דרך הקישור למטה.",
+        "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
         "error"
       );
       return;
@@ -4208,7 +4764,19 @@ async function registerWithPassword() {
       await deleteNewAuthUserSafely(createdUser);
     }
 
-    setLoginStatus(getAuthErrorMessage(error), "error");
+    const code = error && error.code ? error.code : "";
+    if (code === "auth/email-already-in-use") {
+      const input = document.getElementById("emailInput");
+      if (input) input.value = email;
+      try {
+        await continueFromEmailStep({ forceFresh: true });
+        setLoginStatus("כבר קיים חשבון לכתובת הזו. המשיכו במסלול שמוצג.", "success");
+      } catch (routeError) {
+        setLoginStatus("כבר קיים חשבון לכתובת הזו. חזרו לשלב המייל ונסו שוב.", "error");
+      }
+    } else {
+      setLoginStatus(getAuthErrorMessage(error), "error");
+    }
   } finally {
     authActionInProgress = false;
     setLoginButtonDisabled(false);
@@ -4251,6 +4819,27 @@ async function loginWithPassword() {
     if (!credential.user.emailVerified) {
       lastUnverifiedEmail = email;
       showVerificationPanel_(credential.user, email);
+
+      try {
+        const remaining = getAuthEmailCooldownRemaining("verification", email);
+        if (remaining <= 0) {
+          const sent = await sendVerificationForSignedInUser_(credential.user, email);
+          if (sent) {
+            setLoginStatus("נשלח מייל אימות. ב־Gmail בדקו גם בתיקיית הספאם.", "success");
+          }
+        } else {
+          setLoginStatus("מייל אימות כבר נשלח לאחרונה. פתחו אותו ולחצו על הקישור.", "success");
+        }
+      } catch (verificationError) {
+        console.error("Automatic verification send failed", verificationError);
+        if (verificationError && verificationError.message === "PERMISSION_INACTIVE") {
+          await firebaseApi.signOut(auth);
+          showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true });
+          setLoginStatus("הגישה לכתובת המייל הזו אינה פעילה.", "error");
+        } else {
+          setLoginStatus("החשבון ממתין לאימות. ניתן לשלוח מייל אימות מחדש מהכפתור למטה.", "error");
+        }
+      }
       return;
     }
 
@@ -4261,7 +4850,7 @@ async function loginWithPassword() {
     const code = error && error.code ? error.code : "";
     if (["auth/invalid-credential", "auth/invalid-login-credentials", "auth/wrong-password", "auth/user-not-found"].includes(code)) {
       setLoginStatus(
-        "כתובת המייל או הסיסמה אינן נכונות. אם זה השימוש הראשון שלכם, לחצו על „שימוש ראשון? יצירת חשבון”.",
+        "כתובת המייל או הסיסמה אינן נכונות. בדקו את הסיסמה או השתמשו ב„שכחתי סיסמה”.",
         "error"
       );
     } else {
@@ -4887,7 +5476,7 @@ async function loadAdminData() {
     const activityQuery = firebaseApi.query(
       firebaseApi.collection(db, "admin_actions"),
       firebaseApi.orderBy("timestamp", "desc"),
-      firebaseApi.limit(150)
+      firebaseApi.limit(10)
     );
 
     const usageQuery = firebaseApi.query(
@@ -5204,7 +5793,7 @@ function renderAdminActivity() {
 
       return adminActivityMatchesQuery(activity, query);
     })
-    .slice(0, 150);
+    .slice(0, 10);
 
   document.getElementById("adminSummary").textContent =
     activities.length === 1
@@ -6388,13 +6977,22 @@ async function initializeFirebase() {
     firebaseApi.browserLocalPersistence
   );
 
-  firebaseApi.onAuthStateChanged(auth, user => {
-    if (authActionInProgress) return;
+  return await new Promise(resolve => {
+    let initialStateResolved = false;
 
-    handleAuthenticatedUser(user).catch(error => {
-      console.error("Authentication state handling failed", error);
-      showLoginScreen();
-      setLoginStatus("שגיאה בכניסה למערכת. נסו לרענן את הדף.", "error");
+    firebaseApi.onAuthStateChanged(auth, user => {
+      if (!initialStateResolved) {
+        initialStateResolved = true;
+        resolve(user || null);
+      }
+
+      if (authActionInProgress) return;
+
+      handleAuthenticatedUser(user).catch(error => {
+        console.error("Authentication state handling failed", error);
+        showLoginScreen();
+        setLoginStatus("שגיאה בכניסה למערכת. נסו לרענן את הדף.", "error");
+      });
     });
   });
 }
@@ -7043,39 +7641,72 @@ function init() {
     return;
   }
 
-  const requestedAuthMode = params.get("authMode") === "register" ? "register" : "login";
   const requestedEmail = normalizeEmail(params.get("email") || "");
+  const forceFreshRoute = params.get("fresh") === "1";
+  const pendingEmail = getPendingAuthEmail_();
+  const autoRouteEmail = isValidEmail(requestedEmail)
+    ? requestedEmail
+    : pendingEmail;
 
   loadPendingUsage_();
-  setAuthMode(requestedAuthMode);
+  showAuthEmailStep_({ keepStatus: true });
 
-  if (requestedEmail && isValidEmail(requestedEmail)) {
-    showAuthPasswordStep_(requestedEmail, requestedAuthMode);
-  } else {
-    showAuthEmailStep_({ keepStatus: true });
-  }
+  const emailInput = document.getElementById("emailInput");
+  if (emailInput && autoRouteEmail) emailInput.value = autoRouteEmail;
 
   setLoginStatus("טוען את המערכת...", "loading");
   setLoginButtonDisabled(true);
+  setStepButtonBusy_("emailContinueBtn", true, "טוען...", "המשך");
+
+  // מונע מהמאזין לבצע במקביל את אותה פעולת כניסה ראשונית.
+  // לאחר קבלת מצב הסשן הראשוני, init מנתב פעם אחת בלבד.
+  authActionInProgress = true;
 
   initializeFirebase()
-    .then(() => {
+    .then(async initialUser => {
       setLoginButtonDisabled(false);
+      setStepButtonBusy_("emailContinueBtn", false, "טוען...", "המשך");
 
-      if (!auth.currentUser) {
-        setLoginStatus("", "");
+      const shouldSwitchAfterEmailUpdate = Boolean(
+        initialUser &&
+        forceFreshRoute &&
+        isValidEmail(requestedEmail) &&
+        normalizeEmail(initialUser.email) !== requestedEmail
+      );
+
+      if (shouldSwitchAfterEmailUpdate) {
+        try {
+          await firebaseApi.signOut(auth);
+        } catch (error) {
+          console.error("Could not switch to the updated email", error);
+        }
+        initialUser = null;
+      }
+
+      authActionInProgress = false;
+
+      if (initialUser) {
+        // סשן מקומי תקף נכנס אוטומטית, בלי מסך מייל או סיסמה.
+        await handleAuthenticatedUser(initialUser);
+        return;
+      }
+
+      setLoginStatus("", "");
+      if (autoRouteEmail) {
+        await continueFromEmailStep({ forceFresh: forceFreshRoute });
       }
     })
     .catch(error => {
+      authActionInProgress = false;
       console.error("Firebase initialization failed", error);
       setLoginButtonDisabled(false);
+      setStepButtonBusy_("emailContinueBtn", false, "טוען...", "המשך");
       setLoginStatus(
         "לא הצלחנו לטעון את מערכת ההתחברות. נסו לרענן את הדף.",
         "error"
       );
     });
 }
-
 init();
 </script>
 
