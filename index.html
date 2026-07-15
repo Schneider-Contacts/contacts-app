@@ -2467,7 +2467,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260715-v12" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260715-v12-3" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2491,7 +2491,7 @@ select {
     </div>
 
     <div id="authPhoneStep" style="display:none;">
-      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה לכתובת המייל</button>
+      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
       <h3 class="authModeHeading">בדיקת מספר הטלפון</h3>
       <p class="authModeDescription">כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
 
@@ -2507,7 +2507,7 @@ select {
     </div>
 
     <div id="authPasswordStep" style="display:none;">
-      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← שינוי כתובת המייל</button>
+      <button type="button" class="authStageBack" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
       <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
       <p id="authModeDescription" class="authModeDescription">הזינו את הסיסמה שלכם.</p>
       <div id="selectedAuthEmail" class="selectedAuthEmail"></div>
@@ -2548,7 +2548,7 @@ select {
       <button type="button" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
       <button type="button" class="verificationSecondary" onclick="openGmailInbox()">פתיחת Gmail</button>
       <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
-      <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">שימוש בכתובת מייל אחרת</button>
+      <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">← חזרה למסך הראשי</button>
     </div>
   </div>
 
@@ -2557,7 +2557,7 @@ select {
     <h3 id="authRedirectTitle">מעביר לטופס המתאים</h3>
     <p id="authRedirectMessage"></p>
     <a id="authRedirectLink" class="primaryAuthBtn authRedirectLink" href="#">המשך</a>
-    <button type="button" class="verificationTextBtn" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">חזרה לתיקון הפרטים</button>
+    <button type="button" class="verificationTextBtn" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
   </div>
 
   <div id="loginStatus" class="statusMessage"></div>
@@ -2570,7 +2570,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260715-v12" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260715-v12-3" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2608,7 +2608,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260715-v12" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260715-v12-3" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -3802,10 +3802,10 @@ function setAuthMode(mode) {
   });
 
   if (authPurpose === "guided") {
-    if (title) title.textContent = "המשך לחשבון";
+    if (title) title.textContent = "כניסה או יצירת חשבון";
     if (description) {
       description.textContent =
-        "הזינו את הסיסמה שלכם. בכניסה הראשונה הסיסמה תשמש ליצירת החשבון.";
+        "הזינו סיסמה. בחשבון קיים זו הסיסמה שכבר קבעתם; בכניסה הראשונה זו תהיה הסיסמה החדשה שלכם.";
     }
     if (button) button.textContent = "המשך";
     if (passwordInput) passwordInput.autocomplete = "current-password";
@@ -3815,7 +3815,7 @@ function setAuthMode(mode) {
     if (modeNote) {
       modeNote.style.display = "block";
       modeNote.textContent =
-        "אם עדיין אין חשבון, הוא ייווצר רק לאחר בדיקה שהמייל מורשה במערכת.";
+        "המערכת תבדוק אוטומטית: חשבון קיים יתחבר; בכניסה ראשונה ייווצר חשבון ורק לאחר מכן יישלח מייל אימות.";
     }
     return;
   }
@@ -4523,7 +4523,7 @@ async function loginOrCreateWithPassword() {
   }
 
   setLoginButtonDisabled(true);
-  setLoginStatus("בודק וממשיך לחשבון...", "loading");
+  setLoginStatus("בודק את החשבון...", "loading");
   authActionInProgress = true;
 
   try {
