@@ -2987,6 +2987,8 @@ const LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 const USAGE_DAILY_COLLECTION_NAME = "usageDaily";
+const DAILY_ACTIVE_USERS_COLLECTION_NAME = "dailyActiveUsers";
+const DAILY_ACTIVE_USERS_STORAGE_PREFIX = "contacts_daily_active_user_v1_";
 const USAGE_SEARCH_FLUSH_DELAY_MS = 3 * 60 * 1000;
 const USAGE_LOGIN_FLUSH_DELAY_MS = 1200;
 const USAGE_SEARCH_FLUSH_THRESHOLD = 10;
@@ -3035,6 +3037,7 @@ let adminAllowedUsers = [];
 let adminManagers = [];
 let adminActivity = [];
 let adminUsageDaily = [];
+let adminDailyActiveUsers = [];
 let adminReports = [];
 let adminVerificationRequests = [];
 let pendingUsageByDate = {};
@@ -3212,21 +3215,80 @@ async function flushUsageMetrics_() {
   }
 }
 
-function recordAppEntryOnce_(user) {
+function recordDailyActiveUser_(user) {
   const uid = String(user && user.uid || "");
-  if (!uid) return;
+  if (!uid || !db || !firebaseApi || !currentUserHasAppAccess) return;
 
   const dateKey = getIsraelDateKey_();
-  const storageKey = `contacts_usage_entry_${dateKey}_${uid}`;
+  const storageKey = `${DAILY_ACTIVE_USERS_STORAGE_PREFIX}${dateKey}_${uid}`;
 
   try {
-    if (sessionStorage.getItem(storageKey) === "1") return;
-    sessionStorage.setItem(storageKey, "1");
+    if (localStorage.getItem(storageKey) === "1") return;
   } catch (error) {
-    console.warn("Could not store usage session marker", error);
+    console.warn("Could not read daily active-user marker", error);
   }
 
-  queueUsageMetric_("login", 1);
+  // הרישום אינו חלק מתהליך הכניסה ואינו מעכב את הצגת האפליקציה.
+  setTimeout(async () => {
+    try {
+      await firebaseApi.setDoc(
+        firebaseApi.doc(
+          db,
+          DAILY_ACTIVE_USERS_COLLECTION_NAME,
+          dateKey,
+          "users",
+          uid
+        ),
+        { date: dateKey },
+        { merge: true }
+      );
+
+      try {
+        localStorage.setItem(storageKey, "1");
+      } catch (error) {
+        console.warn("Could not store daily active-user marker", error);
+      }
+    } catch (error) {
+      // מדדי שימוש לעולם אינם מונעים מהמשתמש לעבוד באפליקציה.
+      console.warn("Daily active-user metric write failed", error);
+    }
+  }, 1500);
+}
+
+function getRecentIsraelDateKeys_(days = 14) {
+  const safeDays = Math.max(1, Math.min(30, Math.floor(Number(days) || 14)));
+  const todayKey = getIsraelDateKey_();
+  const [year, month, day] = todayKey.split("-").map(Number);
+  const cursor = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const keys = [];
+
+  for (let index = 0; index < safeDays; index += 1) {
+    keys.push(getIsraelDateKey_(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+
+  return keys;
+}
+
+async function loadDailyActiveUserCounts_(dateKeys) {
+  return await Promise.all(dateKeys.map(async dateKey => {
+    try {
+      const usersCollection = firebaseApi.collection(
+        db,
+        DAILY_ACTIVE_USERS_COLLECTION_NAME,
+        dateKey,
+        "users"
+      );
+      const snapshot = await firebaseApi.getCountFromServer(usersCollection);
+      return {
+        date: dateKey,
+        activeUserCount: Math.max(0, Number(snapshot.data().count) || 0)
+      };
+    } catch (error) {
+      console.error(`Daily active-user count failed for ${dateKey}`, error);
+      return { date: dateKey, activeUserCount: 0 };
+    }
+  }));
 }
 
 function scheduleSearchUsageCount_(rawQuery) {
@@ -5544,7 +5606,7 @@ async function handleAuthenticatedUser(user) {
     if (getPendingSearchCount_() > 0) {
       scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
     }
-    recordAppEntryOnce_(user);
+    recordDailyActiveUser_(user);
 
     const hasCachedContacts = loadContactsFromCache_();
 
@@ -5918,11 +5980,14 @@ async function loadAdminData() {
       firebaseApi.limit(150)
     );
 
+    const activeUserDateKeys = getRecentIsraelDateKeys_(14);
+
     const requests = [
       firebaseApi.getDocs(firebaseApi.collection(db, "contactOverrides")),
       firebaseApi.getDocs(firebaseApi.collection(db, "allowedUsers")),
       firebaseApi.getDocs(activityQuery),
       firebaseApi.getDocs(usageQuery),
+      loadDailyActiveUserCounts_(activeUserDateKeys),
       firebaseApi.getDocs(reportsQuery).catch(error => {
         console.error("Reports data load failed", error);
         return { docs: [] };
@@ -5942,9 +6007,10 @@ async function loadAdminData() {
     const usersSnapshot = results[1];
     const activitySnapshot = results[2];
     const usageSnapshot = results[3];
-    const reportsSnapshot = results[4];
-    const verificationRequestsSnapshot = results[5];
-    const managersSnapshot = results[6] || null;
+    const dailyActiveUsersResult = results[4] || [];
+    const reportsSnapshot = results[5];
+    const verificationRequestsSnapshot = results[6];
+    const managersSnapshot = results[7] || null;
 
     adminRemovedContacts = overridesSnapshot.docs
       .map((document, index) => {
@@ -5993,10 +6059,19 @@ async function loadAdminData() {
       const data = document.data() || {};
       return {
         date: String(data.date || document.id),
-        loginCount: Math.max(0, Number(data.loginCount) || 0),
         searchCount: Math.max(0, Number(data.searchCount) || 0)
       };
     }).sort((a, b) => b.date.localeCompare(a.date));
+
+    adminDailyActiveUsers = Array.isArray(dailyActiveUsersResult)
+      ? dailyActiveUsersResult
+          .map(item => ({
+            date: String(item && item.date || ""),
+            activeUserCount: Math.max(0, Number(item && item.activeUserCount) || 0)
+          }))
+          .filter(item => item.date)
+          .sort((a, b) => b.date.localeCompare(a.date))
+      : [];
 
     adminReports = reportsSnapshot.docs.map(document => {
       const data = document.data() || {};
@@ -6442,41 +6517,47 @@ function renderAdminReports() {
 
 function renderAdminGeneral() {
   const todayKey = getIsraelDateKey_();
-  const today = adminUsageDaily.find(item => item.date === todayKey) || {
-    date: todayKey,
-    loginCount: 0,
-    searchCount: 0
-  };
+  const usageByDate = new Map(
+    adminUsageDaily.map(item => [item.date, item])
+  );
+  const activeUsersByDate = new Map(
+    adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
+  );
 
-  const searchesPerLogin = today.loginCount > 0
-    ? (today.searchCount / today.loginCount).toFixed(1)
+  const todayActiveUsers = activeUsersByDate.get(todayKey) || 0;
+  const todaySearches = (usageByDate.get(todayKey) || {}).searchCount || 0;
+  const searchesPerUser = todayActiveUsers > 0
+    ? (todaySearches / todayActiveUsers).toFixed(1)
     : "0";
 
-  const recentDays = adminUsageDaily.slice(0, 14);
-  const rows = recentDays.length
-    ? recentDays.map(day => `
-        <div class="adminUsageRow">
-          <div class="adminUsageDate">${escapeHtml(formatUsageDate_(day.date))}</div>
-          <div class="adminUsageNumber">${escapeHtml(day.loginCount)}</div>
-          <div class="adminUsageNumber">${escapeHtml(day.searchCount)}</div>
-        </div>
-      `).join("")
-    : '<div class="adminEmpty">נתוני השימוש יתחילו להופיע לאחר כניסות וחיפושים בגרסה הזאת.</div>';
+  const recentDays = getRecentIsraelDateKeys_(14).map(date => ({
+    date,
+    activeUserCount: activeUsersByDate.get(date) || 0,
+    searchCount: (usageByDate.get(date) || {}).searchCount || 0
+  }));
+
+  const rows = recentDays.map(day => `
+    <div class="adminUsageRow">
+      <div class="adminUsageDate">${escapeHtml(formatUsageDate_(day.date))}</div>
+      <div class="adminUsageNumber">${escapeHtml(day.activeUserCount)}</div>
+      <div class="adminUsageNumber">${escapeHtml(day.searchCount)}</div>
+    </div>
+  `).join("");
 
   document.getElementById("adminList").innerHTML = `
     <div class="adminOverview">
       <div class="adminOverviewCards">
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(today.loginCount)}</span>
-          <span class="adminMetricLabel">כניסות היום</span>
+          <span class="adminMetricValue">${escapeHtml(todayActiveUsers)}</span>
+          <span class="adminMetricLabel">משתמשים פעילים היום</span>
         </div>
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(today.searchCount)}</span>
+          <span class="adminMetricValue">${escapeHtml(todaySearches)}</span>
           <span class="adminMetricLabel">חיפושים היום</span>
         </div>
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(searchesPerLogin)}</span>
-          <span class="adminMetricLabel">חיפושים לכניסה</span>
+          <span class="adminMetricValue">${escapeHtml(searchesPerUser)}</span>
+          <span class="adminMetricLabel">חיפושים למשתמש פעיל</span>
         </div>
       </div>
 
@@ -6484,12 +6565,12 @@ function renderAdminGeneral() {
         <h3 class="adminUsageTitle">שימוש יומי — 14 הימים האחרונים</h3>
         <div class="adminUsageRow header">
           <div>תאריך</div>
-          <div class="adminUsageNumber">כניסות</div>
+          <div class="adminUsageNumber">משתמשים</div>
           <div class="adminUsageNumber">חיפושים</div>
         </div>
         ${rows}
         <p class="adminUsageNote">
-          כניסה נספרת פעם אחת בכל פתיחת אפליקציה/לשונית. החיפושים נצברים במכשיר ונשלחים במרוכז לאחר 10 חיפושים, כעבור מספר דקות או ביציאה. מילות החיפוש עצמן אינן נשמרות.
+          כל חשבון נספר פעם אחת בלבד בכל יום, גם אם האפליקציה נפתחה מספר פעמים או ממספר מכשירים. רישום הפעילות מתבצע ברקע ואינו מעכב את הכניסה. החיפושים נצברים במכשיר ונשלחים במרוכז; מילות החיפוש עצמן אינן נשמרות.
         </p>
       </div>
     </div>
@@ -7697,6 +7778,7 @@ async function initializeFirebase() {
     doc: firestoreModule.doc,
     getDoc: firestoreModule.getDoc,
     getDocs: firestoreModule.getDocs,
+    getCountFromServer: firestoreModule.getCountFromServer,
     setDoc: firestoreModule.setDoc,
     updateDoc: firestoreModule.updateDoc,
     deleteDoc: firestoreModule.deleteDoc,
