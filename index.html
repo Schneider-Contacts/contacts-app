@@ -4,8 +4,8 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="//www.gstatic.com">
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260715-v12">
-<link rel="icon" href="app-icon.png?v=20260715-v12">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260717-v13-3">
+<link rel="icon" href="app-icon.png?v=20260717-v13-3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -2476,6 +2476,96 @@ select {
   }
 }
 
+
+
+/* ===== Contact addition requests ===== */
+.suggestContactBtn {
+  width: 100%;
+  margin: 14px 0 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--green-300);
+  border-radius: 15px;
+  background: var(--green-50);
+  color: var(--green-800);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 5px 14px rgba(5, 150, 105, 0.08);
+}
+
+.suggestContactBtn:hover {
+  background: var(--green-100);
+}
+
+.contactPickerBox {
+  display: none;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  text-align: right;
+}
+
+.contactPickerBox.visible {
+  display: block;
+}
+
+.contactPickerBox p {
+  margin: 0 0 10px;
+  color: var(--text-soft);
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.contactPickerBtn {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--green-700);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.contactAddNote {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.contactAddRequestCard.pending {
+  border-color: #f3d59b;
+  background: #fffdf7;
+}
+
+.contactAddRequestCard.approved {
+  border-color: var(--green-200);
+}
+
+.contactAddRequestCard.rejected {
+  opacity: 0.82;
+}
+
+.contactAddRequestDetails {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--text-soft);
+  text-align: right;
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.contactAddRequestDetails b {
+  color: var(--text);
+}
+
 </style>
 
 <style>
@@ -2539,7 +2629,7 @@ select {
 
 <div id="importGuidePage" style="display:none;">
   <div class="guideCard">
-    <h1 id="guideTitle">ייבוא אנשי קשר</h1>
+    <h1 id="guideTitle">הורדת אנשי קשר</h1>
     <div class="guideSubtitle">
       הקובץ מוכן. הורידו אותו ופעלו לפי ההוראות המתאימות למכשיר שלכם.
     </div>
@@ -2553,7 +2643,7 @@ select {
         <li>לחצו על <b>הורדת קובץ VCF</b> ושמרו או הורידו את הקובץ אל <b>קבצים / Files</b>. בדרך כלל הוא יופיע בתיקיית <b>הורדות / Downloads</b>.</li>
         <li>פתחו את אפליקציית <b>קבצים / Files</b> ולחצו על קובץ ה-VCF שהורדתם.</li>
         <li>בתצוגת הקובץ לחצו על כפתור <b>שיתוף / Share</b>.</li>
-        <li>בחרו <b>אנשי קשר / Contacts</b>, ולאחר מכן בחרו באפשרות להוסיף או לייבא את כל אנשי הקשר שמופיעים בקובץ.</li>
+        <li>בחרו <b>אנשי קשר / Contacts</b>, ולאחר מכן שמרו את כל אנשי הקשר שמופיעים בקובץ.</li>
       </ol>
       <div class="guideDirectOpenNote">
         אם הקובץ נפתח מיד לאחר ההורדה, אין צורך להיכנס שוב ל-Files — אפשר ללחוץ ישירות על <b>Share</b> ולהמשיך משם.
@@ -2566,7 +2656,7 @@ select {
         <li>לחצו על <b>הורדת קובץ VCF</b>.</li>
         <li>פתחו את הקובץ מתוך הודעת ההורדה או מתוך <b>קבצים / Files</b> → <b>הורדות / Downloads</b>.</li>
         <li>בחרו לפתוח את הקובץ באמצעות אפליקציית <b>אנשי קשר / Contacts</b>.</li>
-        <li>אשרו את ייבוא אנשי הקשר ובחרו את החשבון שאליו תרצו לשמור אותם, אם המכשיר מבקש זאת.</li>
+        <li>אשרו את שמירת אנשי הקשר ובחרו את החשבון שאליו תרצו לשמור אותם, אם המכשיר מבקש זאת.</li>
       </ol>
     </section>
 
@@ -2578,7 +2668,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260715-v13" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260717-v13-3" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2692,7 +2782,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260715-v13" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260717-v13-3" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2726,16 +2816,17 @@ select {
 
   <div id="resultsSummary" class="resultsSummary"></div>
 
-  <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">ייבא את כל אנשי הקשר</button>
-  <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 ייבוא אנשי קשר שנוספו לאחרונה</button>
+  <button type="button" id="suggestContactBtn" class="suggestContactBtn" onclick="openContactAddModal_()">＋ יש לך איש קשר להוסיף?</button>
+  <button type="button" id="importAllBtn" class="importAllBtn" onclick="handleMainImportButton()">הורדת כל אנשי הקשר</button>
+  <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 הורדת אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260715-v13" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260717-v13-3" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
     <div class="bulkActionsButtons">
-      <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">ייבא אנשי קשר</button>
+      <button type="button" class="bulkBtn saveBtn" onclick="downloadSelectedContacts()">הורדת אנשי קשר</button>
       <button type="button" class="bulkBtn clearSelectionBtn" onclick="clearSelectedContacts()">נקה בחירה</button>
     </div>
   </div>
@@ -2760,7 +2851,7 @@ select {
       <button type="button" id="adminContactsTab" class="adminTabBtn" onclick="setAdminTab('contacts')">אנשי קשר</button>
       <button type="button" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">הרשאות</button>
       <button type="button" id="adminActivityTab" class="adminTabBtn" onclick="setAdminTab('activity')">פעילות</button>
-      <button type="button" id="adminReportsTab" class="adminTabBtn" onclick="setAdminTab('reports')">דיווחים</button>
+      <button type="button" id="adminReportsTab" class="adminTabBtn" onclick="setAdminTab('reports')">דיווחים והוספות</button>
       <button type="button" id="adminManagersTab" class="adminTabBtn adminSuperOnly" onclick="setAdminTab('managers')">מנהלים</button>
     </div>
   </div>
@@ -2794,8 +2885,9 @@ select {
 
     <div id="adminReportFilters" class="adminFilterRow" style="display:none;">
       <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="open" onclick="setAdminFilter('open')">פתוחים</button>
-      <button type="button" class="adminFilterBtn" data-filter="resolved" onclick="setAdminFilter('resolved')">טופלו</button>
+      <button type="button" class="adminFilterBtn" data-filter="pending_additions" onclick="setAdminFilter('pending_additions')">הוספות ממתינות</button>
+      <button type="button" class="adminFilterBtn" data-filter="open_reports" onclick="setAdminFilter('open_reports')">דיווחים פתוחים</button>
+      <button type="button" class="adminFilterBtn" data-filter="handled" onclick="setAdminFilter('handled')">טופלו</button>
     </div>
 
     <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
@@ -2827,7 +2919,61 @@ select {
     <ul id="recentContactsList" class="recentModalList"></ul>
     <div class="adminModalActions">
       <button type="button" class="adminActionBtn secondary" onclick="closeRecentContactsModal()">סגירה</button>
-      <button type="button" id="recentContactsImportBtn" class="adminActionBtn primary" onclick="downloadRecentContacts()">ייבוא אנשי הקשר החדשים</button>
+      <button type="button" id="recentContactsImportBtn" class="adminActionBtn primary" onclick="downloadRecentContacts()">הורדת אנשי הקשר החדשים</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="contactAddModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="contactAddModalTitle">
+  <div class="adminModalCard">
+    <div class="adminModalHeader">
+      <h3 id="contactAddModalTitle" class="adminModalTitle">הוספת איש קשר</h3>
+      <button type="button" class="adminModalClose" onclick="closeContactAddModal_()" aria-label="סגירה">×</button>
+    </div>
+
+    <div id="contactPickerBox" class="contactPickerBox">
+      <p>במכשיר תומך אפשר לבחור איש קשר ישירות מספר הטלפונים. רק הפרטים שתבחרו יועברו לטופס.</p>
+      <button type="button" id="contactPickerBtn" class="contactPickerBtn" onclick="pickContactFromDevice_()">בחירה מאנשי הקשר במכשיר</button>
+    </div>
+
+    <p id="contactAddIntro" class="contactAddNote">לא חייבים למלא את כל השדות. יש להזין לפחות פרט אחד, והמנהל יבדוק את הבקשה לפני הפרסום.</p>
+
+    <div class="adminFormGrid">
+      <div class="adminFormField">
+        <label for="contactAddFirstName">שם פרטי</label>
+        <input id="contactAddFirstName" type="text" maxlength="100">
+      </div>
+      <div class="adminFormField">
+        <label for="contactAddLastName">שם משפחה</label>
+        <input id="contactAddLastName" type="text" maxlength="100">
+      </div>
+      <div class="adminFormField">
+        <label for="contactAddTitlePrefix">תואר</label>
+        <input id="contactAddTitlePrefix" type="text" maxlength="60" placeholder="ד״ר / פרופ׳">
+      </div>
+      <div class="adminFormField">
+        <label for="contactAddRole">תפקיד</label>
+        <input id="contactAddRole" type="text" maxlength="160">
+      </div>
+      <div class="adminFormField full">
+        <label for="contactAddDepartment">מחלקה / מכון</label>
+        <input id="contactAddDepartment" type="text" maxlength="160">
+      </div>
+      <div class="adminFormField full">
+        <label for="contactAddPhone">מספר טלפון</label>
+        <input id="contactAddPhone" type="tel" maxlength="30" inputmode="tel" autocomplete="tel">
+      </div>
+      <div class="adminFormField full">
+        <label for="contactAddEmail">כתובת מייל</label>
+        <input id="contactAddEmail" type="email" maxlength="320" dir="ltr" autocomplete="email">
+      </div>
+    </div>
+
+    <div id="contactAddStatus" class="statusMessage adminSavingStatus"></div>
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="closeContactAddModal_()">ביטול</button>
+      <button type="button" id="contactAddSubmitBtn" class="adminActionBtn primary" onclick="submitContactAddRequest_()">שליחה לבדיקה</button>
     </div>
   </div>
 </div>
@@ -3039,6 +3185,7 @@ let adminActivity = [];
 let adminUsageDaily = [];
 let adminDailyActiveUsers = [];
 let adminReports = [];
+let adminContactAddRequests = [];
 let adminVerificationRequests = [];
 let pendingUsageByDate = {};
 let usageFlushTimer = null;
@@ -3048,6 +3195,9 @@ let searchUsageTimer = null;
 let lastCountedSearchQuery = "";
 let adminEditingContact = null;
 let activeReportContact = null;
+let contactAddModalMode = "user";
+let activeContactAddRequestId = "";
+let contactAddSource = "manual";
 let adminDataLoading = false;
 
 
@@ -3641,7 +3791,7 @@ function updateMainActionButton() {
     return;
   }
 
-  btn.textContent = "ייבא את כל אנשי הקשר";
+  btn.textContent = "הורדת כל אנשי הקשר";
 }
 
 function handleMainImportButton() {
@@ -5980,6 +6130,12 @@ async function loadAdminData() {
       firebaseApi.limit(150)
     );
 
+    const contactAddRequestsQuery = firebaseApi.query(
+      firebaseApi.collection(db, "contactAddRequests"),
+      firebaseApi.orderBy("createdAt", "desc"),
+      firebaseApi.limit(150)
+    );
+
     const activeUserDateKeys = getRecentIsraelDateKeys_(14);
 
     const requests = [
@@ -5994,6 +6150,10 @@ async function loadAdminData() {
       }),
       firebaseApi.getDocs(firebaseApi.collection(db, "verificationRequests")).catch(error => {
         console.error("Verification requests load failed", error);
+        return { docs: [] };
+      }),
+      firebaseApi.getDocs(contactAddRequestsQuery).catch(error => {
+        console.error("Contact addition requests load failed", error);
         return { docs: [] };
       })
     ];
@@ -6010,7 +6170,8 @@ async function loadAdminData() {
     const dailyActiveUsersResult = results[4] || [];
     const reportsSnapshot = results[5];
     const verificationRequestsSnapshot = results[6];
-    const managersSnapshot = results[7] || null;
+    const contactAddRequestsSnapshot = results[7];
+    const managersSnapshot = results[8] || null;
 
     adminRemovedContacts = overridesSnapshot.docs
       .map((document, index) => {
@@ -6087,6 +6248,31 @@ async function loadAdminData() {
         createdAt: data.createdAt || null,
         resolvedAt: data.resolvedAt || null,
         resolvedBy: normalizeEmail(data.resolvedBy || "")
+      };
+    });
+
+
+    adminContactAddRequests = contactAddRequestsSnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        docId: document.id,
+        firstName: String(data.firstName || ""),
+        lastName: String(data.lastName || ""),
+        titlePrefix: String(data.titlePrefix || ""),
+        role: String(data.role || ""),
+        department: String(data.department || ""),
+        phone: String(data.phone || ""),
+        email: normalizeEmail(data.email || ""),
+        reporterEmail: normalizeEmail(data.reporterEmail || ""),
+        source: data.source === "device_picker" ? "device_picker" : "manual",
+        status: ["pending", "approved", "rejected"].includes(data.status)
+          ? data.status
+          : "pending",
+        createdAt: data.createdAt || null,
+        updatedAt: data.updatedAt || null,
+        handledAt: data.handledAt || null,
+        handledBy: normalizeEmail(data.handledBy || ""),
+        approvedContactId: String(data.approvedContactId || "")
       };
     });
 
@@ -6251,7 +6437,7 @@ function formatActivityTimestamp(activity) {
 }
 
 function getActivityCategory(action) {
-  if (["contact_add_form", "form_submission", "contact_add_detected", "manager_add"].includes(action)) {
+  if (["contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "manager_add"].includes(action)) {
     return "added";
   }
 
@@ -6267,6 +6453,8 @@ function getActivityTitle(activity) {
     contact_add_form: "נשלח טופס הצטרפות חדש",
     form_submission: "נשלח טופס הצטרפות",
     contact_add_detected: "איש קשר נוסף למערכת",
+    contact_add_request_approved: "בקשת הוספת איש קשר אושרה",
+    contact_add_request_rejected: "בקשת הוספת איש קשר נדחתה",
     email_self_update: "כתובת מייל עודכנה",
     contact_edit: "פרטי איש קשר נערכו",
     contact_remove: "איש קשר הוסר מהאפליקציה",
@@ -6411,14 +6599,17 @@ function getAllowedUserByEmail(email) {
 }
 
 
-function getReportTimestamp_(report) {
-  const value = report && report.createdAt;
+function getTimestampMillis_(value) {
   if (!value) return 0;
   if (typeof value.toMillis === "function") return value.toMillis();
   if (typeof value.toDate === "function") return value.toDate().getTime();
   if (typeof value.seconds === "number") return value.seconds * 1000;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function getReportTimestamp_(report) {
+  return getTimestampMillis_(report && report.createdAt);
 }
 
 function formatReportTimestamp_(report) {
@@ -6450,6 +6641,38 @@ function adminReportMatchesQuery_(report, query) {
   ].join(" ")).includes(query);
 }
 
+function getContactAddRequestName_(request) {
+  return [request.titlePrefix, request.firstName, request.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function adminContactAddRequestMatchesQuery_(request, query) {
+  if (!query) return true;
+  return normalizeSearchText([
+    getContactAddRequestName_(request),
+    request.role,
+    request.department,
+    request.phone,
+    formatPhoneForDisplay(request.phone),
+    request.email,
+    request.reporterEmail,
+    request.status
+  ].filter(Boolean).join(" ")).includes(query);
+}
+
+function getContactAddRequestTimestamp_(request) {
+  return getTimestampMillis_(request && request.createdAt);
+}
+
+function formatContactAddRequestTimestamp_(request) {
+  const timestamp = getContactAddRequestTimestamp_(request);
+  return timestamp
+    ? new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(new Date(timestamp))
+    : "מועד לא ידוע";
+}
+
 async function setContactReportStatus_(reportId, status) {
   if (!currentUserIsAdmin || !reportId) return;
   const nextStatus = status === "resolved" ? "resolved" : "open";
@@ -6474,45 +6697,314 @@ async function setContactReportStatus_(reportId, status) {
   }
 }
 
-function renderAdminReports() {
-  const query = getAdminSearchQuery();
-  const reports = adminReports.filter(report => {
-    if (adminActiveFilter === "open" && report.status !== "open") return false;
-    if (adminActiveFilter === "resolved" && report.status !== "resolved") return false;
-    return adminReportMatchesQuery_(report, query);
-  });
+function findExistingContactForAddRequest_(values) {
+  const phone = normalizePhone(values.phone || "");
+  const email = normalizeEmail(values.email || "");
+  return adminContacts.find(contact =>
+    (phone && normalizePhone(contact.phone) === phone) ||
+    (email && normalizeEmail(contact.email) === email)
+  ) || null;
+}
 
-  document.getElementById("adminSummary").textContent = reports.length === 1
-    ? "נמצא דיווח אחד"
-    : `נמצאו ${reports.length} דיווחים`;
+function buildApprovedContactPayload_(request, values, existingContact) {
+  const now = new Date().toISOString();
+  const base = existingContact ? contactToFirestorePayload(existingContact) : {
+    id: "",
+    first_name_he: "",
+    last_name_he: "",
+    first_name_en: "",
+    last_name_en: "",
+    title_prefix: "",
+    role: "",
+    department: "",
+    hospital: "",
+    phone: "",
+    email: "",
+    source: "user-submission-approved",
+    status: "active",
+    created_at: now,
+    first_seen_at: now,
+    is_new_contact: true,
+    updated_at: now
+  };
 
-  if (!reports.length) {
-    document.getElementById("adminList").innerHTML = '<div class="adminEmpty">אין דיווחים התואמים לסינון.</div>';
+  const choose = (nextValue, currentValue) => {
+    const normalized = String(nextValue || "").trim();
+    return normalized || String(currentValue || "").trim();
+  };
+
+  return {
+    ...base,
+    first_name_he: choose(values.firstName, base.first_name_he),
+    last_name_he: choose(values.lastName, base.last_name_he),
+    title_prefix: choose(values.titlePrefix, base.title_prefix),
+    role: choose(values.role, base.role),
+    department: choose(values.department, base.department),
+    // במסמך קיים לא משנים את מספר הטלפון, משום שהוא משמש כמזהה הרשומה.
+    phone: existingContact ? normalizePhone(base.phone) : normalizePhone(values.phone),
+    email: normalizeEmail(values.email || base.email),
+    source: existingContact
+      ? String(base.source || "admin-approved-update")
+      : "user-submission-approved",
+    status: String(base.status || "active"),
+    created_at: String(base.created_at || now),
+    first_seen_at: String(base.first_seen_at || base.created_at || now),
+    is_new_contact: existingContact ? base.is_new_contact === true : true,
+    updated_at: now
+  };
+}
+
+function hasUsableContactPhone_(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
+
+function getContactAddFormValues_() {
+  return {
+    firstName: document.getElementById("contactAddFirstName").value.trim(),
+    lastName: document.getElementById("contactAddLastName").value.trim(),
+    titlePrefix: document.getElementById("contactAddTitlePrefix").value.trim(),
+    role: document.getElementById("contactAddRole").value.trim(),
+    department: document.getElementById("contactAddDepartment").value.trim(),
+    phone: document.getElementById("contactAddPhone").value.trim(),
+    email: normalizeEmail(document.getElementById("contactAddEmail").value)
+  };
+}
+
+async function approveContactAddRequest_(requestId, editedValues = null) {
+  if (!currentUserIsAdmin || !requestId) return;
+  const request = adminContactAddRequests.find(item => item.docId === requestId);
+  if (!request || request.status !== "pending") {
+    setAdminStatus("הבקשה כבר טופלה או שאינה זמינה.", "error");
     return;
   }
 
-  document.getElementById("adminList").innerHTML = reports.map(report => `
-    <div class="adminCard reportCard ${report.status === "resolved" ? "resolved" : ""}">
-      <div class="adminCardTop">
-        <div>
-          <div class="adminCardName">${escapeHtml(report.contactName || formatPhoneForDisplay(report.contactPhone) || "איש קשר")}</div>
-          <div class="adminCardMeta">
-            ${escapeHtml(getReportTypeLabel_(report.issueType))}<br>
-            ${report.contactPhone ? escapeHtml(formatPhoneForDisplay(report.contactPhone)) + "<br>" : ""}
-            דווח על ידי: ${escapeHtml(report.reporterEmail || "לא ידוע")}<br>
-            ${escapeHtml(formatReportTimestamp_(report))}
+  const values = editedValues || {
+    firstName: request.firstName,
+    lastName: request.lastName,
+    titlePrefix: request.titlePrefix,
+    role: request.role,
+    department: request.department,
+    phone: request.phone,
+    email: request.email
+  };
+
+  if (!hasUsableContactPhone_(values.phone)) {
+    openContactAddRequestForApproval_(requestId, "כדי לפרסם איש קשר באפליקציה יש להשלים מספר טלפון תקין.");
+    return;
+  }
+
+  if (values.email && !isValidEmail(values.email)) {
+    openContactAddRequestForApproval_(requestId, "כתובת המייל אינה תקינה.");
+    return;
+  }
+
+  const existingContact = findExistingContactForAddRequest_(values);
+  const existingMessage = existingContact
+    ? `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן רק את הפרטים שמולאו בבקשה; מספר הטלפון של הרשומה הקיימת לא ישתנה. להמשיך?`
+    : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
+
+  if (!confirm(existingMessage)) return;
+
+  const payload = buildApprovedContactPayload_(request, values, existingContact);
+  const docId = existingContact && existingContact.docId
+    ? existingContact.docId
+    : normalizePhone(payload.phone).replace(/\D/g, "") || `request_${requestId}`;
+
+  setAdminStatus("מאשר ומוסיף את איש הקשר...", "loading");
+
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+
+    batch.set(firebaseApi.doc(db, "contacts", docId), payload, { merge: true });
+    batch.set(
+      firebaseApi.doc(db, "contactOverrides", docId),
+      {
+        ...payload,
+        deleted: false,
+        updatedBy: currentAdminEmail,
+        updatedAt: now
+      },
+      { merge: false }
+    );
+
+    // תחילה נשמר איש הקשר. הבקשה נשארת pending עד שספריית
+    // אנשי הקשר המהירה עודכנה בהצלחה, כדי שניתן יהיה לנסות שוב במקרה תקלה.
+    await batch.commit();
+    await updateOptimizedContactBundle_(docId, payload, {
+      deleted: false,
+      countDelta: existingContact ? 0 : 1
+    });
+
+    const completionBatch = firebaseApi.writeBatch(db);
+    const completionTime = firebaseApi.serverTimestamp();
+    completionBatch.update(firebaseApi.doc(db, "contactAddRequests", requestId), {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      titlePrefix: values.titlePrefix,
+      role: values.role,
+      department: values.department,
+      phone: payload.phone,
+      email: payload.email,
+      status: "approved",
+      updatedAt: completionTime,
+      handledAt: completionTime,
+      handledBy: currentAdminEmail,
+      approvedContactId: docId
+    });
+    completionBatch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
+      action: "contact_add_request_approved",
+      targetId: docId,
+      targetEmail: payload.email || "",
+      targetPhone: payload.phone || "",
+      displayName: [payload.title_prefix, payload.first_name_he, payload.last_name_he].filter(Boolean).join(" "),
+      requesterEmail: request.reporterEmail || "",
+      adminEmail: currentAdminEmail,
+      timestamp: completionTime
+    });
+    await completionBatch.commit();
+
+    clearContactsBundleCache_();
+    closeContactAddModal_();
+    await loadContacts();
+    await loadAdminData();
+    setAdminStatus(existingContact ? "איש הקשר הקיים עודכן." : "איש הקשר אושר ונוסף לרשימה.", "success");
+  } catch (error) {
+    console.error("Contact addition approval failed", error);
+    setAdminStatus("אישור הבקשה נכשל. בדקו את כללי Firestore ונסו שוב.", "error");
+  }
+}
+
+async function rejectContactAddRequest_(requestId) {
+  if (!currentUserIsAdmin || !requestId) return;
+  const request = adminContactAddRequests.find(item => item.docId === requestId);
+  if (!request || request.status !== "pending") return;
+  if (!confirm("לדחות את בקשת הוספת איש הקשר?")) return;
+
+  try {
+    const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+    batch.update(firebaseApi.doc(db, "contactAddRequests", requestId), {
+      status: "rejected",
+      updatedAt: now,
+      handledAt: now,
+      handledBy: currentAdminEmail,
+      approvedContactId: ""
+    });
+    batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
+      action: "contact_add_request_rejected",
+      displayName: getContactAddRequestName_(request),
+      targetEmail: request.email || "",
+      targetPhone: request.phone || "",
+      requesterEmail: request.reporterEmail || "",
+      adminEmail: currentAdminEmail,
+      timestamp: now
+    });
+    await batch.commit();
+    await loadAdminData();
+    setAdminStatus("הבקשה נדחתה.", "success");
+  } catch (error) {
+    console.error("Contact addition rejection failed", error);
+    setAdminStatus("דחיית הבקשה נכשלה.", "error");
+  }
+}
+
+function renderAdminReports() {
+  const query = getAdminSearchQuery();
+
+  const additionItems = adminContactAddRequests
+    .filter(request => {
+      if (adminActiveFilter === "pending_additions" && request.status !== "pending") return false;
+      if (adminActiveFilter === "open_reports") return false;
+      if (adminActiveFilter === "handled" && request.status === "pending") return false;
+      return adminContactAddRequestMatchesQuery_(request, query);
+    })
+    .map(request => ({ kind: "addition", timestamp: getContactAddRequestTimestamp_(request), data: request }));
+
+  const reportItems = adminReports
+    .filter(report => {
+      if (adminActiveFilter === "pending_additions") return false;
+      if (adminActiveFilter === "open_reports" && report.status !== "open") return false;
+      if (adminActiveFilter === "handled" && report.status !== "resolved") return false;
+      return adminReportMatchesQuery_(report, query);
+    })
+    .map(report => ({ kind: "report", timestamp: getReportTimestamp_(report), data: report }));
+
+  const items = [...additionItems, ...reportItems].sort((a, b) => b.timestamp - a.timestamp);
+  const pendingAdditions = adminContactAddRequests.filter(request => request.status === "pending").length;
+  const openReports = adminReports.filter(report => report.status === "open").length;
+
+  document.getElementById("adminSummary").textContent =
+    `${items.length === 1 ? "נמצא פריט אחד" : `נמצאו ${items.length} פריטים`}` +
+    (pendingAdditions ? ` · ${pendingAdditions} הוספות ממתינות` : "") +
+    (openReports ? ` · ${openReports} דיווחים פתוחים` : "");
+
+  if (!items.length) {
+    document.getElementById("adminList").innerHTML = '<div class="adminEmpty">אין דיווחים או בקשות הוספה התואמים לסינון.</div>';
+    return;
+  }
+
+  document.getElementById("adminList").innerHTML = items.map(item => {
+    if (item.kind === "addition") {
+      const request = item.data;
+      const displayName = getContactAddRequestName_(request) || formatPhoneForDisplay(request.phone) || request.email || "איש קשר ללא שם";
+      const statusLabel = request.status === "approved" ? "אושר" : request.status === "rejected" ? "נדחה" : "ממתין";
+      const statusClass = request.status === "pending" ? "pending" : request.status;
+      const details = [
+        request.role ? `<b>תפקיד:</b> ${escapeHtml(request.role)}` : "",
+        request.department ? `<b>מחלקה:</b> ${escapeHtml(request.department)}` : "",
+        request.phone ? `<b>טלפון:</b> ${escapeHtml(formatPhoneForDisplay(request.phone))}` : "",
+        request.email ? `<b>מייל:</b> ${escapeHtml(request.email)}` : "",
+        `<b>נשלח על ידי:</b> ${escapeHtml(request.reporterEmail || "לא ידוע")}`,
+        `<b>מקור:</b> ${request.source === "device_picker" ? "ספר הטלפונים במכשיר" : "טופס ידני"}`,
+        request.handledBy ? `<b>טופל על ידי:</b> ${escapeHtml(request.handledBy)}` : ""
+      ].filter(Boolean).join("<br>");
+
+      return `
+        <div class="adminCard contactAddRequestCard ${statusClass}">
+          <div class="adminCardTop">
+            <div>
+              <div class="adminCardName">${escapeHtml(displayName)}</div>
+              <div class="adminCardMeta">בקשת הוספת איש קשר<br>${escapeHtml(formatContactAddRequestTimestamp_(request))}</div>
+            </div>
+            <span class="adminStatusBadge ${request.status === "pending" ? "pending" : ""}">${statusLabel}</span>
           </div>
+          <div class="contactAddRequestDetails">${details}</div>
+          ${request.status === "pending" ? `
+            <div class="adminCardActions">
+              <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">אישור והוספה</button>
+              <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
+              <button type="button" class="adminActionBtn danger" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחייה</button>
+            </div>` : ""}
         </div>
-        <span class="adminStatusBadge ${report.status === "resolved" ? "" : "blocked"}">${report.status === "resolved" ? "טופל" : "פתוח"}</span>
+      `;
+    }
+
+    const report = item.data;
+    return `
+      <div class="adminCard reportCard ${report.status === "resolved" ? "resolved" : ""}">
+        <div class="adminCardTop">
+          <div>
+            <div class="adminCardName">${escapeHtml(report.contactName || formatPhoneForDisplay(report.contactPhone) || "איש קשר")}</div>
+            <div class="adminCardMeta">
+              ${escapeHtml(getReportTypeLabel_(report.issueType))}<br>
+              ${report.contactPhone ? escapeHtml(formatPhoneForDisplay(report.contactPhone)) + "<br>" : ""}
+              דווח על ידי: ${escapeHtml(report.reporterEmail || "לא ידוע")}<br>
+              ${escapeHtml(formatReportTimestamp_(report))}
+            </div>
+          </div>
+          <span class="adminStatusBadge ${report.status === "resolved" ? "" : "blocked"}">${report.status === "resolved" ? "טופל" : "פתוח"}</span>
+        </div>
+        <div class="reportDetails">${escapeHtml(report.details)}</div>
+        <div class="adminCardActions">
+          <button type="button" class="adminActionBtn ${report.status === "resolved" ? "secondary" : "primary"}" onclick="setContactReportStatus_('${report.docId}', '${report.status === "resolved" ? "open" : "resolved"}')">
+            ${report.status === "resolved" ? "פתיחה מחדש" : "סימון כטופל"}
+          </button>
+        </div>
       </div>
-      <div class="reportDetails">${escapeHtml(report.details)}</div>
-      <div class="adminCardActions">
-        <button type="button" class="adminActionBtn ${report.status === "resolved" ? "secondary" : "primary"}" onclick="setContactReportStatus_('${report.docId}', '${report.status === "resolved" ? "open" : "resolved"}')">
-          ${report.status === "resolved" ? "פתיחה מחדש" : "סימון כטופל"}
-        </button>
-      </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 function renderAdminGeneral() {
@@ -8042,7 +8534,7 @@ function renderImportGuide(importKey) {
 
   const raw = localStorage.getItem(importKey);
   if (!raw) {
-    showGuideError("לא נמצא מידע לייבוא. חזרו לאפליקציה ונסו שוב.");
+    showGuideError("לא נמצא מידע להורדה. חזרו לאפליקציה ונסו שוב.");
     return;
   }
 
@@ -8050,16 +8542,16 @@ function renderImportGuide(importKey) {
   try {
     payload = JSON.parse(raw);
   } catch (error) {
-    showGuideError("קובץ הייבוא לא תקין. חזרו לאפליקציה ונסו שוב.");
+    showGuideError("קובץ ההורדה אינו תקין. חזרו לאפליקציה ונסו שוב.");
     return;
   }
 
   if (!payload || !payload.vcardContent || !payload.fileName) {
-    showGuideError("חסר מידע לייבוא. חזרו לאפליקציה ונסו שוב.");
+    showGuideError("חסר מידע להורדה. חזרו לאפליקציה ונסו שוב.");
     return;
   }
 
-  document.getElementById("guideTitle").textContent = payload.titleText || "ייבוא אנשי קשר";
+  document.getElementById("guideTitle").textContent = payload.titleText || "הורדת אנשי קשר";
   document.getElementById("guideCountBox").innerHTML =
     `הקובץ מוכן וכולל <b>${payload.count || 0}</b> אנשי קשר.`;
 
@@ -8085,9 +8577,211 @@ async function downloadSelectedContacts() {
   }
 
   const multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-  openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "ייבוא אנשי קשר");
+  openImportGuide(multiVCard, "selected-contacts.vcf", selectedContacts.length, "הורדת אנשי קשר");
 }
 
+
+
+function contactPickerSupported_() {
+  return Boolean(
+    window.isSecureContext &&
+    navigator.contacts &&
+    typeof navigator.contacts.select === "function"
+  );
+}
+
+function setContactAddStatus_(message = "", type = "") {
+  setStatus("contactAddStatus", message, type);
+}
+
+function resetContactAddForm_() {
+  [
+    "contactAddFirstName",
+    "contactAddLastName",
+    "contactAddTitlePrefix",
+    "contactAddRole",
+    "contactAddDepartment",
+    "contactAddPhone",
+    "contactAddEmail"
+  ].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.value = "";
+  });
+  contactAddSource = "manual";
+  setContactAddStatus_("", "");
+}
+
+function setContactAddFormValues_(values = {}) {
+  document.getElementById("contactAddFirstName").value = values.firstName || "";
+  document.getElementById("contactAddLastName").value = values.lastName || "";
+  document.getElementById("contactAddTitlePrefix").value = values.titlePrefix || "";
+  document.getElementById("contactAddRole").value = values.role || "";
+  document.getElementById("contactAddDepartment").value = values.department || "";
+  document.getElementById("contactAddPhone").value = values.phone ? formatPhoneForDisplay(values.phone) : "";
+  document.getElementById("contactAddEmail").value = values.email || "";
+}
+
+function openContactAddModal_() {
+  contactAddModalMode = "user";
+  activeContactAddRequestId = "";
+  resetContactAddForm_();
+  document.getElementById("contactAddModalTitle").textContent = "הוספת איש קשר";
+  document.getElementById("contactAddIntro").textContent = "לא חייבים למלא את כל השדות. יש להזין לפחות פרט אחד, והמנהל יבדוק את הבקשה לפני הפרסום.";
+  document.getElementById("contactAddSubmitBtn").textContent = "שליחה לבדיקה";
+  document.getElementById("contactPickerBox").classList.toggle("visible", contactPickerSupported_());
+  document.getElementById("contactAddModal").classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
+function openContactAddRequestForApproval_(requestId, message = "") {
+  if (!currentUserIsAdmin) return;
+  const request = adminContactAddRequests.find(item => item.docId === requestId);
+  if (!request || request.status !== "pending") return;
+
+  contactAddModalMode = "admin";
+  activeContactAddRequestId = requestId;
+  contactAddSource = request.source || "manual";
+  setContactAddFormValues_(request);
+  document.getElementById("contactAddModalTitle").textContent = "עריכת בקשה לפני אישור";
+  document.getElementById("contactAddIntro").textContent = "אפשר לתקן או להשלים פרטים. מספר טלפון נדרש רק בשלב האישור כדי שאיש הקשר יופיע באפליקציה.";
+  document.getElementById("contactAddSubmitBtn").textContent = "אישור והוספה";
+  document.getElementById("contactPickerBox").classList.remove("visible");
+  setContactAddStatus_(message, message ? "error" : "");
+  document.getElementById("contactAddModal").classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
+function closeContactAddModal_() {
+  const modal = document.getElementById("contactAddModal");
+  if (modal) modal.classList.remove("visible");
+  document.body.style.overflow = "";
+  contactAddModalMode = "user";
+  activeContactAddRequestId = "";
+  setContactAddStatus_("", "");
+}
+
+function splitPickedContactName_(fullName) {
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { firstName: parts[0] || "", lastName: "" };
+  return {
+    firstName: parts.slice(0, -1).join(" "),
+    lastName: parts[parts.length - 1]
+  };
+}
+
+async function pickContactFromDevice_() {
+  if (!contactPickerSupported_()) {
+    setContactAddStatus_("בחירת איש קשר מהמכשיר אינה נתמכת בדפדפן הזה. אפשר למלא את הטופס ידנית.", "error");
+    return;
+  }
+
+  const button = document.getElementById("contactPickerBtn");
+  button.disabled = true;
+  setContactAddStatus_("פותח את אנשי הקשר במכשיר...", "loading");
+
+  try {
+    // הקריאה מתבצעת ישירות מתוך לחיצת המשתמש כדי לשמור על הרשאת
+    // ה-user gesture הנדרשת לבורר אנשי הקשר.
+    const selected = await navigator.contacts.select(
+      ["name", "tel", "email"],
+      { multiple: false }
+    );
+    const contact = Array.isArray(selected) ? selected[0] : null;
+    if (!contact) {
+      setContactAddStatus_("לא נבחר איש קשר.", "");
+      return;
+    }
+
+    const rawName = Array.isArray(contact.name) ? contact.name[0] : contact.name;
+    const nameParts = splitPickedContactName_(rawName);
+    const rawPhone = Array.isArray(contact.tel) ? contact.tel[0] : contact.tel;
+    const rawEmail = Array.isArray(contact.email) ? contact.email[0] : contact.email;
+
+    setContactAddFormValues_({
+      firstName: nameParts.firstName,
+      lastName: nameParts.lastName,
+      phone: rawPhone || "",
+      email: rawEmail || ""
+    });
+    contactAddSource = "device_picker";
+    setContactAddStatus_("הפרטים הועתקו מהמכשיר. אפשר לתקן או להשלים לפני השליחה.", "success");
+  } catch (error) {
+    console.error("Contact picker failed", error);
+    const cancelled = error && ["AbortError", "NotAllowedError"].includes(error.name);
+    setContactAddStatus_(
+      cancelled
+        ? "הבחירה בוטלה. אפשר למלא את הפרטים ידנית."
+        : "לא הצלחנו לפתוח את אנשי הקשר במכשיר. אפשר למלא את הפרטים ידנית.",
+      cancelled ? "" : "error"
+    );
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function submitContactAddRequest_() {
+  const values = getContactAddFormValues_();
+  const hasAnyValue = Object.values(values).some(value => String(value || "").trim());
+
+  if (!hasAnyValue) {
+    setContactAddStatus_("יש להזין לפחות פרט אחד על איש הקשר.", "error");
+    return;
+  }
+
+  if (values.email && !isValidEmail(values.email)) {
+    setContactAddStatus_("כתובת המייל אינה תקינה.", "error");
+    return;
+  }
+
+  if (values.phone && !hasUsableContactPhone_(values.phone)) {
+    setContactAddStatus_("מספר הטלפון אינו תקין.", "error");
+    return;
+  }
+
+  if (contactAddModalMode === "admin") {
+    await approveContactAddRequest_(activeContactAddRequestId, values);
+    return;
+  }
+
+  const currentUser = auth && auth.currentUser;
+  if (!currentUser || !currentUserHasAppAccess) {
+    setContactAddStatus_("יש להתחבר לאפליקציה כדי לשלוח בקשה.", "error");
+    return;
+  }
+
+  const submitButton = document.getElementById("contactAddSubmitBtn");
+  submitButton.disabled = true;
+  setContactAddStatus_("שולח את הבקשה...", "loading");
+
+  try {
+    await firebaseApi.addDoc(firebaseApi.collection(db, "contactAddRequests"), {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      titlePrefix: values.titlePrefix,
+      role: values.role,
+      department: values.department,
+      phone: values.phone ? normalizePhone(values.phone) : "",
+      email: values.email,
+      reporterEmail: normalizeEmail(currentUser.email || ""),
+      source: contactAddSource === "device_picker" ? "device_picker" : "manual",
+      status: "pending",
+      createdAt: firebaseApi.serverTimestamp(),
+      updatedAt: firebaseApi.serverTimestamp(),
+      handledAt: null,
+      handledBy: "",
+      approvedContactId: ""
+    });
+
+    setContactAddStatus_("תודה על הוספת איש הקשר. הפרטים נשלחו לבדיקת מנהל.", "success");
+    document.getElementById("contactAddSubmitBtn").textContent = "נשלח";
+    setTimeout(closeContactAddModal_, 1500);
+  } catch (error) {
+    console.error("Contact addition request failed", error);
+    setContactAddStatus_("שליחת הבקשה נכשלה. בדקו את החיבור ונסו שוב.", "error");
+  } finally {
+    submitButton.disabled = false;
+  }
+}
 
 function openContactReportModal(id) {
   const contact = contacts.find(item => item.id === id);
@@ -8167,11 +8861,11 @@ function openRecentContactsModal() {
   const importButton = document.getElementById("recentContactsImportBtn");
   if (explanation) {
     explanation.textContent = hasPreviousImport
-      ? "הרשימה כוללת רק אנשי קשר חדשים באמת שנוספו למערכת מאז הייבוא האחרון מהמכשיר הזה. רישום חוזר של מספר שכבר היה במערכת אינו נכלל. האפליקציה אינה יכולה לבדוק אילו אנשי קשר כבר שמורים בפנקס הטלפון."
+      ? "הרשימה כוללת רק אנשי קשר חדשים באמת שנוספו למערכת מאז ההורדה האחרונה מהמכשיר הזה. רישום חוזר של מספר שכבר היה במערכת אינו נכלל. האפליקציה אינה יכולה לבדוק אילו אנשי קשר כבר שמורים בפנקס הטלפון."
       : `זהו השימוש הראשון בכפתור, ולכן מוצגים רק אנשי קשר חדשים באמת שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. רישום חוזר של מספר שכבר היה במערכת אינו נכלל.`;
   }
   if (countBox) {
-    countBox.textContent = recentContacts.length === 1 ? "נמצא איש קשר חדש אחד לייבוא." : `נמצאו ${recentContacts.length} אנשי קשר חדשים לייבוא.`;
+    countBox.textContent = recentContacts.length === 1 ? "נמצא איש קשר חדש אחד להורדה." : `נמצאו ${recentContacts.length} אנשי קשר חדשים להורדה.`;
   }
   if (list) {
     list.innerHTML = recentContacts.length ? recentContacts.slice(0, 50).map(contact => {
@@ -8195,12 +8889,12 @@ function closeRecentContactsModal() {
 async function downloadRecentContacts() {
   const recentContacts = getRecentContacts();
   if (!recentContacts.length) {
-    alert("לא נמצאו אנשי קשר חדשים לייבוא.");
+    alert("לא נמצאו אנשי קשר חדשים להורדה.");
     return;
   }
   const multiVCard = recentContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
   closeRecentContactsModal();
-  openImportGuide(multiVCard, "new-contacts.vcf", recentContacts.length, "ייבוא אנשי קשר חדשים", { markRecentImported: true });
+  openImportGuide(multiVCard, "new-contacts.vcf", recentContacts.length, "הורדת אנשי קשר חדשים", { markRecentImported: true });
 }
 
 async function downloadAllContacts() {
@@ -8210,7 +8904,7 @@ async function downloadAllContacts() {
   }
 
   const multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "ייבוא כל אנשי הקשר");
+  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "הורדת כל אנשי הקשר");
 }
 
 async function downloadContact(id) {
