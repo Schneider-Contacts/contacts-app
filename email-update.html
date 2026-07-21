@@ -7,8 +7,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="icon" href="app-icon.png?v=20260715-v11">
-  <link rel="apple-touch-icon" href="app-icon.png?v=20260715-v11">
+  <link rel="icon" href="app-icon.png?v=20260721-v14">
+  <link rel="apple-touch-icon" href="app-icon.png?v=20260721-v14">
   <title>השלמת או עדכון כתובת מייל</title>
 
   <style>
@@ -283,7 +283,7 @@
   <main class="page">
     <section class="card">
       <div class="logoBox">
-        <img src="app-logo.png?v=20260715-v11" alt="">
+        <img src="app-logo.png?v=20260721-v14" alt="">
       </div>
 
       <h1>השלמת או עדכון כתובת מייל</h1>
@@ -368,6 +368,18 @@
     const form = document.getElementById("emailForm");
     const submitBtn = document.getElementById("submitBtn");
     const statusEl = document.getElementById("status");
+    const queryParams = new URLSearchParams(window.location.search);
+    const prefilledPhone = (queryParams.get("phone") || "").trim();
+    const prefilledEmail = (queryParams.get("email") || "").trim().toLowerCase();
+
+    if (prefilledPhone) {
+      document.getElementById("phone").value = prefilledPhone;
+    }
+
+    if (prefilledEmail) {
+      document.getElementById("email").value = prefilledEmail;
+      document.getElementById("confirmEmail").value = prefilledEmail;
+    }
 
     function setStatus(message = "", type = "") {
       statusEl.textContent = message;

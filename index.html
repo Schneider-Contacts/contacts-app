@@ -4,8 +4,8 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="//www.gstatic.com">
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260717-v13-3">
-<link rel="icon" href="app-icon.png?v=20260717-v13-3">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260721-v14">
+<link rel="icon" href="app-icon.png?v=20260721-v14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -1523,6 +1523,26 @@ select {
   background: #fffbf5;
 }
 
+.adminCard.newAccess {
+  border-color: var(--green-300);
+  background:
+    radial-gradient(circle at top left, rgba(209, 250, 229, 0.52), transparent 44%),
+    #ffffff;
+  box-shadow: 0 8px 22px rgba(5, 150, 105, 0.11);
+}
+
+.adminNewAccessBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--green-600);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .adminCardTop {
   display: flex;
   align-items: flex-start;
@@ -1885,75 +1905,25 @@ select {
 .recentContactsBtn:hover { background: var(--green-50); }
 .recentModalExplanation { margin: 0 0 13px; color: #557066; font-size: 13px; line-height: 1.65; }
 .recentModalCount { margin-bottom: 12px; padding: 12px 13px; border: 1px solid var(--green-200); border-radius: 14px; background: var(--green-50); color: #295746; font-size: 14px; font-weight: 750; line-height: 1.55; }
-.recentModalList { max-height: 260px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
-.recentModalList li { padding: 9px 2px; border-bottom: 1px solid #e6f0eb; color: #395d4f; font-size: 13px; line-height: 1.45; }
+.recentModalSelectionTools { display: none; gap: 8px; margin: -3px 0 10px; }
+.recentModalSelectionTools.visible { display: flex; }
+.recentModalSelectionBtn { flex: 1; min-height: 36px; padding: 7px 10px; border: 1px solid #d8ece1; border-radius: 11px; background: #f7fcf9; color: var(--green-700); box-shadow: none; font-size: 12.5px; font-weight: 800; }
+.recentModalList { max-height: 300px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.recentModalList li { border-bottom: 1px solid #e6f0eb; color: #395d4f; font-size: 13px; line-height: 1.45; }
 .recentModalList li:last-child { border-bottom: 0; }
+.recentContactOption { position: relative; display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 2px; cursor: pointer; text-align: right; }
+.recentContactOption:hover { background: #f8fcfa; }
+.recentContactOption input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; padding: 0; pointer-events: none; }
+.recentContactCheckmark { width: 21px; height: 21px; min-width: 21px; margin-top: 1px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #b9dccb; border-radius: 7px; background: #ffffff; color: transparent; font-size: 13px; font-weight: 900; line-height: 1; transition: all .18s ease; }
+.recentContactOption input:checked + .recentContactCheckmark { background: var(--green-600); border-color: var(--green-600); color: #ffffff; box-shadow: 0 4px 10px rgba(5, 150, 105, 0.20); }
+.recentContactText { min-width: 0; flex: 1; }
 .recentModalEmpty { padding: 18px 10px; color: #6c7f77; text-align: center; font-size: 13.5px; line-height: 1.55; }
 @media (max-width: 390px) {
   .quickFilters { grid-template-columns: 1fr 1fr; }
   .quickFilters .quickFilterBtn:last-child { grid-column: 1 / -1; }
 }
 
-/* ===== Interface update: saved login, recent contacts and activity ===== */
-.rememberDeviceOption {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 13px 0 0;
-  padding: 11px 12px;
-  border: 1px solid #d7ebe1;
-  border-radius: 14px;
-  background: rgba(247, 252, 249, 0.92);
-  color: #4f6e61;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.45;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.rememberDeviceOption:hover {
-  border-color: var(--green-300);
-  background: var(--green-50);
-}
-
-#login .rememberDeviceOption input {
-  display: block;
-  position: relative;
-  width: 19px;
-  height: 19px;
-  min-width: 19px;
-  min-height: 19px;
-  margin: 1px 0 0;
-  padding: 0;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  box-shadow: none;
-  text-align: initial;
-  accent-color: var(--green-600);
-  -webkit-appearance: checkbox;
-  appearance: auto;
-  opacity: 1;
-  pointer-events: auto;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-#login .rememberDeviceOption input:focus-visible {
-  outline: 3px solid rgba(16, 185, 129, 0.24);
-  outline-offset: 2px;
-}
-
-.rememberDeviceHelp {
-  display: block;
-  margin-top: 2px;
-  color: #73847c;
-  font-size: 11.5px;
-  font-weight: 500;
-}
-
+/* ===== Interface update: recent contacts and activity ===== */
 .guidePlatformSection {
   margin: 14px 0;
   padding: 14px 14px 10px;
@@ -2203,50 +2173,6 @@ select {
   font-weight: 800;
 }
 
-.savedAccountCard {
-  display: none;
-  position: relative;
-  z-index: 1;
-  margin: 0 0 16px;
-  padding: 12px;
-  border: 1px solid #d7ebe1;
-  border-radius: 16px;
-  background: rgba(247, 252, 249, 0.95);
-}
-
-.savedAccountCard.visible { display: block; }
-
-#login .savedAccountPrimary {
-  width: 100%;
-  min-height: 50px;
-  margin: 0;
-  padding: 10px 13px;
-  border-radius: 13px;
-  background: #ffffff;
-  border: 1px solid var(--green-200);
-  color: #244f40;
-  box-shadow: none;
-  text-align: right;
-}
-
-.savedAccountPrimary span,
-.savedAccountPrimary strong { display: block; }
-.savedAccountPrimary span { font-size: 12px; color: #6a7e75; margin-bottom: 2px; }
-.savedAccountPrimary strong { font-size: 14px; direction: ltr; text-align: right; overflow-wrap: anywhere; }
-
-#login .savedAccountOther {
-  width: auto;
-  min-height: 0;
-  margin: 9px auto 0;
-  padding: 3px 0;
-  border: 0;
-  background: transparent;
-  color: var(--green-700);
-  box-shadow: none;
-  font-size: 12.5px;
-  font-weight: 800;
-}
-
 .selectedAuthEmail {
   margin: 0 0 10px;
   padding: 10px 12px;
@@ -2291,6 +2217,40 @@ select {
   line-height: 1.55;
 }
 .verificationActions { display: grid; gap: 9px; }
+.verificationUrgentHelp {
+  margin-top: 2px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: #f7fbf9;
+  border: 1px solid #d7ebe1;
+  color: #49685c;
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: right;
+}
+.verificationUrgentHelp strong {
+  color: #17352d;
+}
+#login .managerWhatsappLink {
+  display: none;
+  width: 100%;
+  min-height: 42px;
+  margin: 9px 0 0;
+  padding: 9px 12px;
+  border: 1px solid #86d7ad;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #176847;
+  box-shadow: none;
+  text-decoration: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+#login .managerWhatsappLink.visible {
+  display: flex;
+}
 #login .verificationActions button { margin: 0; }
 #login .verificationSecondary {
   background: var(--green-50);
@@ -2668,7 +2628,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260717-v13-3" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260721-v14" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2760,6 +2720,10 @@ select {
       <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
       <button type="button" id="manualApprovalRequestBtn" class="manualApprovalRequestBtn" onclick="requestManualApproval_()">לא קיבלתי מייל אימות — בקש אישור ממנהל־העל</button>
       <div id="manualApprovalRequestStatus" class="manualApprovalRequestStatus" aria-live="polite"></div>
+      <div id="verificationUrgentHelp" class="verificationUrgentHelp">
+        <strong>האישור דחוף?</strong> לאחר שליחת הבקשה ניתן ליצור קשר ישירות עם המנהל הפעיל.
+        <a id="managerWhatsappLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">שליחת WhatsApp למנהל</a>
+      </div>
       <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">← חזרה למסך הראשי</button>
     </div>
   </div>
@@ -2782,7 +2746,7 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260717-v13-3" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260721-v14" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
@@ -2821,7 +2785,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 הורדת אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260717-v13-3" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260721-v14" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2916,6 +2880,10 @@ select {
     </div>
     <p id="recentContactsExplanation" class="recentModalExplanation"></p>
     <div id="recentContactsCount" class="recentModalCount"></div>
+    <div id="recentContactsSelectionTools" class="recentModalSelectionTools">
+      <button type="button" class="recentModalSelectionBtn" onclick="selectAllRecentContacts_()">בחירת הכול</button>
+      <button type="button" class="recentModalSelectionBtn" onclick="clearRecentContactsSelection_()">ניקוי בחירה</button>
+    </div>
     <ul id="recentContactsList" class="recentModalList"></ul>
     <div class="adminModalActions">
       <button type="button" class="adminActionBtn secondary" onclick="closeRecentContactsModal()">סגירה</button>
@@ -3118,6 +3086,8 @@ const REGISTRATION_FORM_URL =
 const AUTH_ROUTE_TIMEOUT_MS = 9000;
 const AUTH_ROUTE_CACHE_MS = 2 * 60 * 1000;
 const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v1_";
+const SUPPORT_CONTACT_CACHE_KEY = "contacts_support_contact_v1";
+const SUPPORT_CONTACT_CACHE_MS = 30 * 60 * 1000;
 const PENDING_AUTH_EMAIL_STORAGE_KEY = "contacts_pending_auth_email_v1";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
 const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
@@ -3131,6 +3101,7 @@ const LEGACY_CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
 const LEGACY_CONTACT_BUNDLE_MANIFEST_ID = "manifest";
 const LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
+const RECENT_CONTACTS_IMPORTED_PHONES_KEY = "contacts_recent_imported_phones_v1";
 const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 const USAGE_DAILY_COLLECTION_NAME = "usageDaily";
 const DAILY_ACTIVE_USERS_COLLECTION_NAME = "dailyActiveUsers";
@@ -3156,6 +3127,7 @@ let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
 let activeQuickFilter = "";
+let selectedRecentContactPhones = new Set();
 
 let authMode = "login";
 let authPurpose = "login";
@@ -3166,6 +3138,7 @@ let lastUnverifiedEmail = "";
 let lastUnknownEmail = "";
 let authRouteRequestSequence = 0;
 let pendingAuthRedirectTimer = null;
+let managerSupportContactPromise = null;
 
 let currentUserIsAdmin = false;
 let currentUserIsSuperAdmin = false;
@@ -3680,6 +3653,37 @@ function getRecentContactsCutoff() {
   return Date.now() - (RECENT_CONTACTS_DEFAULT_DAYS * 24 * 60 * 60 * 1000);
 }
 
+function getImportedRecentContactPhones_() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RECENT_CONTACTS_IMPORTED_PHONES_KEY) || "[]");
+    return new Set(
+      (Array.isArray(parsed) ? parsed : [])
+        .map(normalizePhone)
+        .filter(Boolean)
+    );
+  } catch (error) {
+    console.warn("Could not load imported recent-contact phones", error);
+    return new Set();
+  }
+}
+
+function markRecentContactPhonesImported_(phones) {
+  const importedPhones = getImportedRecentContactPhones_();
+  (Array.isArray(phones) ? phones : [])
+    .map(normalizePhone)
+    .filter(Boolean)
+    .forEach(phone => importedPhones.add(phone));
+
+  try {
+    localStorage.setItem(
+      RECENT_CONTACTS_IMPORTED_PHONES_KEY,
+      JSON.stringify([...importedPhones])
+    );
+  } catch (error) {
+    console.warn("Could not store imported recent-contact phones", error);
+  }
+}
+
 function parseContactDate(value) {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
@@ -3721,14 +3725,17 @@ function getContactCreationDate(contact) {
   return parseContactDate(contact && contact.createdAt);
 }
 
-function isContactRecent(contact) {
-  if (!contact || contact.isNewContact !== true) return false;
-  const createdDate = getContactCreationDate(contact);
-  return Boolean(createdDate && createdDate.getTime() > getRecentContactsCutoff());
-}
-
 function getRecentContacts() {
-  return contacts.filter(isContactRecent).sort((a, b) => {
+  const importedPhones = getImportedRecentContactPhones_();
+  const cutoff = getRecentContactsCutoff();
+
+  return contacts.filter(contact => {
+    if (!contact || contact.isNewContact !== true) return false;
+    const phone = normalizePhone(contact.phone);
+    if (!phone || importedPhones.has(phone)) return false;
+    const createdDate = getContactCreationDate(contact);
+    return Boolean(createdDate && createdDate.getTime() > cutoff);
+  }).sort((a, b) => {
     const aDate = getContactCreationDate(a);
     const bDate = getContactCreationDate(b);
     return (bDate ? bDate.getTime() : 0) - (aDate ? aDate.getTime() : 0);
@@ -4242,11 +4249,6 @@ function rememberSuccessfulEmail_(email) {
   }
 }
 
-function updateSavedAccountCard_() {
-  // v12: Firebase local persistence handles returning users automatically.
-  // The old account-choice card is intentionally no longer displayed.
-}
-
 function setAuthRedirectPanelVisible_(visible) {
   const panel = document.getElementById("authRedirectPanel");
   if (panel) panel.classList.toggle("visible", Boolean(visible));
@@ -4439,6 +4441,103 @@ function requestPublicAuthRoute_(kind, value, options = {}) {
     };
     document.head.appendChild(script);
   });
+}
+
+function getCachedSupportContact_() {
+  try {
+    const raw = sessionStorage.getItem(SUPPORT_CONTACT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      !parsed ||
+      !parsed.savedAt ||
+      Date.now() - Number(parsed.savedAt) > SUPPORT_CONTACT_CACHE_MS
+    ) {
+      sessionStorage.removeItem(SUPPORT_CONTACT_CACHE_KEY);
+      return null;
+    }
+    return parsed.payload || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function requestActiveManagerSupportContact_() {
+  const cached = getCachedSupportContact_();
+  if (cached) return Promise.resolve(cached);
+  if (managerSupportContactPromise) return managerSupportContactPromise;
+
+  managerSupportContactPromise = new Promise(resolve => {
+    const callbackName = `__contactsSupport_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = payload => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch (error) { window[callbackName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+      managerSupportContactPromise = null;
+      resolve(payload || { ok: false });
+    };
+
+    const timer = setTimeout(() => cleanup({ ok: false }), 8000);
+    window[callbackName] = payload => {
+      const safePayload = payload && typeof payload === "object"
+        ? payload
+        : { ok: false };
+      try {
+        sessionStorage.setItem(
+          SUPPORT_CONTACT_CACHE_KEY,
+          JSON.stringify({ savedAt: Date.now(), payload: safePayload })
+        );
+      } catch (error) {
+        // מטמון הוא אופטימיזציה בלבד.
+      }
+      cleanup(safePayload);
+    };
+
+    const params = new URLSearchParams({
+      action: "supportContact",
+      callback: callbackName,
+      _: String(Date.now())
+    });
+    script.src = `${AUTH_ROUTER_URL}?${params.toString()}`;
+    script.async = true;
+    script.onerror = () => cleanup({ ok: false });
+    document.head.appendChild(script);
+  });
+
+  return managerSupportContactPromise;
+}
+
+async function updateManagerWhatsappLink_() {
+  const link = document.getElementById("managerWhatsappLink");
+  if (!link) return;
+
+  link.classList.remove("visible");
+  link.removeAttribute("href");
+  link.textContent = "שליחת WhatsApp למנהל";
+
+  try {
+    const contact = await requestActiveManagerSupportContact_();
+    if (
+      !contact ||
+      contact.ok !== true ||
+      !String(contact.whatsappUrl || "").startsWith("https://wa.me/")
+    ) {
+      return;
+    }
+
+    link.href = contact.whatsappUrl;
+    link.textContent = contact.name
+      ? `שליחת WhatsApp ל${contact.name}`
+      : "שליחת WhatsApp למנהל הפעיל";
+    link.classList.add("visible");
+  } catch (error) {
+    console.warn("Could not load active manager WhatsApp link", error);
+  }
 }
 
 function setStepButtonBusy_(buttonId, busy, busyText, normalText) {
@@ -4787,6 +4886,9 @@ function showVerificationPanel_(user, email = "") {
   setManualApprovalRequestState_("idle", "");
   setLoginStatus("", "");
   startVerificationAccessListener_(user || (auth && auth.currentUser));
+  updateManagerWhatsappLink_().catch(error => {
+    console.warn("Manager support link refresh failed", error);
+  });
   loadOwnVerificationRequestState_().catch(error => {
     console.error("Verification request state refresh failed", error);
   });
@@ -5581,7 +5683,6 @@ async function sendPasswordReset() {
 function showLoginScreen() {
   document.getElementById("login").style.display = "block";
   document.getElementById("app").style.display = "none";
-  updateSavedAccountCard_();
 }
 
 function updateUserInfoForUser_(user) {
@@ -6192,6 +6293,8 @@ async function loadAdminData() {
         active: data.active === true,
         source: String(data.source || ""),
         updatedAt: data.updatedAt || null,
+        accessGrantedAt: data.accessGrantedAt || null,
+        accessGrantSource: String(data.accessGrantSource || ""),
         authState: String(data.authState || ""),
         verificationSentAt: data.verificationSentAt || null,
         lastVerifiedLoginAt: data.lastVerifiedLoginAt || null,
@@ -6437,7 +6540,7 @@ function formatActivityTimestamp(activity) {
 }
 
 function getActivityCategory(action) {
-  if (["contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "manager_add"].includes(action)) {
+  if (["contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "access_auto_granted", "manager_add"].includes(action)) {
     return "added";
   }
 
@@ -6466,6 +6569,7 @@ function getActivityTitle(activity) {
     manager_remove: "מנהל הוסר",
     manager_enable: "מנהל הופעל",
     manager_disable: "מנהל הושבת",
+    access_auto_granted: "גישה אושרה אוטומטית",
     manual_approval_grant: "גישה אושרה ידנית",
     manual_approval_reject: "בקשת אישור נדחתה",
     manual_approval_revoke: "אישור ידני בוטל"
@@ -7419,6 +7523,47 @@ async function revokeManualAccess_(email) {
   }
 }
 
+function getAdminTimestampMillis_(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function getUserAccessGrantTimestamp_(user) {
+  return Math.max(
+    getAdminTimestampMillis_(user && user.accessGrantedAt),
+    getAdminTimestampMillis_(user && user.manualApprovedAt)
+  );
+}
+
+function isUserNewToday_(user) {
+  const timestamp = getUserAccessGrantTimestamp_(user);
+  if (!timestamp) return false;
+  return getIsraelDateKey_(new Date(timestamp)) === getIsraelDateKey_();
+}
+
+function getUserAccessGrantLabel_(user) {
+  const automaticAt = getAdminTimestampMillis_(user && user.accessGrantedAt);
+  const manualAt = getAdminTimestampMillis_(user && user.manualApprovedAt);
+
+  if (manualAt >= automaticAt && manualAt > 0) {
+    return "אישור ידני היום";
+  }
+
+  if (user && user.accessGrantSource === "google-form") {
+    return "נוסף היום דרך הטופס";
+  }
+
+  if (user && user.accessGrantSource === "self-service-email-update") {
+    return "נוסף היום דרך עדכון מייל";
+  }
+
+  return "קיבל גישה היום";
+}
+
 function renderAdminUsers() {
   const query = getAdminSearchQuery();
 
@@ -7433,6 +7578,14 @@ function renderAdminUsers() {
       return adminUserMatchesQuery(user, query);
     })
     .sort((a, b) => {
+      const aGrant = getUserAccessGrantTimestamp_(a);
+      const bGrant = getUserAccessGrantTimestamp_(b);
+      if (aGrant !== bGrant) {
+        if (!aGrant) return 1;
+        if (!bGrant) return -1;
+        return bGrant - aGrant;
+      }
+
       const aState = getUserAccessState_(a).key;
       const bState = getUserAccessState_(b).key;
       if (aState === "pending" && bState !== "pending") return -1;
@@ -7441,8 +7594,10 @@ function renderAdminUsers() {
     });
 
   const pendingCount = adminAllowedUsers.filter(user => getUserAccessState_(user).key === "pending").length;
+  const newTodayCount = adminAllowedUsers.filter(isUserNewToday_).length;
   document.getElementById("adminSummary").textContent =
     `${users.length === 1 ? "נמצא משתמש אחד" : `נמצאו ${users.length} משתמשים`}` +
+    (newTodayCount ? ` · ${newTodayCount} קיבלו גישה היום ומוצגים ראשונים` : "") +
     (pendingCount ? ` · ${pendingCount} בקשות אימות ממתינות` : "");
 
   if (!users.length) {
@@ -7456,6 +7611,7 @@ function renderAdminUsers() {
     const isSelf = normalizeEmail(user.email) === currentAdminEmail;
     const accessState = getUserAccessState_(user);
     const request = getVerificationRequestByEmail_(user.email);
+    const isNewToday = isUserNewToday_(user);
     const lastAccess = user.lastAccessAt
       ? `<span class="accessStateNote">גישה אחרונה שנרשמה: ${escapeHtml(formatAdminTimestamp_(user.lastAccessAt))}</span>`
       : "";
@@ -7480,10 +7636,11 @@ function renderAdminUsers() {
     }
 
     return `
-      <div class="adminCard ${user.active ? "" : "blocked"}">
+      <div class="adminCard ${user.active ? "" : "blocked"} ${isNewToday ? "newAccess" : ""}">
         <div class="adminCardTop">
           <div>
             <div class="adminCardName">${escapeHtml(contact && contact.name ? contact.name : user.email)}</div>
+            ${isNewToday ? `<span class="adminNewAccessBadge">${escapeHtml(getUserAccessGrantLabel_(user))}</span>` : ""}
             <div class="adminCardMeta">
               ${escapeHtml(user.email)}
               ${contact && contact.phone ? "<br>" + escapeHtml(formatPhoneForDisplay(contact.phone)) : ""}
@@ -8442,7 +8599,7 @@ async function shareOrDownloadVCard(vcardContent, fileName, options = {}) {
   if (preferDirectOpen) {
     const dataUrl = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcardContent);
     window.location.href = dataUrl;
-    return;
+    return true;
   }
 
   if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
@@ -8452,10 +8609,10 @@ async function shareOrDownloadVCard(vcardContent, fileName, options = {}) {
 
       if (navigator.canShare(shareData)) {
         await navigator.share(shareData);
-        return;
+        return true;
       }
     } catch (error) {
-      if (error && error.name === "AbortError") return;
+      if (error && error.name === "AbortError") return false;
       console.warn("Native share failed, falling back to download", error);
     }
   }
@@ -8469,6 +8626,7 @@ async function shareOrDownloadVCard(vcardContent, fileName, options = {}) {
   document.body.removeChild(a);
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
 }
 
 function cleanupOldImportPayloads() {
@@ -8498,6 +8656,10 @@ function saveImportPayload(vcardContent, fileName, count, titleText, options = {
     count,
     titleText,
     markRecentImported: options.markRecentImported === true,
+    markRecentImportCutoff: options.markRecentImportCutoff === true,
+    importedRecentPhones: Array.isArray(options.importedRecentPhones)
+      ? options.importedRecentPhones.map(normalizePhone).filter(Boolean)
+      : [],
     createdAt: Date.now()
   };
 
@@ -8557,13 +8719,18 @@ function renderImportGuide(importKey) {
 
   const finalBtn = document.getElementById("finalGuideBtn");
   finalBtn.onclick = async function () {
-    await shareOrDownloadVCard(payload.vcardContent, payload.fileName);
+    const downloadCompleted = await shareOrDownloadVCard(payload.vcardContent, payload.fileName);
+    if (downloadCompleted !== true) return;
 
     if (payload.markRecentImported === true) {
-      localStorage.setItem(
-        RECENT_CONTACTS_STORAGE_KEY,
-        String(Date.now())
-      );
+      markRecentContactPhonesImported_(payload.importedRecentPhones || []);
+
+      if (payload.markRecentImportCutoff === true) {
+        localStorage.setItem(
+          RECENT_CONTACTS_STORAGE_KEY,
+          String(Date.now())
+        );
+      }
     }
   };
 }
@@ -8772,7 +8939,7 @@ async function submitContactAddRequest_() {
       approvedContactId: ""
     });
 
-    setContactAddStatus_("תודה על הוספת איש הקשר. הפרטים נשלחו לבדיקת מנהל.", "success");
+    setContactAddStatus_("תודה על הוספת איש הקשר.", "success");
     document.getElementById("contactAddSubmitBtn").textContent = "נשלח";
     setTimeout(closeContactAddModal_, 1500);
   } catch (error) {
@@ -8852,29 +9019,100 @@ async function submitContactReport() {
   }
 }
 
+function getRecentContactSelectionKey_(contact) {
+  return normalizePhone(contact && contact.phone);
+}
+
+function updateRecentContactsSelectionUi_() {
+  const recentContacts = getRecentContacts();
+  const selectedCount = recentContacts.filter(contact =>
+    selectedRecentContactPhones.has(getRecentContactSelectionKey_(contact))
+  ).length;
+  const countBox = document.getElementById("recentContactsCount");
+  const importButton = document.getElementById("recentContactsImportBtn");
+
+  if (countBox) {
+    if (!recentContacts.length) {
+      countBox.textContent = "לא נמצאו כרגע אנשי קשר חדשים להורדה.";
+    } else {
+      const foundText = recentContacts.length === 1
+        ? "נמצא איש קשר חדש אחד."
+        : `נמצאו ${recentContacts.length} אנשי קשר חדשים.`;
+      const selectedText = selectedCount === 1
+        ? " נבחר איש קשר אחד להורדה."
+        : ` נבחרו ${selectedCount} להורדה.`;
+      countBox.textContent = foundText + selectedText;
+    }
+  }
+
+  if (importButton) {
+    importButton.disabled = selectedCount === 0;
+    importButton.textContent = selectedCount > 0
+      ? `הורדת ${selectedCount} אנשי קשר`
+      : "בחרו אנשי קשר להורדה";
+  }
+}
+
+function toggleRecentContactSelection_(phone, checked) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) return;
+  if (checked) selectedRecentContactPhones.add(normalizedPhone);
+  else selectedRecentContactPhones.delete(normalizedPhone);
+  updateRecentContactsSelectionUi_();
+}
+
+function selectAllRecentContacts_() {
+  selectedRecentContactPhones = new Set(
+    getRecentContacts().map(getRecentContactSelectionKey_).filter(Boolean)
+  );
+  document.querySelectorAll('#recentContactsList input[type="checkbox"]').forEach(input => {
+    input.checked = true;
+  });
+  updateRecentContactsSelectionUi_();
+}
+
+function clearRecentContactsSelection_() {
+  selectedRecentContactPhones.clear();
+  document.querySelectorAll('#recentContactsList input[type="checkbox"]').forEach(input => {
+    input.checked = false;
+  });
+  updateRecentContactsSelectionUi_();
+}
+
 function openRecentContactsModal() {
   const recentContacts = getRecentContacts();
-  const hasPreviousImport = Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0) > 0;
+  const hasPreviousImport =
+    Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0) > 0 ||
+    getImportedRecentContactPhones_().size > 0;
   const explanation = document.getElementById("recentContactsExplanation");
-  const countBox = document.getElementById("recentContactsCount");
   const list = document.getElementById("recentContactsList");
-  const importButton = document.getElementById("recentContactsImportBtn");
+  const selectionTools = document.getElementById("recentContactsSelectionTools");
+
+  selectedRecentContactPhones = new Set(
+    recentContacts.map(getRecentContactSelectionKey_).filter(Boolean)
+  );
+
   if (explanation) {
     explanation.textContent = hasPreviousImport
-      ? "הרשימה כוללת רק אנשי קשר חדשים באמת שנוספו למערכת מאז ההורדה האחרונה מהמכשיר הזה. רישום חוזר של מספר שכבר היה במערכת אינו נכלל. האפליקציה אינה יכולה לבדוק אילו אנשי קשר כבר שמורים בפנקס הטלפון."
-      : `זהו השימוש הראשון בכפתור, ולכן מוצגים רק אנשי קשר חדשים באמת שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. רישום חוזר של מספר שכבר היה במערכת אינו נכלל.`;
+      ? "הרשימה כוללת רק מספרי טלפון חדשים שנוספו למערכת מאז ההורדה האחרונה מהמכשיר הזה. שינוי שם, תפקיד, מייל או מחלקה של מספר קיים אינו נכלל. אפשר לבחור אילו אנשי קשר להוריד."
+      : `זהו השימוש הראשון בכפתור, ולכן מוצגים רק מספרי טלפון חדשים שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. שינוי פרטים של מספר קיים אינו נכלל. אפשר לבחור אילו אנשי קשר להוריד.`;
   }
-  if (countBox) {
-    countBox.textContent = recentContacts.length === 1 ? "נמצא איש קשר חדש אחד להורדה." : `נמצאו ${recentContacts.length} אנשי קשר חדשים להורדה.`;
+
+  if (selectionTools) {
+    selectionTools.classList.toggle("visible", recentContacts.length > 0);
   }
+
   if (list) {
-    list.innerHTML = recentContacts.length ? recentContacts.slice(0, 50).map(contact => {
+    list.innerHTML = recentContacts.length ? recentContacts.map(contact => {
+      const phone = getRecentContactSelectionKey_(contact);
       const date = getContactCreationDate(contact);
       const dateLabel = date ? new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(date) : "";
-      return `<li><b>${escapeHtml(contact.name || formatPhoneForDisplay(contact.phone))}</b>${contact.dept ? " · " + escapeHtml(contact.dept) : ""}${dateLabel ? "<br><small>נוסף: " + escapeHtml(dateLabel) + "</small>" : ""}</li>`;
-    }).join("") : '<li class="recentModalEmpty">לא נמצאו כרגע אנשי קשר חדשים. לאחר סנכרון הנתונים, אנשי קשר שנוספו אחרי מועד החיתוך יופיעו כאן.</li>';
+      const details = [contact.dept, formatPhoneForDisplay(contact.phone)].filter(Boolean).map(escapeHtml).join(" · ");
+      return `<li><label class="recentContactOption"><input type="checkbox" checked onchange="toggleRecentContactSelection_('${escapeHtml(phone)}', this.checked)"><span class="recentContactCheckmark">✓</span><span class="recentContactText"><b>${escapeHtml(contact.name || formatPhoneForDisplay(contact.phone))}</b>${details ? "<br><small>" + details + "</small>" : ""}${dateLabel ? "<br><small>נוסף: " + escapeHtml(dateLabel) + "</small>" : ""}</span></label></li>`;
+    }).join("") : '<li class="recentModalEmpty">לא נמצאו כרגע מספרי טלפון חדשים. שינוי פרטים של איש קשר קיים אינו מופיע ברשימה זו.</li>';
   }
-  if (importButton) importButton.disabled = recentContacts.length === 0;
+
+  updateRecentContactsSelectionUi_();
   const modal = document.getElementById("recentContactsModal");
   if (modal) modal.classList.add("visible");
   document.body.style.overflow = "hidden";
@@ -8888,13 +9126,30 @@ function closeRecentContactsModal() {
 
 async function downloadRecentContacts() {
   const recentContacts = getRecentContacts();
-  if (!recentContacts.length) {
-    alert("לא נמצאו אנשי קשר חדשים להורדה.");
+  const selectedContacts = recentContacts.filter(contact =>
+    selectedRecentContactPhones.has(getRecentContactSelectionKey_(contact))
+  );
+
+  if (!selectedContacts.length) {
+    alert("לא נבחרו אנשי קשר חדשים להורדה.");
     return;
   }
-  const multiVCard = recentContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+
+  const multiVCard = selectedContacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
+  const selectedPhones = selectedContacts.map(getRecentContactSelectionKey_).filter(Boolean);
+  const allRecentSelected = selectedContacts.length === recentContacts.length;
   closeRecentContactsModal();
-  openImportGuide(multiVCard, "new-contacts.vcf", recentContacts.length, "הורדת אנשי קשר חדשים", { markRecentImported: true });
+  openImportGuide(
+    multiVCard,
+    "new-contacts.vcf",
+    selectedContacts.length,
+    "הורדת אנשי קשר חדשים",
+    {
+      markRecentImported: true,
+      markRecentImportCutoff: allRecentSelected,
+      importedRecentPhones: selectedPhones
+    }
+  );
 }
 
 async function downloadAllContacts() {
