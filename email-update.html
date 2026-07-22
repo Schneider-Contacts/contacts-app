@@ -7,8 +7,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="icon" href="app-icon.png?v=20260721-v14">
-  <link rel="apple-touch-icon" href="app-icon.png?v=20260721-v14">
+  <link rel="icon" href="app-icon.png?v=20260722-v16">
+  <link rel="apple-touch-icon" href="app-icon.png?v=20260722-v16">
   <title>השלמת או עדכון כתובת מייל</title>
 
   <style>
@@ -129,14 +129,22 @@
     }
 
     .emailGuidance {
-      margin: 0 0 17px;
-      padding: 13px 14px;
-      border: 1px solid var(--green-200);
-      border-radius: 14px;
-      background: var(--green-50);
-      color: #315b4c;
-      font-size: 13px;
-      line-height: 1.65;
+      margin: 0 0 18px;
+      padding: 15px 15px;
+      border: 2px solid #e5b84b;
+      border-radius: 15px;
+      background: #fff3cd;
+      color: #604407;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.7;
+    }
+
+    .emailGuidance .spamWarning {
+      display: block;
+      margin-top: 9px;
+      font-size: 15px;
+      font-weight: 900;
     }
 
     .emailGuidance p { margin: 0; }
@@ -283,7 +291,7 @@
   <main class="page">
     <section class="card">
       <div class="logoBox">
-        <img src="app-logo.png?v=20260721-v14" alt="">
+        <img src="app-logo.png?v=20260722-v16" alt="">
       </div>
 
       <h1>השלמת או עדכון כתובת מייל</h1>
@@ -294,7 +302,7 @@
 
       <div class="emailGuidance">
         <p><b>מומלץ להשתמש בכתובת מייל אישית ונגישה מהטלפון</b>, כדי שתוכלו לפתוח את הודעת האימות ולאשר את זהותכם.</p>
-        <p>ב־Gmail ייתכן שמייל האימות יגיע לתיקיית <b>ספאם</b> או <b>דואר זבל</b> — מומלץ לבדוק גם שם.</p>
+        <span class="spamWarning">⚠️ חשוב: מייל האימות מגיע לעיתים לספאם או לדואר זבל. יש לבדוק גם שם.</span>
       </div>
 
       <form

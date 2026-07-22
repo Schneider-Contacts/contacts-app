@@ -4,8 +4,8 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="//www.gstatic.com">
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="apple-touch-icon" href="app-icon.png?v=20260721-v14">
-<link rel="icon" href="app-icon.png?v=20260721-v14">
+<link rel="apple-touch-icon" href="app-icon.png?v=20260722-v16">
+<link rel="icon" href="app-icon.png?v=20260722-v16">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4fbf7">
@@ -2208,13 +2208,81 @@ select {
 }
 .verificationSpamNote {
   margin: 0 0 14px;
-  padding: 11px 12px;
+  padding: 14px 14px;
+  border-radius: 14px;
+  background: #fff7df;
+  border: 2px solid #f2cf72;
+  color: #684b0d;
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 850;
+  text-align: right;
+}
+.passwordHelpNote {
+  margin: 11px 0 0;
+  padding: 12px 13px;
   border-radius: 13px;
-  background: #fffaf0;
-  border: 1px solid #fde7b2;
-  color: #765819;
+  background: #fff7df;
+  border: 1px solid #f2cf72;
+  color: #684b0d;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 800;
+  text-align: center;
+}
+#login #passwordResetHelpBtn {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #f3d990;
+  border-radius: 12px;
+  background: #fff8e8;
+  color: #7a5714;
+  text-decoration: none;
+}
+.passwordResetHelpStatus {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #d7ebe1;
+  background: #f7fbf9;
+  color: #49685c;
   font-size: 12.5px;
   line-height: 1.55;
+}
+.passwordResetHelpStatus.visible { display: block; }
+.verificationSuccessPanel {
+  display: none;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+.verificationSuccessPanel.visible { display: block; }
+.verificationSuccessIcon {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  background: var(--green-50);
+  border: 2px solid var(--green-300);
+  color: var(--green-700);
+  font-size: 34px;
+  font-weight: 900;
+}
+.verificationSuccessPanel h3 {
+  margin: 0 0 8px;
+  color: #17352d;
+  font-size: 23px;
+}
+.verificationSuccessPanel p {
+  margin: 0 0 15px;
+  color: #526b61;
+  font-size: 14px;
+  line-height: 1.65;
 }
 .verificationActions { display: grid; gap: 9px; }
 .verificationUrgentHelp {
@@ -2584,6 +2652,76 @@ select {
   }
 }
 </style>
+
+<style>
+/* ===== v15: personal profile ===== */
+.myProfileBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--green-50);
+  color: var(--green-800);
+  border: 1px solid var(--green-200);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 850;
+  flex-shrink: 0;
+}
+.myProfileBtn:hover { background: var(--green-100); }
+.myProfileHero {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0 0 15px;
+  padding: 13px;
+  border: 1px solid var(--green-200);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f7fdf9 0%, var(--green-50) 100%);
+}
+.myProfileAvatar {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid var(--green-200);
+  box-shadow: 0 6px 15px rgba(5, 150, 105, 0.12);
+  font-size: 31px;
+}
+.myProfileHeroText { min-width: 0; }
+.myProfileHeroTitle {
+  margin: 0 0 3px;
+  color: #17352d;
+  font-size: 17px;
+  font-weight: 900;
+}
+.myProfileIdentity {
+  color: #587167;
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.myProfileIntro {
+  margin: 0 0 13px;
+  color: #526b61;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.myProfileReadOnly {
+  background: #f3f7f5 !important;
+  color: #697d74 !important;
+}
+@media (max-width: 390px) {
+  #userInfo { flex-wrap: wrap; }
+  #userInfoText { flex-basis: 100%; }
+}
+</style>
 </head>
 <body>
 
@@ -2628,7 +2766,7 @@ select {
 <div id="login">
   <div class="authBrand">
     <div class="authLogoBox">
-      <img src="app-logo.png?v=20260721-v14" alt="לוגו ספר אנשי הקשר">
+      <img src="app-logo.png?v=20260722-v16" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
     <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
@@ -2702,8 +2840,11 @@ select {
 
       <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
       <div class="authSecondaryLinks">
-        <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שכחתי סיסמה</button>
+        <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שליחת קישור לאיפוס סיסמה</button>
+        <button type="button" class="authLinkBtn" id="passwordResetHelpBtn" onclick="requestPasswordResetHelp_()">בקשת עזרה ממנהל באיפוס הסיסמה</button>
       </div>
+      <div id="passwordResetHelpStatus" class="passwordResetHelpStatus" aria-live="polite"></div>
+      <div class="passwordHelpNote">לא הגיע קישור? <b>יש לבדוק בתיקיות ספאם ודואר זבל</b> לפני ששולחים בקשה נוספת.</div>
       <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
       <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
     </div>
@@ -2713,19 +2854,26 @@ select {
     <h3>נשאר רק לאמת את כתובת המייל</h3>
     <p class="verificationLead">שלחנו מייל אימות חד־פעמי לכתובת:</p>
     <div id="verificationEmail" class="verificationEmail"></div>
-    <div class="verificationSpamNote"><b>לא מצאתם את ההודעה?</b> ב־Gmail ייתכן שהיא נמצאת בתיקיית ספאם או דואר זבל.</div>
+    <div class="verificationSpamNote">⚠️ <b>חשוב:</b> הודעת האימות מגיעה לעיתים לתיקיית <b>ספאם / דואר זבל</b>. יש לבדוק שם לפני שמנסים שוב.</div>
     <div class="verificationActions">
       <button type="button" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
       <button type="button" class="verificationSecondary" onclick="openGmailInbox()">פתיחת Gmail</button>
       <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
-      <button type="button" id="manualApprovalRequestBtn" class="manualApprovalRequestBtn" onclick="requestManualApproval_()">לא קיבלתי מייל אימות — בקש אישור ממנהל־העל</button>
+      <button type="button" id="manualApprovalRequestBtn" class="manualApprovalRequestBtn" onclick="requestManualApproval_()">לא קיבלתי מייל אימות — בקשת אישור ממנהל</button>
       <div id="manualApprovalRequestStatus" class="manualApprovalRequestStatus" aria-live="polite"></div>
       <div id="verificationUrgentHelp" class="verificationUrgentHelp">
         <strong>האישור דחוף?</strong> לאחר שליחת הבקשה ניתן ליצור קשר ישירות עם המנהל הפעיל.
-        <a id="managerWhatsappLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">שליחת WhatsApp למנהל</a>
+        <a id="managerWhatsappLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">שליחת WhatsApp למנהל הפעיל</a>
       </div>
       <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">← חזרה למסך הראשי</button>
     </div>
+  </div>
+
+  <div id="verificationSuccessPanel" class="verificationSuccessPanel">
+    <div class="verificationSuccessIcon">✓</div>
+    <h3>כתובת המייל אומתה בהצלחה</h3>
+    <p>האימות נקלט. אפשר להיכנס עכשיו לספר אנשי הקשר.</p>
+    <button type="button" class="primaryAuthBtn" onclick="continueAfterVerificationSuccess_()">כניסה לאפליקציה</button>
   </div>
 
   <div id="authRedirectPanel" class="authRedirectPanel">
@@ -2746,12 +2894,13 @@ select {
         <h2>ספר אנשי קשר</h2>
       </div>
       <div class="appHeaderLogoBox">
-        <img class="appHeaderLogo" src="app-logo.png?v=20260721-v14" alt="App logo">
+        <img class="appHeaderLogo" src="app-logo.png?v=20260722-v16" alt="App logo">
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
     <div id="userInfo">
       <span id="userInfoText"></span>
+      <button type="button" id="myProfileBtn" class="myProfileBtn" onclick="openMyProfileModal()">🙋 אני</button>
       <button type="button" id="adminOpenBtn" class="adminOnlyButton" onclick="openAdminPanel()">🛡 ניהול</button>
       <button type="button" class="logoutBtn" onclick="logout()">יציאה</button>
     </div>
@@ -2785,7 +2934,7 @@ select {
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 הורדת אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260721-v14" alt="לוגו ספר אנשי קשר">
+  <img id="logo" src="app-logo.png?v=20260722-v16" alt="לוגו ספר אנשי קשר">
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -2849,7 +2998,7 @@ select {
 
     <div id="adminReportFilters" class="adminFilterRow" style="display:none;">
       <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="pending_additions" onclick="setAdminFilter('pending_additions')">הוספות ממתינות</button>
+      <button type="button" class="adminFilterBtn" data-filter="pending_additions" onclick="setAdminFilter('pending_additions')">בקשות ממתינות</button>
       <button type="button" class="adminFilterBtn" data-filter="open_reports" onclick="setAdminFilter('open_reports')">דיווחים פתוחים</button>
       <button type="button" class="adminFilterBtn" data-filter="handled" onclick="setAdminFilter('handled')">טופלו</button>
     </div>
@@ -2892,6 +3041,64 @@ select {
   </div>
 </div>
 
+
+
+<div id="myProfileModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="myProfileModalTitle">
+  <div class="adminModalCard">
+    <div class="adminModalHeader">
+      <h3 id="myProfileModalTitle" class="adminModalTitle">הפרטים שלי</h3>
+      <button type="button" class="adminModalClose" onclick="closeMyProfileModal()" aria-label="סגירה">×</button>
+    </div>
+
+    <div class="myProfileHero">
+      <div class="myProfileAvatar" aria-hidden="true">🙋</div>
+      <div class="myProfileHeroText">
+        <div class="myProfileHeroTitle">אני בספר אנשי הקשר</div>
+        <div id="myProfileIdentity" class="myProfileIdentity"></div>
+      </div>
+    </div>
+
+    <p class="myProfileIntro">אפשר לעדכן את הפרטים המוצגים באפליקציה. השינוי יישלח למנהל לאישור לפני הפרסום.</p>
+
+    <div class="adminFormGrid">
+      <div class="adminFormField">
+        <label for="myProfileFirstName">שם פרטי</label>
+        <input id="myProfileFirstName" type="text" maxlength="100">
+      </div>
+      <div class="adminFormField">
+        <label for="myProfileLastName">שם משפחה</label>
+        <input id="myProfileLastName" type="text" maxlength="100">
+      </div>
+      <div class="adminFormField">
+        <label for="myProfileTitlePrefix">תואר</label>
+        <input id="myProfileTitlePrefix" type="text" maxlength="60" placeholder="ד״ר / פרופ׳">
+      </div>
+      <div class="adminFormField">
+        <label for="myProfileRole">תפקיד</label>
+        <input id="myProfileRole" type="text" maxlength="160">
+      </div>
+      <div class="adminFormField full">
+        <label for="myProfileDepartment">מחלקה / מכון</label>
+        <input id="myProfileDepartment" type="text" maxlength="160">
+      </div>
+      <div class="adminFormField full">
+        <label for="myProfilePhone">מספר טלפון</label>
+        <input id="myProfilePhone" class="myProfileReadOnly" type="text" readonly>
+      </div>
+      <div class="adminFormField full">
+        <label for="myProfileEmail">כתובת מייל</label>
+        <input id="myProfileEmail" class="myProfileReadOnly" type="email" dir="ltr" readonly>
+      </div>
+      <div class="adminFormNote">מספר הטלפון והמייל משמשים לזיהוי החשבון ואינם משתנים דרך המסך הזה.</div>
+    </div>
+
+    <div id="myProfileStatus" class="statusMessage adminSavingStatus"></div>
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="closeMyProfileModal()">ביטול</button>
+      <button type="button" id="myProfileSubmitBtn" class="adminActionBtn primary" onclick="submitMyProfileUpdate_()">שליחה לאישור מנהל</button>
+    </div>
+  </div>
+</div>
 
 <div id="contactAddModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="contactAddModalTitle">
   <div class="adminModalCard">
@@ -3067,6 +3274,7 @@ select {
 
 
 <script>
+
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBaZa5_RmMqhRH6MazTw5or9BqMZGC1RqM",
   authDomain: "contacts-sch.firebaseapp.com",
@@ -3091,6 +3299,7 @@ const SUPPORT_CONTACT_CACHE_MS = 30 * 60 * 1000;
 const PENDING_AUTH_EMAIL_STORAGE_KEY = "contacts_pending_auth_email_v1";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
 const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
+const ALLOWED_PHONES_COLLECTION_NAME = "allowedPhones";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
 const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v3";
@@ -3106,11 +3315,14 @@ const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 const USAGE_DAILY_COLLECTION_NAME = "usageDaily";
 const DAILY_ACTIVE_USERS_COLLECTION_NAME = "dailyActiveUsers";
 const DAILY_ACTIVE_USERS_STORAGE_PREFIX = "contacts_daily_active_user_v1_";
-const USAGE_SEARCH_FLUSH_DELAY_MS = 3 * 60 * 1000;
+const DAILY_CONTACT_USERS_COLLECTION_NAME = "dailyContactUsers";
+const DAILY_CONTACT_USERS_STORAGE_PREFIX = "contacts_daily_contact_user_v1_";
+const PASSWORD_RESET_REQUESTS_COLLECTION_NAME = "passwordResetRequests";
+const USAGE_CONTACT_FLUSH_DELAY_MS = 3 * 60 * 1000;
 const USAGE_LOGIN_FLUSH_DELAY_MS = 1200;
-const USAGE_SEARCH_FLUSH_THRESHOLD = 10;
-const USAGE_PENDING_STORAGE_KEY = "contacts_pending_usage_v2";
-const SEARCH_USAGE_DEBOUNCE_MS = 900;
+const USAGE_CONTACT_FLUSH_THRESHOLD = 10;
+const USAGE_PENDING_STORAGE_KEY = "contacts_pending_usage_v3";
+const CONTACT_USE_STORAGE_PREFIX = "contacts_contact_use_v1_";
 const LAST_LOGIN_EMAIL_STORAGE_KEY = "contacts_last_login_email_v1";
 const AUTH_STATUS_TELEMETRY_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const AUTH_STATUS_TELEMETRY_PREFIX = "contacts_auth_status_write_v1_";
@@ -3134,11 +3346,16 @@ let authPurpose = "login";
 let authStage = "email";
 let forceEmailEntry = false;
 let authActionInProgress = false;
+let authRouteIsAdmin = false;
+let pendingManualApprovalIntentEmail = "";
+let pendingManualApprovalIntentHandled = false;
+let verificationSuccessUser = null;
 let lastUnverifiedEmail = "";
 let lastUnknownEmail = "";
 let authRouteRequestSequence = 0;
 let pendingAuthRedirectTimer = null;
 let managerSupportContactPromise = null;
+let activeManagerSupportName = "";
 
 let currentUserIsAdmin = false;
 let currentUserIsSuperAdmin = false;
@@ -3148,15 +3365,19 @@ let verificationAccessTransitionInProgress = false;
 let currentAdminRole = "";
 let currentAdminEmail = "";
 let permissionListenerUnsubscribe = null;
+let phonePermissionListenerUnsubscribe = null;
 let adminActiveTab = "general";
 let adminActiveFilter = "all";
 let adminContacts = [];
 let adminRemovedContacts = [];
 let adminAllowedUsers = [];
+let adminAllowedPhones = [];
 let adminManagers = [];
 let adminActivity = [];
 let adminUsageDaily = [];
 let adminDailyActiveUsers = [];
+let adminDailyContactUsers = [];
+let adminPasswordResetRequests = [];
 let adminReports = [];
 let adminContactAddRequests = [];
 let adminVerificationRequests = [];
@@ -3164,8 +3385,8 @@ let pendingUsageByDate = {};
 let usageFlushTimer = null;
 let usageFlushScheduledAt = 0;
 let usageFlushInProgress = false;
-let searchUsageTimer = null;
-let lastCountedSearchQuery = "";
+let currentUserPermissionData = null;
+let myProfileContact = null;
 let adminEditingContact = null;
 let activeReportContact = null;
 let contactAddModalMode = "user";
@@ -3204,6 +3425,8 @@ function formatUsageDate_(dateKey) {
 
 function loadPendingUsage_() {
   try {
+    // ניקוי מדד החיפוש הישן; החל מ-v15 נשמר רק שימוש ממשי באנשי קשר.
+    localStorage.removeItem("contacts_pending_usage_v2");
     const raw = localStorage.getItem(USAGE_PENDING_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     pendingUsageByDate = parsed && typeof parsed === "object" ? parsed : {};
@@ -3218,9 +3441,16 @@ function persistPendingUsage_() {
     const clean = {};
     Object.entries(pendingUsageByDate).forEach(([dateKey, counts]) => {
       const logins = Math.max(0, Math.floor(Number(counts && counts.logins) || 0));
-      const searches = Math.max(0, Math.floor(Number(counts && counts.searches) || 0));
-      if (logins || searches) clean[dateKey] = { logins, searches };
+      const contactUses = Math.max(
+        0,
+        Math.floor(Number(counts && counts.contactUses) || 0)
+      );
+
+      if (logins || contactUses) {
+        clean[dateKey] = { logins, contactUses };
+      }
     });
+
     pendingUsageByDate = clean;
     localStorage.setItem(USAGE_PENDING_STORAGE_KEY, JSON.stringify(clean));
   } catch (error) {
@@ -3228,24 +3458,30 @@ function persistPendingUsage_() {
   }
 }
 
-function getPendingSearchCount_() {
+function getPendingContactUseCount_() {
   return Object.values(pendingUsageByDate).reduce(
-    (sum, counts) => sum + Math.max(0, Number(counts && counts.searches) || 0),
+    (sum, counts) =>
+      sum + Math.max(0, Number(counts && counts.contactUses) || 0),
     0
   );
 }
 
 function queueUsageMetric_(metric, amount = 1) {
-  if (!auth || !auth.currentUser || !currentUserHasAppAccess || !db || !firebaseApi) return;
+  if (!auth || !auth.currentUser || !currentUserHasAppAccess || !db || !firebaseApi) {
+    return;
+  }
 
   const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
   if (!safeAmount) return;
 
   const dateKey = getIsraelDateKey_();
-  const current = pendingUsageByDate[dateKey] || { logins: 0, searches: 0 };
+  const current = pendingUsageByDate[dateKey] || {
+    logins: 0,
+    contactUses: 0
+  };
 
   if (metric === "login") current.logins += safeAmount;
-  if (metric === "search") current.searches += safeAmount;
+  if (metric === "contact_use") current.contactUses += safeAmount;
 
   pendingUsageByDate[dateKey] = current;
   persistPendingUsage_();
@@ -3255,18 +3491,22 @@ function queueUsageMetric_(metric, amount = 1) {
     return;
   }
 
-  if (getPendingSearchCount_() >= USAGE_SEARCH_FLUSH_THRESHOLD) {
+  if (getPendingContactUseCount_() >= USAGE_CONTACT_FLUSH_THRESHOLD) {
     scheduleUsageFlush_(0);
   } else {
-    scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+    scheduleUsageFlush_(USAGE_CONTACT_FLUSH_DELAY_MS);
   }
 }
 
-function scheduleUsageFlush_(delayMs = USAGE_SEARCH_FLUSH_DELAY_MS) {
+function scheduleUsageFlush_(delayMs = USAGE_CONTACT_FLUSH_DELAY_MS) {
   const safeDelay = Math.max(0, Number(delayMs) || 0);
   const requestedAt = Date.now() + safeDelay;
 
-  if (usageFlushTimer && usageFlushScheduledAt && usageFlushScheduledAt <= requestedAt) {
+  if (
+    usageFlushTimer &&
+    usageFlushScheduledAt &&
+    usageFlushScheduledAt <= requestedAt
+  ) {
     return;
   }
 
@@ -3281,13 +3521,18 @@ function scheduleUsageFlush_(delayMs = USAGE_SEARCH_FLUSH_DELAY_MS) {
   }, safeDelay);
 }
 
-async function writeUsageIncrement_(dateKey, loginDelta, searchDelta) {
+async function writeUsageIncrement_(
+  dateKey,
+  loginDelta,
+  contactUseDelta
+) {
   await firebaseApi.setDoc(
     firebaseApi.doc(db, USAGE_DAILY_COLLECTION_NAME, dateKey),
     {
       date: dateKey,
       loginCount: firebaseApi.increment(loginDelta),
-      searchCount: firebaseApi.increment(searchDelta),
+      searchCount: firebaseApi.increment(0),
+      contactUseCount: firebaseApi.increment(contactUseDelta),
       updatedAt: firebaseApi.serverTimestamp()
     },
     { merge: true }
@@ -3296,15 +3541,23 @@ async function writeUsageIncrement_(dateKey, loginDelta, searchDelta) {
 
 async function flushUsageMetrics_() {
   if (usageFlushInProgress) return;
-  if (!db || !firebaseApi || !auth || !auth.currentUser || !currentUserHasAppAccess) return;
+  if (!db || !firebaseApi || !auth || !auth.currentUser || !currentUserHasAppAccess) {
+    return;
+  }
 
   const snapshot = Object.fromEntries(
     Object.entries(pendingUsageByDate)
-      .map(([dateKey, counts]) => [dateKey, {
-        logins: Math.max(0, Math.floor(Number(counts && counts.logins) || 0)),
-        searches: Math.max(0, Math.floor(Number(counts && counts.searches) || 0))
-      }])
-      .filter(([, counts]) => counts.logins || counts.searches)
+      .map(([dateKey, counts]) => [
+        dateKey,
+        {
+          logins: Math.max(0, Math.floor(Number(counts && counts.logins) || 0)),
+          contactUses: Math.max(
+            0,
+            Math.floor(Number(counts && counts.contactUses) || 0)
+          )
+        }
+      ])
+      .filter(([, counts]) => counts.logins || counts.contactUses)
   );
 
   if (!Object.keys(snapshot).length) return;
@@ -3313,29 +3566,91 @@ async function flushUsageMetrics_() {
   try {
     for (const [dateKey, counts] of Object.entries(snapshot)) {
       let remainingLogins = counts.logins;
-      let remainingSearches = counts.searches;
+      let remainingContactUses = counts.contactUses;
 
-      while (remainingLogins > 0 || remainingSearches > 0) {
+      while (remainingLogins > 0 || remainingContactUses > 0) {
         const loginDelta = remainingLogins > 0 ? 1 : 0;
-        const searchDelta = Math.min(50, remainingSearches);
-        await writeUsageIncrement_(dateKey, loginDelta, searchDelta);
-        remainingLogins -= loginDelta;
-        remainingSearches -= searchDelta;
+        const contactUseDelta = Math.min(50, remainingContactUses);
 
-        const current = pendingUsageByDate[dateKey] || { logins: 0, searches: 0 };
-        current.logins = Math.max(0, (Number(current.logins) || 0) - loginDelta);
-        current.searches = Math.max(0, (Number(current.searches) || 0) - searchDelta);
+        await writeUsageIncrement_(
+          dateKey,
+          loginDelta,
+          contactUseDelta
+        );
+
+        remainingLogins -= loginDelta;
+        remainingContactUses -= contactUseDelta;
+
+        const current = pendingUsageByDate[dateKey] || {
+          logins: 0,
+          contactUses: 0
+        };
+        current.logins = Math.max(
+          0,
+          (Number(current.logins) || 0) - loginDelta
+        );
+        current.contactUses = Math.max(
+          0,
+          (Number(current.contactUses) || 0) - contactUseDelta
+        );
         pendingUsageByDate[dateKey] = current;
         persistPendingUsage_();
       }
     }
   } catch (error) {
     persistPendingUsage_();
-    scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+    scheduleUsageFlush_(USAGE_CONTACT_FLUSH_DELAY_MS);
     throw error;
   } finally {
     usageFlushInProgress = false;
   }
+}
+
+function recordContactUse_(contactId, action = "open") {
+  if (!auth || !auth.currentUser || !currentUserHasAppAccess) return;
+
+  const trackedActions = ["phone", "call", "whatsapp", "email", "download"];
+  if (!trackedActions.includes(String(action || ""))) return;
+
+  recordDailyContactUser_(auth.currentUser);
+}
+
+function recordDailyContactUser_(user) {
+  const uid = String(user && user.uid || "");
+  if (!uid || !db || !firebaseApi || !currentUserHasAppAccess) return;
+
+  const dateKey = getIsraelDateKey_();
+  const storageKey = `${DAILY_CONTACT_USERS_STORAGE_PREFIX}${dateKey}_${uid}`;
+
+  try {
+    if (localStorage.getItem(storageKey) === "1") return;
+  } catch (error) {
+    // localStorage is only an optimization.
+  }
+
+  setTimeout(async () => {
+    try {
+      await firebaseApi.setDoc(
+        firebaseApi.doc(
+          db,
+          DAILY_CONTACT_USERS_COLLECTION_NAME,
+          dateKey,
+          "users",
+          uid
+        ),
+        { date: dateKey },
+        { merge: true }
+      );
+
+      try {
+        localStorage.setItem(storageKey, "1");
+      } catch (error) {
+        // localStorage is only an optimization.
+      }
+    } catch (error) {
+      console.warn("Daily contact-user metric write failed", error);
+    }
+  }, 250);
 }
 
 function recordDailyActiveUser_(user) {
@@ -3414,31 +3729,25 @@ async function loadDailyActiveUserCounts_(dateKeys) {
   }));
 }
 
-function scheduleSearchUsageCount_(rawQuery) {
-  const query = normalizeSearchText(rawQuery);
-
-  if (searchUsageTimer) {
-    clearTimeout(searchUsageTimer);
-    searchUsageTimer = null;
-  }
-
-  if (query.length < 2) {
-    lastCountedSearchQuery = "";
-    return;
-  }
-
-  searchUsageTimer = setTimeout(() => {
-    searchUsageTimer = null;
-
-    const currentInput = document.getElementById("searchInput");
-    const currentQuery = normalizeSearchText(currentInput ? currentInput.value : "");
-
-    if (currentQuery.length < 2 || currentQuery !== query) return;
-    if (currentQuery === lastCountedSearchQuery) return;
-
-    lastCountedSearchQuery = currentQuery;
-    queueUsageMetric_("search", 1);
-  }, SEARCH_USAGE_DEBOUNCE_MS);
+async function loadDailyContactUserCounts_(dateKeys) {
+  return await Promise.all(dateKeys.map(async dateKey => {
+    try {
+      const usersCollection = firebaseApi.collection(
+        db,
+        DAILY_CONTACT_USERS_COLLECTION_NAME,
+        dateKey,
+        "users"
+      );
+      const snapshot = await firebaseApi.getCountFromServer(usersCollection);
+      return {
+        date: dateKey,
+        contactUserCount: Math.max(0, Number(snapshot.data().count) || 0)
+      };
+    } catch (error) {
+      console.error(`Daily contact-user count failed for ${dateKey}`, error);
+      return { date: dateKey, contactUserCount: 0 };
+    }
+  }));
 }
 
 function setStatus(elementId, message = "", type = "") {
@@ -4254,6 +4563,11 @@ function setAuthRedirectPanelVisible_(visible) {
   if (panel) panel.classList.toggle("visible", Boolean(visible));
 }
 
+function setVerificationSuccessPanelVisible_(visible) {
+  const panel = document.getElementById("verificationSuccessPanel");
+  if (panel) panel.classList.toggle("visible", Boolean(visible));
+}
+
 function setVerificationPanelVisible_(visible) {
   const form = document.getElementById("authForm");
   const panel = document.getElementById("verificationPanel");
@@ -4261,9 +4575,38 @@ function setVerificationPanelVisible_(visible) {
   if (panel) panel.classList.toggle("visible", Boolean(visible));
   if (visible) {
     setAuthRedirectPanelVisible_(false);
+    setVerificationSuccessPanelVisible_(false);
   } else {
     stopVerificationAccessListener_();
   }
+}
+
+function showVerificationSuccessPanel_(user) {
+  verificationSuccessUser = user || (auth && auth.currentUser) || null;
+  authStage = "verification_success";
+  stopVerificationAccessListener_();
+
+  const form = document.getElementById("authForm");
+  if (form) form.style.display = "none";
+  const verificationPanel = document.getElementById("verificationPanel");
+  if (verificationPanel) verificationPanel.classList.remove("visible");
+  setAuthRedirectPanelVisible_(false);
+  setVerificationSuccessPanelVisible_(true);
+  setLoginStatus("", "");
+}
+
+async function continueAfterVerificationSuccess_() {
+  const user = verificationSuccessUser || (auth && auth.currentUser);
+  if (!user) {
+    showAuthEmailStep_({ forceEmailEntry: true });
+    setLoginStatus("החיבור לחשבון הסתיים. התחברו מחדש.", "error");
+    return;
+  }
+
+  verificationSuccessUser = null;
+  setVerificationSuccessPanelVisible_(false);
+  rememberSuccessfulEmail_(user.email || "");
+  await handleAuthenticatedUser(user, { skipVerificationSuccess: true });
 }
 
 function hideAllAuthFormSteps_() {
@@ -4277,6 +4620,7 @@ function showAuthEmailStep_(options = {}) {
   authStage = "email";
   authPurpose = "login";
   authMode = "login";
+  authRouteIsAdmin = false;
   forceEmailEntry = options.forceEmailEntry === true;
   setVerificationPanelVisible_(false);
   setAuthRedirectPanelVisible_(false);
@@ -4518,7 +4862,7 @@ async function updateManagerWhatsappLink_() {
 
   link.classList.remove("visible");
   link.removeAttribute("href");
-  link.textContent = "שליחת WhatsApp למנהל";
+  link.textContent = "שליחת WhatsApp למנהל הפעיל";
 
   try {
     const contact = await requestActiveManagerSupportContact_();
@@ -4530,13 +4874,107 @@ async function updateManagerWhatsappLink_() {
       return;
     }
 
+    activeManagerSupportName = String(contact.name || "").trim();
     link.href = contact.whatsappUrl;
     link.textContent = contact.name
-      ? `שליחת WhatsApp ל${contact.name}`
+      ? `שליחת WhatsApp למנהל הפעיל (${contact.name})`
       : "שליחת WhatsApp למנהל הפעיל";
     link.classList.add("visible");
+
+    const approvalButton = document.getElementById("manualApprovalRequestBtn");
+    if (approvalButton && !approvalButton.disabled && contact.name) {
+      approvalButton.textContent =
+        `לא קיבלתי מייל אימות — בקשת אישור ממנהל (${contact.name})`;
+    }
   } catch (error) {
     console.warn("Could not load active manager WhatsApp link", error);
+  }
+}
+
+function setPasswordResetHelpStatus_(message = "", isError = false) {
+  const status = document.getElementById("passwordResetHelpStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("visible", Boolean(message));
+  status.style.borderColor = isError ? "#fecdd3" : "#d7ebe1";
+  status.style.background = isError ? "#fff1f2" : "#f7fbf9";
+  status.style.color = isError ? "#be123c" : "#49685c";
+}
+
+function requestPasswordResetAssistance_(email) {
+  const normalizedEmail = normalizeEmail(email);
+
+  return new Promise((resolve, reject) => {
+    const callbackName = `__contactsPasswordHelp_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch (error) { window[callbackName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("PASSWORD_HELP_TIMEOUT"));
+    }, AUTH_ROUTE_TIMEOUT_MS);
+
+    window[callbackName] = payload => {
+      cleanup();
+      if (!payload || payload.ok !== true) {
+        reject(new Error(payload && payload.message ? payload.message : "PASSWORD_HELP_FAILED"));
+        return;
+      }
+      resolve(payload);
+    };
+
+    const params = new URLSearchParams({
+      action: "passwordResetRequest",
+      email: normalizedEmail,
+      callback: callbackName,
+      _: String(Date.now())
+    });
+    script.src = `${AUTH_ROUTER_URL}?${params.toString()}`;
+    script.async = true;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("PASSWORD_HELP_NETWORK"));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function requestPasswordResetHelp_() {
+  const email = normalizeEmail(document.getElementById("emailInput").value);
+  if (!isValidEmail(email)) {
+    setPasswordResetHelpStatus_("הכניסו תחילה כתובת מייל תקינה.", true);
+    return;
+  }
+
+  const button = document.getElementById("passwordResetHelpBtn");
+  if (button) button.disabled = true;
+  setPasswordResetHelpStatus_("שולח בקשת עזרה למנהל...", false);
+
+  try {
+    const result = await requestPasswordResetAssistance_(email);
+    const managerName = String(result.managerName || "").trim();
+    setPasswordResetHelpStatus_(
+      result.duplicate
+        ? `כבר קיימת בקשת איפוס פתוחה${managerName ? ` אצל המנהל (${managerName})` : ""}.`
+        : `הבקשה נשלחה למנהל${managerName ? ` (${managerName})` : ""}. לאחר שיישלח הקישור, יש לבדוק גם בספאם ובדואר זבל.`,
+      false
+    );
+  } catch (error) {
+    console.error("Password reset assistance request failed", error);
+    setPasswordResetHelpStatus_(
+      "לא הצלחנו לשלוח בקשה למנהל. אפשר להשתמש בקישור האיפוס הרגיל או לנסות שוב.",
+      true
+    );
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -4562,6 +5000,7 @@ async function continueFromEmailStep(options = {}) {
   try {
     const result = await requestPublicAuthRoute_("email", email, options);
     const route = String(result.route || "SYSTEM_ERROR");
+    authRouteIsAdmin = result.admin === true;
 
     if (route === "PASSWORD") {
       rememberPendingAuthEmail_(email);
@@ -4570,6 +5009,7 @@ async function continueFromEmailStep(options = {}) {
     }
 
     if (route === "ASK_PHONE") {
+      authRouteIsAdmin = false;
       showAuthPhoneStep_(email);
       return;
     }
@@ -4707,6 +5147,11 @@ async function useDifferentAccount() {
   if (passwordInput) passwordInput.value = "";
   if (confirmInput) confirmInput.value = "";
   lastUnknownEmail = "";
+  authRouteIsAdmin = false;
+  pendingManualApprovalIntentEmail = "";
+  pendingManualApprovalIntentHandled = false;
+  verificationSuccessUser = null;
+  setVerificationSuccessPanelVisible_(false);
   clearPendingAuthEmail_();
   showAuthEmailStep_({ forceEmailEntry: true });
 }
@@ -4722,6 +5167,9 @@ function setManualApprovalRequestState_(state = "idle", message = "") {
   const button = document.getElementById("manualApprovalRequestBtn");
   const status = document.getElementById("manualApprovalRequestStatus");
   const normalizedState = String(state || "idle");
+  const managerSuffix = activeManagerSupportName
+    ? ` (${activeManagerSupportName})`
+    : "";
 
   if (button) {
     button.disabled = ["pending", "approved", "sending"].includes(normalizedState);
@@ -4732,8 +5180,8 @@ function setManualApprovalRequestState_(state = "idle", message = "") {
         : normalizedState === "sending"
           ? "שולח בקשה..."
           : normalizedState === "rejected"
-            ? "שליחת בקשה חדשה למנהל־העל"
-            : "לא קיבלתי מייל אימות — בקש אישור ממנהל־העל";
+            ? `שליחת בקשה חדשה למנהל־העל${managerSuffix}`
+            : `לא קיבלתי מייל אימות — בקשת אישור ממנהל${managerSuffix}`;
   }
 
   if (status) {
@@ -4835,9 +5283,16 @@ async function requestManualApproval_() {
 
   try {
     const permission = await getCurrentUserPermission(email);
-    if (!permission.exists || !permission.active) {
+    if (
+      !permission.exists ||
+      !permission.active ||
+      !(await permissionHasActivePhonePair_(permission, email))
+    ) {
       setManualApprovalRequestState_("idle", "");
-      setLoginStatus("כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר.", "error");
+      setLoginStatus(
+        "לא נמצאה התאמה פעילה בין כתובת המייל למספר הטלפון הרשום.",
+        "error"
+      );
       return;
     }
 
@@ -4892,6 +5347,18 @@ function showVerificationPanel_(user, email = "") {
   loadOwnVerificationRequestState_().catch(error => {
     console.error("Verification request state refresh failed", error);
   });
+
+  if (
+    pendingManualApprovalIntentEmail === targetEmail &&
+    !pendingManualApprovalIntentHandled
+  ) {
+    pendingManualApprovalIntentHandled = true;
+    setTimeout(() => {
+      requestManualApproval_().catch(error => {
+        console.error("Automatic manual approval request failed", error);
+      });
+    }, 350);
+  }
 }
 
 function openGmailInbox() {
@@ -4918,9 +5385,14 @@ async function checkVerificationAndContinue() {
       }
     }
 
+    if (auth.currentUser.emailVerified) {
+      showVerificationSuccessPanel_(auth.currentUser);
+      return;
+    }
+
     rememberSuccessfulEmail_(auth.currentUser.email);
     setVerificationPanelVisible_(false);
-    await handleAuthenticatedUser(auth.currentUser);
+    await handleAuthenticatedUser(auth.currentUser, { skipVerificationSuccess: true });
   } catch (error) {
     console.error("Verification check failed", error);
     setLoginStatus("לא הצלחנו לבדוק את האימות. בדקו את החיבור ונסו שוב.", "error");
@@ -4942,15 +5414,18 @@ async function resendVerificationFromPanel() {
 
   setLoginStatus("שולח מייל אימות חדש...", "loading");
   try {
-    const permission = await getCurrentUserPermission(email);
-    if (!permission.exists || !permission.active) {
-      setLoginStatus("כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר.", "error");
+    const eligibility = await getEmailEntryEligibility_(email);
+    if (!eligibility.allowed) {
+      setLoginStatus(
+        "לא נמצאה הרשאת כניסה פעילה עבור כתובת המייל ומספר הטלפון.",
+        "error"
+      );
       return;
     }
     await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
     startAuthEmailCooldown("verification", email);
     recordOwnAuthState_("verification_sent");
-    setLoginStatus("נשלח מייל אימות חדש. ב־Gmail בדקו גם בתיקיית הספאם.", "success");
+    setLoginStatus("נשלח מייל אימות חדש. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.", "success");
   } catch (error) {
     console.error("Verification resend failed", error);
     setLoginStatus(getAuthErrorMessage(error), "error");
@@ -4962,8 +5437,8 @@ async function sendVerificationForSignedInUser_(user, email) {
   if (!user || !normalizedEmail) return false;
   if (!ensureAuthEmailCooldownFinished("verification", normalizedEmail)) return false;
 
-  const permission = await getCurrentUserPermission(normalizedEmail);
-  if (!permission.exists || !permission.active) {
+  const eligibility = await getEmailEntryEligibility_(normalizedEmail);
+  if (!eligibility.allowed) {
     throw new Error("PERMISSION_INACTIVE");
   }
 
@@ -5048,7 +5523,9 @@ async function getCurrentUserPermission(email) {
   if (!db || !firebaseApi || !normalizedEmail) {
     return {
       exists: false,
-      active: false
+      active: false,
+      phone: "",
+      phoneKey: ""
     };
   }
 
@@ -5059,7 +5536,9 @@ async function getCurrentUserPermission(email) {
   if (!permissionSnapshot.exists()) {
     return {
       exists: false,
-      active: false
+      active: false,
+      phone: "",
+      phoneKey: ""
     };
   }
 
@@ -5068,6 +5547,8 @@ async function getCurrentUserPermission(email) {
   return {
     exists: true,
     active: data.active === true,
+    phone: normalizePhone(data.phone || ""),
+    phoneKey: String(data.phoneKey || ""),
     manualApproved: data.manualApproved === true,
     authState: String(data.authState || ""),
     verificationSentAt: data.verificationSentAt || null,
@@ -5077,6 +5558,95 @@ async function getCurrentUserPermission(email) {
     manualApprovedBy: normalizeEmail(data.manualApprovedBy || ""),
     manualApprovalReason: String(data.manualApprovalReason || "")
   };
+}
+
+async function getCurrentUserPhonePermission_(permission, email) {
+  const normalizedEmail = normalizeEmail(email);
+  const phoneKey = String(permission && permission.phoneKey || "");
+  const phone = normalizePhone(permission && permission.phone || "");
+
+  if (!phoneKey || !phone) {
+    return {
+      exists: false,
+      active: false,
+      email: "",
+      phone: "",
+      phoneKey: ""
+    };
+  }
+
+  const snapshot = await firebaseApi.getDoc(
+    firebaseApi.doc(db, ALLOWED_PHONES_COLLECTION_NAME, phoneKey)
+  );
+
+  if (!snapshot.exists()) {
+    return {
+      exists: false,
+      active: false,
+      email: "",
+      phone: "",
+      phoneKey
+    };
+  }
+
+  const data = snapshot.data() || {};
+  return {
+    exists: true,
+    active: data.active === true,
+    email: normalizeEmail(data.email || ""),
+    phone: normalizePhone(data.phone || ""),
+    phoneKey: String(data.phoneKey || snapshot.id)
+  };
+}
+
+async function permissionHasActivePhonePair_(permission, email) {
+  if (!permission || permission.active !== true) return false;
+
+  const normalizedEmail = normalizeEmail(email);
+  const phonePermission = await getCurrentUserPhonePermission_(
+    permission,
+    normalizedEmail
+  );
+
+  permission.phonePermission = phonePermission;
+  permission.phoneAccess = Boolean(
+    phonePermission.exists &&
+    phonePermission.active &&
+    phonePermission.email === normalizedEmail &&
+    phonePermission.phone === permission.phone &&
+    phonePermission.phoneKey === permission.phoneKey
+  );
+
+  return permission.phoneAccess;
+}
+
+async function getEmailEntryEligibility_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const permission = await getCurrentUserPermission(normalizedEmail);
+
+  if (
+    permission.exists &&
+    permission.active &&
+    await permissionHasActivePhonePair_(permission, normalizedEmail)
+  ) {
+    return { allowed: true, isAdmin: false, permission };
+  }
+
+  try {
+    const route = await requestPublicAuthRoute_(
+      "email",
+      normalizedEmail,
+      { forceFresh: true }
+    );
+    if (route && route.admin === true) {
+      authRouteIsAdmin = true;
+      return { allowed: true, isAdmin: true, permission };
+    }
+  } catch (error) {
+    console.warn("Admin route verification failed", error);
+  }
+
+  return { allowed: false, isAdmin: false, permission };
 }
 
 async function recordOwnAuthState_(state) {
@@ -5248,7 +5818,7 @@ async function loginOrCreateWithPassword() {
             );
             if (sent) {
               setLoginStatus(
-                "נשלח מייל אימות. ב־Gmail בדקו גם בתיקיית הספאם.",
+                "נשלח מייל אימות. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.",
                 "success"
               );
             }
@@ -5319,8 +5889,8 @@ async function loginOrCreateWithPassword() {
       );
       createdUser = credential.user;
 
-      const permission = await getCurrentUserPermission(email);
-      if (!permission.exists || !permission.active) {
+      const eligibility = await getEmailEntryEligibility_(email);
+      if (!eligibility.allowed) {
         await deleteNewAuthUserSafely(createdUser);
         createdUser = null;
         showAuthEmailStep_({
@@ -5328,7 +5898,7 @@ async function loginOrCreateWithPassword() {
           preserveEmail: true
         });
         setLoginStatus(
-          "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר.",
+          "לא נמצאה התאמה פעילה בין המייל למספר הטלפון.",
           "error"
         );
         return;
@@ -5348,7 +5918,7 @@ async function loginOrCreateWithPassword() {
       document.getElementById("confirmPasswordInput").value = "";
       showVerificationPanel_(createdUser, email);
       setLoginStatus(
-        "החשבון נוצר ונשלח מייל אימות. ב־Gmail בדקו גם בתיקיית הספאם.",
+        "החשבון נוצר ונשלח מייל אימות. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.",
         "success"
       );
     } catch (createError) {
@@ -5426,14 +5996,14 @@ async function registerWithPassword() {
 
     createdUser = credential.user;
 
-    const permission = await getCurrentUserPermission(email);
+    const eligibility = await getEmailEntryEligibility_(email);
 
-    if (!permission.exists || !permission.active) {
+    if (!eligibility.allowed) {
       await deleteNewAuthUserSafely(createdUser);
       createdUser = null;
 
       setLoginStatus(
-        "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
+        "לא נמצאה התאמה פעילה בין המייל למספר הטלפון. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
         "error"
       );
       return;
@@ -5521,7 +6091,7 @@ async function loginWithPassword() {
         if (remaining <= 0) {
           const sent = await sendVerificationForSignedInUser_(credential.user, email);
           if (sent) {
-            setLoginStatus("נשלח מייל אימות. ב־Gmail בדקו גם בתיקיית הספאם.", "success");
+            setLoginStatus("נשלח מייל אימות. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.", "success");
           }
         } else {
           setLoginStatus("מייל אימות כבר נשלח לאחרונה. פתחו אותו ולחצו על הקישור.", "success");
@@ -5587,13 +6157,13 @@ async function resendVerification() {
       password
     );
 
-    const permission = await getCurrentUserPermission(targetEmail);
+    const eligibility = await getEmailEntryEligibility_(targetEmail);
 
-    if (!permission.exists || !permission.active) {
+    if (!eligibility.allowed) {
       await firebaseApi.signOut(auth);
 
       setLoginStatus(
-        "כתובת המייל אינה רשומה כפעילה בספר אנשי הקשר ולכן לא נשלח מייל אימות.",
+        "לא נמצאה הרשאת כניסה פעילה ולכן לא נשלח מייל אימות.",
         "error"
       );
       return;
@@ -5669,7 +6239,7 @@ async function sendPasswordReset() {
     startAuthEmailCooldown("password-reset", email);
 
     setLoginStatus(
-      "אם קיים חשבון עבור כתובת המייל הזו, נשלח אליה קישור לקביעת סיסמה.",
+      "אם קיים חשבון עבור כתובת המייל הזו, נשלח קישור לקביעת סיסמה. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.",
       "success"
     );
   } catch (error) {
@@ -5698,6 +6268,156 @@ function updateUserInfoForUser_(user) {
   const userInfoText = document.getElementById("userInfoText");
   if (userInfoText) {
     userInfoText.textContent = "מחובר/ת כ: " + displayIdentity;
+  }
+}
+
+function getMyProfileContact_() {
+  const currentEmail = normalizeEmail(
+    auth && auth.currentUser && auth.currentUser.email
+  );
+  const permissionPhone = normalizePhone(
+    currentUserPermissionData && currentUserPermissionData.phone
+  );
+
+  return contacts.find(contact =>
+    currentEmail &&
+    normalizeEmail(contact.email) === currentEmail
+  ) || contacts.find(contact =>
+    permissionPhone &&
+    normalizePhone(contact.phone) === permissionPhone
+  ) || null;
+}
+
+function setMyProfileStatus_(message = "", type = "") {
+  setStatus("myProfileStatus", message, type);
+}
+
+function openMyProfileModal() {
+  if (!auth || !auth.currentUser || !currentUserHasAppAccess) {
+    alert("יש להתחבר לאפליקציה כדי לראות את הפרטים האישיים.");
+    return;
+  }
+
+  const contact = getMyProfileContact_();
+  if (!contact) {
+    alert(
+      "לא נמצאה רשומת איש קשר המקושרת לחשבון שלך. " +
+      "אפשר לשלוח דיווח דרך מנהל המערכת."
+    );
+    return;
+  }
+
+  myProfileContact = contact;
+
+  document.getElementById("myProfileFirstName").value = contact.first || "";
+  document.getElementById("myProfileLastName").value = contact.last || "";
+  document.getElementById("myProfileTitlePrefix").value = contact.title || "";
+  document.getElementById("myProfileRole").value = contact.role || "";
+  document.getElementById("myProfileDepartment").value = contact.dept || "";
+  document.getElementById("myProfilePhone").value =
+    formatPhoneForDisplay(contact.phone || "");
+  document.getElementById("myProfileEmail").value =
+    normalizeEmail(contact.email || auth.currentUser.email || "");
+
+  const identity = document.getElementById("myProfileIdentity");
+  if (identity) {
+    identity.innerHTML =
+      "<strong>הפרטים שמזהים את החשבון:</strong><br>" +
+      escapeHtml(formatPhoneForDisplay(contact.phone || "")) +
+      " · " +
+      escapeHtml(normalizeEmail(contact.email || auth.currentUser.email || ""));
+  }
+
+  setMyProfileStatus_("", "");
+  const submitButton = document.getElementById("myProfileSubmitBtn");
+  if (submitButton) {
+    submitButton.disabled = false;
+    submitButton.textContent = "שליחה לאישור מנהל";
+  }
+
+  document.getElementById("myProfileModal").classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
+function closeMyProfileModal() {
+  const modal = document.getElementById("myProfileModal");
+  if (modal) modal.classList.remove("visible");
+  document.body.style.overflow = "";
+  myProfileContact = null;
+  setMyProfileStatus_("", "");
+}
+
+async function submitMyProfileUpdate_() {
+  if (!myProfileContact || !auth || !auth.currentUser || !currentUserHasAppAccess) {
+    setMyProfileStatus_("לא ניתן לשלוח את הבקשה כרגע.", "error");
+    return;
+  }
+
+  const values = {
+    firstName: document.getElementById("myProfileFirstName").value.trim(),
+    lastName: document.getElementById("myProfileLastName").value.trim(),
+    titlePrefix: document.getElementById("myProfileTitlePrefix").value.trim(),
+    role: document.getElementById("myProfileRole").value.trim(),
+    department: document.getElementById("myProfileDepartment").value.trim()
+  };
+  const currentValues = {
+    firstName: String(myProfileContact.first || "").trim(),
+    lastName: String(myProfileContact.last || "").trim(),
+    titlePrefix: String(myProfileContact.title || "").trim(),
+    role: String(myProfileContact.role || "").trim(),
+    department: String(myProfileContact.dept || "").trim()
+  };
+
+  if (!Object.keys(values).some(key => values[key] !== currentValues[key])) {
+    setMyProfileStatus_("לא בוצעו שינויים בפרטים.", "empty");
+    return;
+  }
+
+  const submitButton = document.getElementById("myProfileSubmitBtn");
+  submitButton.disabled = true;
+  setMyProfileStatus_("שולח את השינויים לאישור מנהל...", "loading");
+  const requestId = `self_${String(auth.currentUser.uid || "user")}_${getIsraelDateKey_().replace(/-/g, "")}`;
+
+  try {
+    await firebaseApi.setDoc(
+      firebaseApi.doc(db, "contactAddRequests", requestId),
+      {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        titlePrefix: values.titlePrefix,
+        role: values.role,
+        department: values.department,
+        phone: normalizePhone(myProfileContact.phone || ""),
+        email: normalizeEmail(myProfileContact.email || auth.currentUser.email || ""),
+        reporterEmail: normalizeEmail(auth.currentUser.email || ""),
+        source: "self_profile",
+        requestType: "self_update",
+        originalContactId: String(myProfileContact.docId || ""),
+        originalPhone: normalizePhone(myProfileContact.phone || ""),
+        originalEmail: normalizeEmail(myProfileContact.email || auth.currentUser.email || ""),
+        status: "pending",
+        createdAt: firebaseApi.serverTimestamp(),
+        updatedAt: firebaseApi.serverTimestamp(),
+        handledAt: null,
+        handledBy: "",
+        approvedContactId: ""
+      },
+      { merge: false }
+    );
+
+    setMyProfileStatus_("השינויים נשלחו לאישור מנהל. הפרטים יתעדכנו לאחר האישור.", "success");
+    submitButton.textContent = "נשלח לאישור";
+    setTimeout(closeMyProfileModal, 1800);
+  } catch (error) {
+    console.error("Self profile update request failed", error);
+    const alreadySent = error && ["permission-denied", "firestore/permission-denied"].includes(error.code);
+    setMyProfileStatus_(
+      alreadySent
+        ? "כבר נשלחה היום בקשה לעדכון הפרטים. המנהל יטפל בבקשה הקיימת."
+        : "שליחת השינויים נכשלה. בדקו את החיבור ונסו שוב.",
+      alreadySent ? "empty" : "error"
+    );
+    submitButton.disabled = false;
   }
 }
 
@@ -5792,9 +6512,10 @@ async function finalizePendingReplacedEmailPermissions_(user) {
   }
 }
 
-async function handleAuthenticatedUser(user) {
+async function handleAuthenticatedUser(user, options = {}) {
   if (!user) {
     currentUserHasAppAccess = false;
+    currentUserPermissionData = null;
     contacts = [];
     stopVerificationAccessListener_();
     showLoginScreen();
@@ -5803,6 +6524,19 @@ async function handleAuthenticatedUser(user) {
 
   if (!user.emailVerified) {
     await firebaseApi.reload(user);
+  }
+
+  const normalizedUserEmail = normalizeEmail(user.email || "");
+  const pendingVerificationEmail = getPendingAuthEmail_();
+  if (
+    user.emailVerified &&
+    options.skipVerificationSuccess !== true &&
+    pendingVerificationEmail &&
+    pendingVerificationEmail === normalizedUserEmail
+  ) {
+    showLoginScreen();
+    showVerificationSuccessPanel_(user);
+    return;
   }
 
   try {
@@ -5835,18 +6569,31 @@ async function handleAuthenticatedUser(user) {
       }
     }
 
+    const hasPhoneAccess = permission && permission.active
+      ? await permissionHasActivePhonePair_(permission, user.email)
+      : false;
+
     const permissionAllowsAccess = Boolean(
-      permission &&
-      permission.active &&
-      (user.emailVerified || permission.manualApproved)
+      isAdmin ||
+      (
+        permission &&
+        permission.active &&
+        hasPhoneAccess &&
+        (user.emailVerified || permission.manualApproved)
+      )
     );
 
-    if (!permissionAllowsAccess && !isAdmin) {
-      const accessError = new Error("הגישה לחשבון אינה פעילה.");
+    if (!permissionAllowsAccess) {
+      const accessError = new Error(
+        permission && permission.active && !hasPhoneAccess
+          ? "לא נמצאה התאמה פעילה בין המייל למספר הטלפון."
+          : "הגישה לחשבון אינה פעילה."
+      );
       accessError.code = "permission-denied";
       throw accessError;
     }
 
+    currentUserPermissionData = permission;
     currentUserHasAppAccess = true;
     rememberSuccessfulEmail_(user.email);
     setVerificationPanelVisible_(false);
@@ -5854,8 +6601,8 @@ async function handleAuthenticatedUser(user) {
     // עדכון סטטוס ההתחברות הוא כתיבה קטנה שאינה מעכבת את פתיחת האפליקציה.
     recordOwnAuthState_(user.emailVerified ? "verified" : "manual_approved");
 
-    if (getPendingSearchCount_() > 0) {
-      scheduleUsageFlush_(USAGE_SEARCH_FLUSH_DELAY_MS);
+    if (getPendingContactUseCount_() > 0) {
+      scheduleUsageFlush_(USAGE_CONTACT_FLUSH_DELAY_MS);
     }
     recordDailyActiveUser_(user);
 
@@ -5896,6 +6643,7 @@ async function handleAuthenticatedUser(user) {
     }
   } catch (error) {
     currentUserHasAppAccess = false;
+    currentUserPermissionData = null;
     if (isPermissionDeniedError(error)) {
       await firebaseApi.signOut(auth);
       showLoginScreen();
@@ -5920,6 +6668,7 @@ async function logout() {
     await flushUsageMetrics_().catch(() => {});
     await firebaseApi.signOut(auth);
     currentUserHasAppAccess = false;
+    currentUserPermissionData = null;
     contacts = [];
     // המטמון נשמר במכשיר כדי שהכניסה הבאה תהיה מהירה.
     // בכל כניסה עדיין נקרא manifest אחד שמוודא שהגרסה עדכנית.
@@ -5995,7 +6744,59 @@ function stopPermissionListener() {
   if (typeof permissionListenerUnsubscribe === "function") {
     permissionListenerUnsubscribe();
   }
+  if (typeof phonePermissionListenerUnsubscribe === "function") {
+    phonePermissionListenerUnsubscribe();
+  }
   permissionListenerUnsubscribe = null;
+  phonePermissionListenerUnsubscribe = null;
+}
+
+function signOutForPermissionLoss_(message) {
+  currentUserHasAppAccess = false;
+  currentUserPermissionData = null;
+  contacts = [];
+  document.getElementById("list").innerHTML = "";
+  firebaseApi.signOut(auth).catch(() => {});
+  showLoginScreen();
+  setLoginStatus(message, "error");
+}
+
+function startPhonePermissionListener_(email, permission) {
+  if (typeof phonePermissionListenerUnsubscribe === "function") {
+    phonePermissionListenerUnsubscribe();
+    phonePermissionListenerUnsubscribe = null;
+  }
+
+  const phoneKey = String(permission && permission.phoneKey || "");
+  const phone = normalizePhone(permission && permission.phone || "");
+  if (!phoneKey || !phone) {
+    signOutForPermissionLoss_(
+      "לא נמצאה הרשאת מספר טלפון פעילה עבור החשבון."
+    );
+    return;
+  }
+
+  phonePermissionListenerUnsubscribe = firebaseApi.onSnapshot(
+    firebaseApi.doc(db, ALLOWED_PHONES_COLLECTION_NAME, phoneKey),
+    snapshot => {
+      const data = snapshot.exists() ? snapshot.data() || {} : null;
+      const hasAccess = Boolean(
+        data &&
+        data.active === true &&
+        normalizeEmail(data.email || "") === email &&
+        normalizePhone(data.phone || "") === phone
+      );
+
+      if (!hasAccess) {
+        signOutForPermissionLoss_(
+          "הרשאת מספר הטלפון של החשבון הוסרה או נחסמה."
+        );
+      }
+    },
+    error => {
+      console.error("Phone permission listener failed", error);
+    }
+  );
 }
 
 function startPermissionListener(user) {
@@ -6027,7 +6828,18 @@ function startPermissionListener(user) {
           if (document.getElementById("adminPanel").style.display === "block") {
             closeAdminPanel();
           }
-          setListStatus("הרשאת הניהול הוסרה. הגישה הרגילה לאפליקציה נשארה בהתאם להרשאת המשתמש.", "empty");
+
+          const signedInUser = auth && auth.currentUser;
+          if (signedInUser) {
+            handleAuthenticatedUser(signedInUser).catch(error => {
+              console.error("Regular-access recheck after admin removal failed", error);
+              signOutForPermissionLoss_(
+                "הרשאת הניהול הוסרה ולא נמצאה הרשאת משתמש רגילה תקינה."
+              );
+            });
+          } else {
+            signOutForPermissionLoss_("הרשאת הניהול הוסרה.");
+          }
           return;
         }
 
@@ -6044,28 +6856,39 @@ function startPermissionListener(user) {
   permissionListenerUnsubscribe = firebaseApi.onSnapshot(
     firebaseApi.doc(db, "allowedUsers", email),
     snapshot => {
-      const data = snapshot.exists() ? snapshot.data() : null;
-
-      const verified = Boolean(auth && auth.currentUser && auth.currentUser.emailVerified);
-      const hasAccess = Boolean(
+      const data = snapshot.exists() ? snapshot.data() || {} : null;
+      const verified = Boolean(
+        auth &&
+        auth.currentUser &&
+        auth.currentUser.emailVerified
+      );
+      const hasEmailAccess = Boolean(
         data &&
         data.active === true &&
         (verified || data.manualApproved === true)
       );
 
-      if (!hasAccess) {
-        currentUserHasAppAccess = false;
-        contacts = [];
-        document.getElementById("list").innerHTML = "";
-        firebaseApi.signOut(auth).catch(() => {});
-        showLoginScreen();
-        setLoginStatus(
+      if (!hasEmailAccess) {
+        signOutForPermissionLoss_(
           data && data.active === true
             ? "האישור הידני בוטל. יש להשלים אימות מייל כדי להיכנס מחדש."
-            : "הגישה לחשבון נחסמה על ידי מנהל המערכת.",
-          "error"
+            : "הגישה לחשבון נחסמה על ידי מנהל המערכת."
         );
+        return;
       }
+
+      currentUserPermissionData = {
+        ...(currentUserPermissionData || {}),
+        exists: true,
+        active: true,
+        phone: normalizePhone(data.phone || ""),
+        phoneKey: String(data.phoneKey || ""),
+        manualApproved: data.manualApproved === true
+      };
+      startPhonePermissionListener_(
+        email,
+        currentUserPermissionData
+      );
     },
     error => {
       console.error("Permission listener failed", error);
@@ -6245,6 +7068,7 @@ async function loadAdminData() {
       firebaseApi.getDocs(activityQuery),
       firebaseApi.getDocs(usageQuery),
       loadDailyActiveUserCounts_(activeUserDateKeys),
+      loadDailyContactUserCounts_(activeUserDateKeys),
       firebaseApi.getDocs(reportsQuery).catch(error => {
         console.error("Reports data load failed", error);
         return { docs: [] };
@@ -6255,6 +7079,18 @@ async function loadAdminData() {
       }),
       firebaseApi.getDocs(contactAddRequestsQuery).catch(error => {
         console.error("Contact addition requests load failed", error);
+        return { docs: [] };
+      }),
+      firebaseApi.getDocs(
+        firebaseApi.collection(db, ALLOWED_PHONES_COLLECTION_NAME)
+      ).catch(error => {
+        console.error("Phone permissions data load failed", error);
+        return { docs: [] };
+      }),
+      firebaseApi.getDocs(
+        firebaseApi.collection(db, PASSWORD_RESET_REQUESTS_COLLECTION_NAME)
+      ).catch(error => {
+        console.error("Password reset requests load failed", error);
         return { docs: [] };
       })
     ];
@@ -6269,10 +7105,13 @@ async function loadAdminData() {
     const activitySnapshot = results[2];
     const usageSnapshot = results[3];
     const dailyActiveUsersResult = results[4] || [];
-    const reportsSnapshot = results[5];
-    const verificationRequestsSnapshot = results[6];
-    const contactAddRequestsSnapshot = results[7];
-    const managersSnapshot = results[8] || null;
+    const dailyContactUsersResult = results[5] || [];
+    const reportsSnapshot = results[6];
+    const verificationRequestsSnapshot = results[7];
+    const contactAddRequestsSnapshot = results[8];
+    const phonePermissionsSnapshot = results[9] || { docs: [] };
+    const passwordResetRequestsSnapshot = results[10] || { docs: [] };
+    const managersSnapshot = results[11] || null;
 
     adminRemovedContacts = overridesSnapshot.docs
       .map((document, index) => {
@@ -6285,12 +7124,27 @@ async function loadAdminData() {
       })
       .filter(contact => contact.deleted);
 
+    adminAllowedPhones = phonePermissionsSnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        docId: document.id,
+        phoneKey: String(data.phoneKey || document.id),
+        phone: normalizePhone(data.phone || ""),
+        email: normalizeEmail(data.email || ""),
+        active: data.active === true,
+        source: String(data.source || ""),
+        updatedAt: data.updatedAt || null
+      };
+    });
+
     adminAllowedUsers = usersSnapshot.docs.map(document => {
       const data = document.data() || {};
       return {
         docId: document.id,
         email: normalizeEmail(data.email || document.id),
         active: data.active === true,
+        phone: normalizePhone(data.phone || ""),
+        phoneKey: String(data.phoneKey || ""),
         source: String(data.source || ""),
         updatedAt: data.updatedAt || null,
         accessGrantedAt: data.accessGrantedAt || null,
@@ -6303,6 +7157,21 @@ async function loadAdminData() {
         manualApprovedAt: data.manualApprovedAt || null,
         manualApprovedBy: normalizeEmail(data.manualApprovedBy || ""),
         manualApprovalReason: String(data.manualApprovalReason || "")
+      };
+    }).map(user => {
+      const phonePermission = adminAllowedPhones.find(item =>
+        item.phoneKey === user.phoneKey
+      ) || null;
+
+      return {
+        ...user,
+        phonePermissionActive: Boolean(
+          phonePermission &&
+          phonePermission.active &&
+          phonePermission.email === user.email &&
+          phonePermission.phone === user.phone
+        ),
+        phonePermission
       };
     });
 
@@ -6323,7 +7192,10 @@ async function loadAdminData() {
       const data = document.data() || {};
       return {
         date: String(data.date || document.id),
-        searchCount: Math.max(0, Number(data.searchCount) || 0)
+        contactUseCount: Math.max(
+          0,
+          Number(data.contactUseCount) || 0
+        )
       };
     }).sort((a, b) => b.date.localeCompare(a.date));
 
@@ -6332,6 +7204,16 @@ async function loadAdminData() {
           .map(item => ({
             date: String(item && item.date || ""),
             activeUserCount: Math.max(0, Number(item && item.activeUserCount) || 0)
+          }))
+          .filter(item => item.date)
+          .sort((a, b) => b.date.localeCompare(a.date))
+      : [];
+
+    adminDailyContactUsers = Array.isArray(dailyContactUsersResult)
+      ? dailyContactUsersResult
+          .map(item => ({
+            date: String(item && item.date || ""),
+            contactUserCount: Math.max(0, Number(item && item.contactUserCount) || 0)
           }))
           .filter(item => item.date)
           .sort((a, b) => b.date.localeCompare(a.date))
@@ -6367,7 +7249,15 @@ async function loadAdminData() {
         phone: String(data.phone || ""),
         email: normalizeEmail(data.email || ""),
         reporterEmail: normalizeEmail(data.reporterEmail || ""),
-        source: data.source === "device_picker" ? "device_picker" : "manual",
+        source: ["device_picker", "self_profile"].includes(data.source)
+          ? data.source
+          : "manual",
+        requestType: data.requestType === "self_update"
+          ? "self_update"
+          : "contact_add",
+        originalContactId: String(data.originalContactId || ""),
+        originalPhone: normalizePhone(data.originalPhone || ""),
+        originalEmail: normalizeEmail(data.originalEmail || ""),
         status: ["pending", "approved", "rejected"].includes(data.status)
           ? data.status
           : "pending",
@@ -6391,6 +7281,23 @@ async function loadAdminData() {
         updatedAt: data.updatedAt || null,
         handledAt: data.handledAt || null,
         handledBy: normalizeEmail(data.handledBy || "")
+      };
+    });
+
+
+    adminPasswordResetRequests = passwordResetRequestsSnapshot.docs.map(document => {
+      const data = document.data() || {};
+      return {
+        docId: document.id,
+        email: normalizeEmail(data.email || document.id),
+        status: ["pending", "sent", "closed"].includes(data.status)
+          ? data.status
+          : "pending",
+        requestedAt: data.requestedAt || null,
+        updatedAt: data.updatedAt || null,
+        handledAt: data.handledAt || null,
+        handledBy: normalizeEmail(data.handledBy || ""),
+        sentAt: data.sentAt || null
       };
     });
 
@@ -6457,6 +7364,7 @@ function adminUserMatchesQuery(user, query) {
     accessState.label,
     accessState.note,
     user.source,
+    user.phone,
     contact ? contact.name : "",
     contact ? contact.phone : "",
     contact ? contact.dept : ""
@@ -6558,6 +7466,8 @@ function getActivityTitle(activity) {
     contact_add_detected: "איש קשר נוסף למערכת",
     contact_add_request_approved: "בקשת הוספת איש קשר אושרה",
     contact_add_request_rejected: "בקשת הוספת איש קשר נדחתה",
+    self_profile_update_approved: "עדכון פרטים אישיים אושר",
+    self_profile_update_rejected: "עדכון פרטים אישיים נדחה",
     email_self_update: "כתובת מייל עודכנה",
     contact_edit: "פרטי איש קשר נערכו",
     contact_remove: "איש קשר הוסר מהאפליקציה",
@@ -6801,7 +7711,28 @@ async function setContactReportStatus_(reportId, status) {
   }
 }
 
-function findExistingContactForAddRequest_(values) {
+function findExistingContactForAddRequest_(values, request = null) {
+  const originalContactId = String(
+    request && request.originalContactId || ""
+  );
+
+  if (originalContactId) {
+    const exact = adminContacts.find(
+      contact => String(contact.docId || "") === originalContactId
+    );
+    if (exact) return exact;
+  }
+
+  const originalPhone = normalizePhone(
+    request && request.originalPhone || ""
+  );
+  if (originalPhone) {
+    const exactByPhone = adminContacts.find(
+      contact => normalizePhone(contact.phone) === originalPhone
+    );
+    if (exactByPhone) return exactByPhone;
+  }
+
   const phone = normalizePhone(values.phone || "");
   const email = normalizeEmail(values.email || "");
   return adminContacts.find(contact =>
@@ -6832,21 +7763,32 @@ function buildApprovedContactPayload_(request, values, existingContact) {
     updated_at: now
   };
 
+  const isSelfUpdate = Boolean(
+    request && request.requestType === "self_update" && existingContact
+  );
   const choose = (nextValue, currentValue) => {
     const normalized = String(nextValue || "").trim();
     return normalized || String(currentValue || "").trim();
   };
+  const editableValue = (nextValue, currentValue) =>
+    isSelfUpdate
+      ? String(nextValue || "").trim()
+      : choose(nextValue, currentValue);
 
   return {
     ...base,
     first_name_he: choose(values.firstName, base.first_name_he),
     last_name_he: choose(values.lastName, base.last_name_he),
-    title_prefix: choose(values.titlePrefix, base.title_prefix),
-    role: choose(values.role, base.role),
-    department: choose(values.department, base.department),
+    title_prefix: editableValue(values.titlePrefix, base.title_prefix),
+    role: editableValue(values.role, base.role),
+    department: editableValue(values.department, base.department),
     // במסמך קיים לא משנים את מספר הטלפון, משום שהוא משמש כמזהה הרשומה.
     phone: existingContact ? normalizePhone(base.phone) : normalizePhone(values.phone),
-    email: normalizeEmail(values.email || base.email),
+    email: normalizeEmail(
+      request && request.requestType === "self_update" && existingContact
+        ? base.email
+        : values.email || base.email
+    ),
     source: existingContact
       ? String(base.source || "admin-approved-update")
       : "user-submission-approved",
@@ -6903,9 +7845,12 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
     return;
   }
 
-  const existingContact = findExistingContactForAddRequest_(values);
+  const existingContact = findExistingContactForAddRequest_(values, request);
+  const isSelfUpdate = request.requestType === "self_update";
   const existingMessage = existingContact
-    ? `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן רק את הפרטים שמולאו בבקשה; מספר הטלפון של הרשומה הקיימת לא ישתנה. להמשיך?`
+    ? isSelfUpdate
+      ? `לאשר את עדכון הפרטים של ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}? מספר הטלפון והמייל לא ישתנו.`
+      : `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן רק את הפרטים שמולאו בבקשה; מספר הטלפון של הרשומה הקיימת לא ישתנה. להמשיך?`
     : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
 
   if (!confirm(existingMessage)) return;
@@ -6915,7 +7860,7 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
     ? existingContact.docId
     : normalizePhone(payload.phone).replace(/\D/g, "") || `request_${requestId}`;
 
-  setAdminStatus("מאשר ומוסיף את איש הקשר...", "loading");
+  setAdminStatus(isSelfUpdate ? "מאשר את עדכון הפרטים..." : "מאשר ומוסיף את איש הקשר...", "loading");
 
   try {
     const batch = firebaseApi.writeBatch(db);
@@ -6958,7 +7903,9 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       approvedContactId: docId
     });
     completionBatch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
-      action: "contact_add_request_approved",
+      action: isSelfUpdate
+        ? "self_profile_update_approved"
+        : "contact_add_request_approved",
       targetId: docId,
       targetEmail: payload.email || "",
       targetPhone: payload.phone || "",
@@ -6973,7 +7920,14 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
     closeContactAddModal_();
     await loadContacts();
     await loadAdminData();
-    setAdminStatus(existingContact ? "איש הקשר הקיים עודכן." : "איש הקשר אושר ונוסף לרשימה.", "success");
+    setAdminStatus(
+      isSelfUpdate
+        ? "עדכון הפרטים אושר והופץ באפליקציה."
+        : existingContact
+          ? "איש הקשר הקיים עודכן."
+          : "איש הקשר אושר ונוסף לרשימה.",
+      "success"
+    );
   } catch (error) {
     console.error("Contact addition approval failed", error);
     setAdminStatus("אישור הבקשה נכשל. בדקו את כללי Firestore ונסו שוב.", "error");
@@ -6984,7 +7938,11 @@ async function rejectContactAddRequest_(requestId) {
   if (!currentUserIsAdmin || !requestId) return;
   const request = adminContactAddRequests.find(item => item.docId === requestId);
   if (!request || request.status !== "pending") return;
-  if (!confirm("לדחות את בקשת הוספת איש הקשר?")) return;
+  if (!confirm(
+    request.requestType === "self_update"
+      ? "לדחות את בקשת עדכון הפרטים?"
+      : "לדחות את בקשת הוספת איש הקשר?"
+  )) return;
 
   try {
     const batch = firebaseApi.writeBatch(db);
@@ -6997,7 +7955,9 @@ async function rejectContactAddRequest_(requestId) {
       approvedContactId: ""
     });
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
-      action: "contact_add_request_rejected",
+      action: request.requestType === "self_update"
+        ? "self_profile_update_rejected"
+        : "contact_add_request_rejected",
       displayName: getContactAddRequestName_(request),
       targetEmail: request.email || "",
       targetPhone: request.phone || "",
@@ -7036,16 +7996,18 @@ function renderAdminReports() {
     .map(report => ({ kind: "report", timestamp: getReportTimestamp_(report), data: report }));
 
   const items = [...additionItems, ...reportItems].sort((a, b) => b.timestamp - a.timestamp);
-  const pendingAdditions = adminContactAddRequests.filter(request => request.status === "pending").length;
+  const pendingAdditions = adminContactAddRequests.filter(
+    request => request.status === "pending"
+  ).length;
   const openReports = adminReports.filter(report => report.status === "open").length;
 
   document.getElementById("adminSummary").textContent =
     `${items.length === 1 ? "נמצא פריט אחד" : `נמצאו ${items.length} פריטים`}` +
-    (pendingAdditions ? ` · ${pendingAdditions} הוספות ממתינות` : "") +
+    (pendingAdditions ? ` · ${pendingAdditions} בקשות הוספה או עדכון ממתינות` : "") +
     (openReports ? ` · ${openReports} דיווחים פתוחים` : "");
 
   if (!items.length) {
-    document.getElementById("adminList").innerHTML = '<div class="adminEmpty">אין דיווחים או בקשות הוספה התואמים לסינון.</div>';
+    document.getElementById("adminList").innerHTML = '<div class="adminEmpty">אין דיווחים או בקשות עדכון/הוספה התואמים לסינון.</div>';
     return;
   }
 
@@ -7055,13 +8017,22 @@ function renderAdminReports() {
       const displayName = getContactAddRequestName_(request) || formatPhoneForDisplay(request.phone) || request.email || "איש קשר ללא שם";
       const statusLabel = request.status === "approved" ? "אושר" : request.status === "rejected" ? "נדחה" : "ממתין";
       const statusClass = request.status === "pending" ? "pending" : request.status;
+      const isSelfUpdate = request.requestType === "self_update";
+      const requestLabel = isSelfUpdate
+        ? "בקשת עדכון פרטים אישיים"
+        : "בקשת הוספת איש קשר";
+      const sourceLabel = request.source === "device_picker"
+        ? "ספר הטלפונים במכשיר"
+        : request.source === "self_profile"
+          ? "כפתור „אני” באפליקציה"
+          : "טופס ידני";
       const details = [
         request.role ? `<b>תפקיד:</b> ${escapeHtml(request.role)}` : "",
         request.department ? `<b>מחלקה:</b> ${escapeHtml(request.department)}` : "",
         request.phone ? `<b>טלפון:</b> ${escapeHtml(formatPhoneForDisplay(request.phone))}` : "",
         request.email ? `<b>מייל:</b> ${escapeHtml(request.email)}` : "",
         `<b>נשלח על ידי:</b> ${escapeHtml(request.reporterEmail || "לא ידוע")}`,
-        `<b>מקור:</b> ${request.source === "device_picker" ? "ספר הטלפונים במכשיר" : "טופס ידני"}`,
+        `<b>מקור:</b> ${sourceLabel}`,
         request.handledBy ? `<b>טופל על ידי:</b> ${escapeHtml(request.handledBy)}` : ""
       ].filter(Boolean).join("<br>");
 
@@ -7070,14 +8041,14 @@ function renderAdminReports() {
           <div class="adminCardTop">
             <div>
               <div class="adminCardName">${escapeHtml(displayName)}</div>
-              <div class="adminCardMeta">בקשת הוספת איש קשר<br>${escapeHtml(formatContactAddRequestTimestamp_(request))}</div>
+              <div class="adminCardMeta">${requestLabel}<br>${escapeHtml(formatContactAddRequestTimestamp_(request))}</div>
             </div>
             <span class="adminStatusBadge ${request.status === "pending" ? "pending" : ""}">${statusLabel}</span>
           </div>
           <div class="contactAddRequestDetails">${details}</div>
           ${request.status === "pending" ? `
             <div class="adminCardActions">
-              <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">אישור והוספה</button>
+              <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : "אישור והוספה"}</button>
               <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
               <button type="button" class="adminActionBtn danger" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחייה</button>
             </div>` : ""}
@@ -7113,30 +8084,30 @@ function renderAdminReports() {
 
 function renderAdminGeneral() {
   const todayKey = getIsraelDateKey_();
-  const usageByDate = new Map(
-    adminUsageDaily.map(item => [item.date, item])
-  );
   const activeUsersByDate = new Map(
     adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
   );
+  const contactUsersByDate = new Map(
+    adminDailyContactUsers.map(item => [item.date, item.contactUserCount])
+  );
 
   const todayActiveUsers = activeUsersByDate.get(todayKey) || 0;
-  const todaySearches = (usageByDate.get(todayKey) || {}).searchCount || 0;
-  const searchesPerUser = todayActiveUsers > 0
-    ? (todaySearches / todayActiveUsers).toFixed(1)
-    : "0";
+  const todayContactUsers = contactUsersByDate.get(todayKey) || 0;
+  const engagementPercent = todayActiveUsers > 0
+    ? Math.round((todayContactUsers / todayActiveUsers) * 100)
+    : 0;
 
   const recentDays = getRecentIsraelDateKeys_(14).map(date => ({
     date,
     activeUserCount: activeUsersByDate.get(date) || 0,
-    searchCount: (usageByDate.get(date) || {}).searchCount || 0
+    contactUserCount: contactUsersByDate.get(date) || 0
   }));
 
   const rows = recentDays.map(day => `
     <div class="adminUsageRow">
       <div class="adminUsageDate">${escapeHtml(formatUsageDate_(day.date))}</div>
       <div class="adminUsageNumber">${escapeHtml(day.activeUserCount)}</div>
-      <div class="adminUsageNumber">${escapeHtml(day.searchCount)}</div>
+      <div class="adminUsageNumber">${escapeHtml(day.contactUserCount)}</div>
     </div>
   `).join("");
 
@@ -7148,12 +8119,12 @@ function renderAdminGeneral() {
           <span class="adminMetricLabel">משתמשים פעילים היום</span>
         </div>
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(todaySearches)}</span>
-          <span class="adminMetricLabel">חיפושים היום</span>
+          <span class="adminMetricValue">${escapeHtml(todayContactUsers)}</span>
+          <span class="adminMetricLabel">אנשים שהשתמשו בפרטי איש קשר</span>
         </div>
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(searchesPerUser)}</span>
-          <span class="adminMetricLabel">חיפושים למשתמש פעיל</span>
+          <span class="adminMetricValue">${escapeHtml(engagementPercent)}%</span>
+          <span class="adminMetricLabel">מהפעילים השתמשו באיש קשר</span>
         </div>
       </div>
 
@@ -7161,12 +8132,12 @@ function renderAdminGeneral() {
         <h3 class="adminUsageTitle">שימוש יומי — 14 הימים האחרונים</h3>
         <div class="adminUsageRow header">
           <div>תאריך</div>
-          <div class="adminUsageNumber">משתמשים</div>
-          <div class="adminUsageNumber">חיפושים</div>
+          <div class="adminUsageNumber">פעילים</div>
+          <div class="adminUsageNumber">השתמשו בפרטי קשר</div>
         </div>
         ${rows}
         <p class="adminUsageNote">
-          כל חשבון נספר פעם אחת בלבד בכל יום, גם אם האפליקציה נפתחה מספר פעמים או ממספר מכשירים. רישום הפעילות מתבצע ברקע ואינו מעכב את הכניסה. החיפושים נצברים במכשיר ונשלחים במרוכז; מילות החיפוש עצמן אינן נשמרות.
+          משתמש נספר פעם אחת ביום לאחר פעולה שימושית על איש קשר: חיוג, WhatsApp, מייל או הורדה. מספר הפעולות, מילות החיפוש וזהות איש הקשר אינם נשמרים במדד.
         </p>
       </div>
     </div>
@@ -7292,9 +8263,24 @@ function getVerificationRequestByEmail_(email) {
 
 function getUserAccessState_(user) {
   const request = getVerificationRequestByEmail_(user && user.email);
+  const isAdminAccount = normalizeEmail(user && user.email) === currentAdminEmail ||
+    adminManagers.some(manager =>
+      manager.active && normalizeEmail(manager.email) === normalizeEmail(user && user.email)
+    );
 
   if (!user || user.active !== true) {
     return { key: "blocked", label: "גישה חסומה", note: "המשתמש אינו יכול להיכנס לאפליקציה.", badgeClass: "blocked" };
+  }
+
+  if (!isAdminAccount && !user.phonePermissionActive) {
+    return {
+      key: "phone_missing",
+      label: "חסר קישור פעיל למספר טלפון",
+      note: user.phone
+        ? "הרשאת המייל קיימת אך הרשאת הטלפון חסרה או אינה תואמת."
+        : "לא נשמר מספר טלפון בהרשאת המשתמש.",
+      badgeClass: "blocked"
+    };
   }
 
   if (user.authState === "verified" || user.lastVerifiedLoginAt) {
@@ -7381,6 +8367,13 @@ async function approveManualAccess_(email) {
   const request = getVerificationRequestByEmail_(normalizedEmail);
   if (!user || !user.active || !request || request.status !== "pending") {
     alert("לא נמצאה בקשת אישור פעילה עבור המשתמש.");
+    return;
+  }
+
+  if (!user.phonePermissionActive) {
+    alert(
+      "לא ניתן לאשר גישה לפני שקיים קישור פעיל בין המייל למספר הטלפון."
+    );
     return;
   }
 
@@ -7564,6 +8557,93 @@ function getUserAccessGrantLabel_(user) {
   return "קיבל גישה היום";
 }
 
+
+async function logAdminAction(action, targetEmail = "", targetId = "") {
+  if (!firebaseApi || !db || !currentUserIsAdmin) return;
+
+  await firebaseApi.setDoc(
+    firebaseApi.doc(firebaseApi.collection(db, "admin_actions")),
+    {
+      action: String(action || "admin_action"),
+      targetEmail: normalizeEmail(targetEmail || ""),
+      targetId: String(targetId || ""),
+      adminEmail: currentAdminEmail,
+      timestamp: firebaseApi.serverTimestamp()
+    }
+  );
+}
+
+function getPendingPasswordResetRequests_() {
+  return adminPasswordResetRequests
+    .filter(request => request.status === "pending")
+    .sort((a, b) =>
+      getAdminTimestampMillis_(b.requestedAt) -
+      getAdminTimestampMillis_(a.requestedAt)
+    );
+}
+
+async function sendPasswordResetForUser_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const request = adminPasswordResetRequests.find(item =>
+    item.email === normalizedEmail && item.status === "pending"
+  );
+  if (!request || !auth || !firebaseApi || !db) return;
+
+  setAdminStatus("שולח קישור לאיפוס הסיסמה...", "loading");
+  try {
+    auth.languageCode = "he";
+    await firebaseApi.sendPasswordResetEmail(auth, normalizedEmail, {
+      url: PASSWORD_AUTH_RETURN_URL
+    });
+
+    await firebaseApi.updateDoc(
+      firebaseApi.doc(db, PASSWORD_RESET_REQUESTS_COLLECTION_NAME, request.docId),
+      {
+        status: "sent",
+        sentAt: firebaseApi.serverTimestamp(),
+        handledAt: firebaseApi.serverTimestamp(),
+        handledBy: currentAdminEmail,
+        updatedAt: firebaseApi.serverTimestamp()
+      }
+    );
+
+    await logAdminAction("password_reset_link_sent", normalizedEmail, "");
+    setAdminStatus(
+      "קישור האיפוס נשלח. יש להזכיר למשתמש לבדוק גם בספאם ובדואר זבל.",
+      "success"
+    );
+    await loadAdminData();
+  } catch (error) {
+    console.error("Admin password reset send failed", error);
+    setAdminStatus("שליחת קישור האיפוס נכשלה.", "error");
+  }
+}
+
+async function closePasswordResetRequest_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const request = adminPasswordResetRequests.find(item =>
+    item.email === normalizedEmail && item.status === "pending"
+  );
+  if (!request || !firebaseApi || !db) return;
+
+  try {
+    await firebaseApi.updateDoc(
+      firebaseApi.doc(db, PASSWORD_RESET_REQUESTS_COLLECTION_NAME, request.docId),
+      {
+        status: "closed",
+        handledAt: firebaseApi.serverTimestamp(),
+        handledBy: currentAdminEmail,
+        updatedAt: firebaseApi.serverTimestamp()
+      }
+    );
+    await logAdminAction("password_reset_request_closed", normalizedEmail, "");
+    await loadAdminData();
+  } catch (error) {
+    console.error("Password reset request close failed", error);
+    setAdminStatus("סגירת בקשת האיפוס נכשלה.", "error");
+  }
+}
+
 function renderAdminUsers() {
   const query = getAdminSearchQuery();
 
@@ -7595,18 +8675,43 @@ function renderAdminUsers() {
 
   const pendingCount = adminAllowedUsers.filter(user => getUserAccessState_(user).key === "pending").length;
   const newTodayCount = adminAllowedUsers.filter(isUserNewToday_).length;
+  const resetRequests = getPendingPasswordResetRequests_();
   document.getElementById("adminSummary").textContent =
     `${users.length === 1 ? "נמצא משתמש אחד" : `נמצאו ${users.length} משתמשים`}` +
     (newTodayCount ? ` · ${newTodayCount} קיבלו גישה היום ומוצגים ראשונים` : "") +
-    (pendingCount ? ` · ${pendingCount} בקשות אימות ממתינות` : "");
+    (pendingCount ? ` · ${pendingCount} בקשות אימות ממתינות` : "") +
+    (resetRequests.length ? ` · ${resetRequests.length} בקשות עזרה באיפוס סיסמה` : "");
 
-  if (!users.length) {
+  const resetRequestHtml = resetRequests.map(request => {
+    const contact = findContactByEmail(request.email);
+    return `
+      <div class="adminCard reportCard">
+        <div class="adminCardTop">
+          <div>
+            <div class="adminCardName">בקשת עזרה באיפוס סיסמה</div>
+            <div class="adminCardMeta">
+              ${escapeHtml(contact && contact.name ? contact.name : request.email)}<br>
+              ${escapeHtml(request.email)}<br>
+              התקבלה: ${escapeHtml(formatAdminTimestamp_(request.requestedAt))}
+            </div>
+          </div>
+          <span class="adminStatusBadge pending">ממתין</span>
+        </div>
+        <div class="adminCardActions">
+          <button type="button" class="adminActionBtn primary" onclick="sendPasswordResetForUser_('${escapeJsString(request.email)}')">שליחת קישור איפוס</button>
+          <button type="button" class="adminActionBtn secondary" onclick="closePasswordResetRequest_('${escapeJsString(request.email)}')">סגירה ללא שליחה</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  if (!users.length && !resetRequests.length) {
     document.getElementById("adminList").innerHTML =
       '<div class="adminEmpty">לא נמצאו משתמשים התואמים לחיפוש.</div>';
     return;
   }
 
-  document.getElementById("adminList").innerHTML = users.map(user => {
+  const usersHtml = users.map(user => {
     const contact = findContactByEmail(user.email);
     const isSelf = normalizeEmail(user.email) === currentAdminEmail;
     const accessState = getUserAccessState_(user);
@@ -7622,6 +8727,7 @@ function renderAdminUsers() {
       pending: "ממתין",
       waiting: "אימות",
       rejected: "נדחה",
+      phone_missing: "טלפון חסר",
       unknown: "פעיל"
     })[accessState.key] || (user.active ? "פעיל" : "חסום");
 
@@ -7643,7 +8749,11 @@ function renderAdminUsers() {
             ${isNewToday ? `<span class="adminNewAccessBadge">${escapeHtml(getUserAccessGrantLabel_(user))}</span>` : ""}
             <div class="adminCardMeta">
               ${escapeHtml(user.email)}
-              ${contact && contact.phone ? "<br>" + escapeHtml(formatPhoneForDisplay(contact.phone)) : ""}
+              ${(contact && contact.phone) || user.phone
+                ? "<br>" + escapeHtml(formatPhoneForDisplay(
+                    contact && contact.phone ? contact.phone : user.phone
+                  ))
+                : ""}
               ${contact && contact.dept ? " · " + escapeHtml(contact.dept) : ""}
               ${user.source ? "<br>מקור: " + escapeHtml(user.source) : ""}
               <div class="accessStateLine ${escapeHtml(accessState.key)}">
@@ -7666,6 +8776,8 @@ function renderAdminUsers() {
       </div>
     `;
   }).join("");
+
+  document.getElementById("adminList").innerHTML = resetRequestHtml + usersHtml;
 }
 
 
@@ -8337,23 +9449,58 @@ async function toggleUserAccess(email, shouldActivate) {
   setAdminStatus(shouldActivate ? "מחזיר גישה..." : "חוסם גישה...", "loading");
 
   try {
+    const userPermission = getAllowedUserByEmail(normalizedEmail);
+    if (
+      shouldActivate &&
+      (!userPermission || !userPermission.phoneKey || !userPermission.phone)
+    ) {
+      setAdminStatus(
+        "לא ניתן להחזיר גישה לפני שקיים קישור תקין בין המייל למספר הטלפון.",
+        "error"
+      );
+      return;
+    }
+
     const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
     batch.set(
       firebaseApi.doc(db, "allowedUsers", normalizedEmail),
       {
         email: normalizedEmail,
         active: Boolean(shouldActivate),
         source: shouldActivate ? "admin-unblock" : "admin-block",
-        updatedAt: firebaseApi.serverTimestamp()
+        updatedAt: now
       },
       { merge: true }
     );
 
+    if (userPermission && userPermission.phoneKey) {
+      batch.set(
+        firebaseApi.doc(
+          db,
+          ALLOWED_PHONES_COLLECTION_NAME,
+          userPermission.phoneKey
+        ),
+        {
+          phone: userPermission.phone,
+          phoneKey: userPermission.phoneKey,
+          email: normalizedEmail,
+          active: Boolean(shouldActivate),
+          source: shouldActivate ? "admin-unblock" : "admin-block",
+          updatedAt: now
+        },
+        { merge: true }
+      );
+    }
+
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
       action: shouldActivate ? "user_unblock" : "user_block",
       targetEmail: normalizedEmail,
+      targetPhone: userPermission && userPermission.phone
+        ? userPermission.phone
+        : "",
       adminEmail: currentAdminEmail,
-      timestamp: firebaseApi.serverTimestamp()
+      timestamp: now
     });
 
     await batch.commit();
@@ -8373,25 +9520,42 @@ async function deleteUserPermission(email) {
     return;
   }
 
-  if (!confirm(`למחוק את הרשאת הכניסה של ${normalizedEmail}? חסימה עדיפה בדרך כלל, משום שמילוי טופס חדש עשוי ליצור הרשאה מחדש.`)) {
+  if (!confirm(`למחוק את הרשאת הכניסה של ${normalizedEmail} ואת הקישור למספר הטלפון שלו? חסימה עדיפה בדרך כלל, משום שמילוי טופס חדש עשוי ליצור הרשאה מחדש.`)) {
     return;
   }
 
   setAdminStatus("מוחק הרשאה...", "loading");
 
   try {
+    const userPermission = getAllowedUserByEmail(normalizedEmail);
     const batch = firebaseApi.writeBatch(db);
+    const now = firebaseApi.serverTimestamp();
+
     batch.delete(firebaseApi.doc(db, "allowedUsers", normalizedEmail));
+
+    if (userPermission && userPermission.phoneKey) {
+      batch.delete(
+        firebaseApi.doc(
+          db,
+          ALLOWED_PHONES_COLLECTION_NAME,
+          userPermission.phoneKey
+        )
+      );
+    }
+
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
       action: "permission_delete",
       targetEmail: normalizedEmail,
+      targetPhone: userPermission && userPermission.phone
+        ? userPermission.phone
+        : "",
       adminEmail: currentAdminEmail,
-      timestamp: firebaseApi.serverTimestamp()
+      timestamp: now
     });
 
     await batch.commit();
     await loadAdminData();
-    setAdminStatus("ההרשאה נמחקה.", "success");
+    setAdminStatus("הרשאת המייל והקישור למספר הטלפון נמחקו.", "success");
   } catch (error) {
     console.error("Permission deletion failed", error);
     setAdminStatus("מחיקת ההרשאה נכשלה.", "error");
@@ -8481,11 +9645,6 @@ function updateSearchUI() {
 }
 
 function clearSearch() {
-  lastCountedSearchQuery = "";
-  if (searchUsageTimer) {
-    clearTimeout(searchUsageTimer);
-    searchUsageTimer = null;
-  }
   const input = document.getElementById("searchInput");
   if (input) input.value = "";
   selectionMode = false;
@@ -8797,6 +9956,10 @@ function openContactAddModal_() {
   document.getElementById("contactAddModalTitle").textContent = "הוספת איש קשר";
   document.getElementById("contactAddIntro").textContent = "לא חייבים למלא את כל השדות. יש להזין לפחות פרט אחד, והמנהל יבדוק את הבקשה לפני הפרסום.";
   document.getElementById("contactAddSubmitBtn").textContent = "שליחה לבדיקה";
+  document.getElementById("contactAddPhone").readOnly = false;
+  document.getElementById("contactAddEmail").readOnly = false;
+  document.getElementById("contactAddPhone").classList.remove("myProfileReadOnly");
+  document.getElementById("contactAddEmail").classList.remove("myProfileReadOnly");
   document.getElementById("contactPickerBox").classList.toggle("visible", contactPickerSupported_());
   document.getElementById("contactAddModal").classList.add("visible");
   document.body.style.overflow = "hidden";
@@ -8811,9 +9974,25 @@ function openContactAddRequestForApproval_(requestId, message = "") {
   activeContactAddRequestId = requestId;
   contactAddSource = request.source || "manual";
   setContactAddFormValues_(request);
-  document.getElementById("contactAddModalTitle").textContent = "עריכת בקשה לפני אישור";
-  document.getElementById("contactAddIntro").textContent = "אפשר לתקן או להשלים פרטים. מספר טלפון נדרש רק בשלב האישור כדי שאיש הקשר יופיע באפליקציה.";
-  document.getElementById("contactAddSubmitBtn").textContent = "אישור והוספה";
+
+  const isSelfUpdate = request.requestType === "self_update";
+  document.getElementById("contactAddModalTitle").textContent =
+    isSelfUpdate ? "בדיקת עדכון הפרטים האישיים" : "עריכת בקשה לפני אישור";
+  document.getElementById("contactAddIntro").textContent = isSelfUpdate
+    ? "המשתמש ביקש לעדכן את הפרטים שלו. אפשר לתקן את הנוסח לפני האישור; מספר הטלפון והמייל נשארים ללא שינוי."
+    : "אפשר לתקן או להשלים פרטים. מספר טלפון נדרש רק בשלב האישור כדי שאיש הקשר יופיע באפליקציה.";
+  document.getElementById("contactAddSubmitBtn").textContent =
+    isSelfUpdate ? "אישור ועדכון" : "אישור והוספה";
+  document.getElementById("contactAddPhone").readOnly = isSelfUpdate;
+  document.getElementById("contactAddEmail").readOnly = isSelfUpdate;
+  document.getElementById("contactAddPhone").classList.toggle(
+    "myProfileReadOnly",
+    isSelfUpdate
+  );
+  document.getElementById("contactAddEmail").classList.toggle(
+    "myProfileReadOnly",
+    isSelfUpdate
+  );
   document.getElementById("contactPickerBox").classList.remove("visible");
   setContactAddStatus_(message, message ? "error" : "");
   document.getElementById("contactAddModal").classList.add("visible");
@@ -8826,6 +10005,10 @@ function closeContactAddModal_() {
   document.body.style.overflow = "";
   contactAddModalMode = "user";
   activeContactAddRequestId = "";
+  document.getElementById("contactAddPhone").readOnly = false;
+  document.getElementById("contactAddEmail").readOnly = false;
+  document.getElementById("contactAddPhone").classList.remove("myProfileReadOnly");
+  document.getElementById("contactAddEmail").classList.remove("myProfileReadOnly");
   setContactAddStatus_("", "");
 }
 
@@ -8933,6 +10116,10 @@ async function submitContactAddRequest_() {
       email: values.email,
       reporterEmail: normalizeEmail(currentUser.email || ""),
       source: contactAddSource === "device_picker" ? "device_picker" : "manual",
+      requestType: "contact_add",
+      originalContactId: "",
+      originalPhone: "",
+      originalEmail: "",
       status: "pending",
       createdAt: firebaseApi.serverTimestamp(),
       updatedAt: firebaseApi.serverTimestamp(),
@@ -9164,7 +10351,8 @@ async function downloadAllContacts() {
   openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "הורדת כל אנשי הקשר");
 }
 
-function downloadContact(id) {
+async function downloadContact(id) {
+  recordContactUse_(id, "download");
   const c = contacts.find(x => x.id === id);
   if (!c) {
     alert("איש הקשר לא נמצא. נסו לרענן את החיפוש.");
@@ -9175,9 +10363,12 @@ function downloadContact(id) {
   const displayName = String(c.name || formatPhoneForDisplay(c.phone) || "contact").trim();
   const safeFileName = displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
 
-  // שימוש באותו מסלול הורדה יציב של הורדת כמה אנשי קשר.
-  // במסלול הישיר הישן, iPhone / מצב אפליקציה עלולים לחסום data URL ללא הודעה.
-  openImportGuide(vcard, safeFileName, 1, "הורדת איש קשר");
+  try {
+    await shareOrDownloadVCard(vcard, safeFileName, { preferDirectOpen: true });
+  } catch (error) {
+    console.error("Direct contact open failed", error);
+    await shareOrDownloadVCard(vcard, safeFileName);
+  }
 }
 
 function escapeHtml(value) {
@@ -9294,29 +10485,29 @@ function show(list) {
 
     metaRows += `
       <div class="contactMetaRow phoneRow">
-        📞 <a href="tel:${c.phone}">${displayPhone}</a>
+        📞 <a href="tel:${c.phone}" onclick="recordContactUse_(${c.id}, 'phone')">${displayPhone}</a>
       </div>
     `;
 
     actionChips += `
-      <a class="actionChip" href="tel:${c.phone}">חיוג</a>
+      <a class="actionChip" href="tel:${c.phone}" onclick="recordContactUse_(${c.id}, 'call')">חיוג</a>
     `;
 
     if (!hideWhatsapp) {
       actionChips += `
-        <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener">וואטסאפ</a>
+        <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener" onclick="recordContactUse_(${c.id}, 'whatsapp')">וואטסאפ</a>
       `;
     }
 
     if (c.email) {
       metaRows += `
         <div class="contactMetaRow">
-          📧 <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a>
+          📧 <a href="mailto:${escapeHtml(c.email)}" onclick="recordContactUse_(${c.id}, 'email')">${escapeHtml(c.email)}</a>
         </div>
       `;
 
       actionChips += `
-        <a class="actionChip" href="mailto:${escapeHtml(c.email)}">מייל</a>
+        <a class="actionChip" href="mailto:${escapeHtml(c.email)}" onclick="recordContactUse_(${c.id}, 'email')">מייל</a>
       `;
     }
 
@@ -9396,8 +10587,6 @@ function renderCurrentSearchResults() {
 }
 
 function search() {
-  const input = document.getElementById("searchInput");
-  scheduleSearchUsageCount_(input ? input.value : "");
   renderCurrentSearchResults();
 }
 
@@ -9426,6 +10615,11 @@ function init() {
 
   const requestedEmail = normalizeEmail(params.get("email") || "");
   const forceFreshRoute = params.get("fresh") === "1";
+  const manualApprovalIntent = params.get("manualApproval") === "1";
+  if (manualApprovalIntent && isValidEmail(requestedEmail)) {
+    pendingManualApprovalIntentEmail = requestedEmail;
+    pendingManualApprovalIntentHandled = false;
+  }
   const pendingEmail = getPendingAuthEmail_();
   const autoRouteEmail = isValidEmail(requestedEmail)
     ? requestedEmail
@@ -9491,6 +10685,7 @@ function init() {
     });
 }
 init();
+
 </script>
 
 </body>
