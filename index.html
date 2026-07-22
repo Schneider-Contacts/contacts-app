@@ -10351,24 +10351,40 @@ async function downloadAllContacts() {
   openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "הורדת כל אנשי הקשר");
 }
 
-async function downloadContact(id) {
-  recordContactUse_(id, "download");
-  const c = contacts.find(x => x.id === id);
+function downloadContact(id) {
+  const c = contacts.find(contact => contact.id === id);
+
   if (!c) {
     alert("איש הקשר לא נמצא. נסו לרענן את החיפוש.");
     return;
   }
 
-  const vcard = buildContactVCard(c) + "\r\n";
-  const displayName = String(c.name || formatPhoneForDisplay(c.phone) || "contact").trim();
-  const safeFileName = displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
+  recordContactUse_(id, "download");
 
-  try {
-    await shareOrDownloadVCard(vcard, safeFileName, { preferDirectOpen: true });
-  } catch (error) {
-    console.error("Direct contact open failed", error);
-    await shareOrDownloadVCard(vcard, safeFileName);
-  }
+  const vcard = buildContactVCard(c) + "\r\n";
+  const displayName = String(
+    c.name || formatPhoneForDisplay(c.phone) || "contact"
+  ).trim();
+  const safeFileName =
+    displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
+
+  const blob = new Blob([vcard], {
+    type: "text/vcard;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = safeFileName;
+  link.style.display = "none";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 function escapeHtml(value) {
