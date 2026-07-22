@@ -8714,8 +8714,10 @@ function renderImportGuide(importKey) {
   }
 
   document.getElementById("guideTitle").textContent = payload.titleText || "הורדת אנשי קשר";
-  document.getElementById("guideCountBox").innerHTML =
-    `הקובץ מוכן וכולל <b>${payload.count || 0}</b> אנשי קשר.`;
+  const guideContactCount = Math.max(0, Number(payload.count) || 0);
+  document.getElementById("guideCountBox").innerHTML = guideContactCount === 1
+    ? "הקובץ מוכן וכולל <b>איש קשר אחד</b>."
+    : `הקובץ מוכן וכולל <b>${guideContactCount}</b> אנשי קשר.`;
 
   const finalBtn = document.getElementById("finalGuideBtn");
   finalBtn.onclick = async function () {
@@ -9162,14 +9164,20 @@ async function downloadAllContacts() {
   openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "הורדת כל אנשי הקשר");
 }
 
-async function downloadContact(id) {
+function downloadContact(id) {
   const c = contacts.find(x => x.id === id);
-  if (!c) return;
+  if (!c) {
+    alert("איש הקשר לא נמצא. נסו לרענן את החיפוש.");
+    return;
+  }
 
   const vcard = buildContactVCard(c) + "\r\n";
-  await shareOrDownloadVCard(vcard, c.name + ".vcf", {
-    preferDirectOpen: isAppleMobileDevice()
-  });
+  const displayName = String(c.name || formatPhoneForDisplay(c.phone) || "contact").trim();
+  const safeFileName = displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
+
+  // שימוש באותו מסלול הורדה יציב של הורדת כמה אנשי קשר.
+  // במסלול הישיר הישן, iPhone / מצב אפליקציה עלולים לחסום data URL ללא הודעה.
+  openImportGuide(vcard, safeFileName, 1, "הורדת איש קשר");
 }
 
 function escapeHtml(value) {
