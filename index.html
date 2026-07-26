@@ -2703,21 +2703,30 @@ select {
 <style>
 /* ===== v15: personal profile ===== */
 .myProfileBtn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  background: var(--green-50);
+  gap: 7px;
+  width: 100%;
+  min-height: 42px;
+  margin: 9px 0 0;
+  padding: 10px 14px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--green-50) 100%);
   color: var(--green-800);
-  border: 1px solid var(--green-200);
-  box-shadow: none;
-  font-size: 12px;
+  border: 1px solid var(--green-300);
+  box-shadow: 0 5px 13px rgba(5, 150, 105, 0.10);
+  font-size: 13.5px;
   font-weight: 850;
-  flex-shrink: 0;
 }
-.myProfileBtn:hover { background: var(--green-100); }
+.myProfileBtn:hover {
+  background: var(--green-100);
+  border-color: var(--green-400);
+}
+.myProfileBtnIcon {
+  font-size: 16px;
+  line-height: 1;
+}
 .myProfileHero {
   display: flex;
   align-items: center;
@@ -2953,10 +2962,13 @@ select {
     <div class="appAccountRow">
       <div id="userInfo">
         <span id="userInfoText"></span>
-        <button type="button" id="myProfileBtn" class="myProfileBtn" onclick="openMyProfileModal()">🙋 אני</button>
       </div>
       <button type="button" class="logoutBtn" onclick="logout()">יציאה</button>
     </div>
+    <button type="button" id="myProfileBtn" class="myProfileBtn" onclick="openMyProfileModal()">
+      <span class="myProfileBtnIcon" aria-hidden="true">🙋</span>
+      <span>עריכת הפרטים שלי</span>
+    </button>
     <button type="button" id="adminOpenBtn" class="adminDashboardBtn" onclick="openAdminPanel()">
       <span class="adminDashboardIcon" aria-hidden="true">⚙️</span>
       <span>ניהול המערכת</span>
@@ -7917,7 +7929,13 @@ async function submitContactAddApprovalToScript_(requestId, values) {
     throw new Error("יש להתחבר מחדש כמנהל כדי לאשר את הבקשה.");
   }
 
-  const idToken = await currentUser.getIdToken(true);
+  let idToken;
+  try {
+    idToken = await currentUser.getIdToken(true);
+  } catch (refreshError) {
+    // כשל רשת רגעי ברענון האסימון לא צריך לחסום מנהל שכבר מחובר.
+    idToken = await currentUser.getIdToken(false);
+  }
   const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
   const frameName = `contactApprovalFrame_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
   const iframe = document.createElement("iframe");
@@ -7957,9 +7975,13 @@ async function submitContactAddApprovalToScript_(requestId, values) {
 
   return await new Promise((resolve, reject) => {
     let settled = false;
+    let timeoutId = null;
+    let pollTimer = null;
+    let pollInFlight = false;
     const cleanup = () => {
       window.removeEventListener("message", onMessage);
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (pollTimer) clearInterval(pollTimer);
       form.remove();
       iframe.remove();
     };
@@ -7972,7 +7994,6 @@ async function submitContactAddApprovalToScript_(requestId, values) {
     const onMessage = event => {
       const data = event && event.data;
       if (
-        event.source !== iframe.contentWindow ||
         !data ||
         data.source !== "contacts-admin-approval" ||
         data.nonce !== nonce
@@ -7989,7 +8010,37 @@ async function submitContactAddApprovalToScript_(requestId, values) {
         );
       }
     };
-    const timeoutId = setTimeout(() => {
+    const checkApprovalStatus = async () => {
+      if (settled || pollInFlight || !firebaseApi || !db) return;
+      pollInFlight = true;
+
+      try {
+        const requestSnapshot = await firebaseApi.getDoc(
+          firebaseApi.doc(db, "contactAddRequests", requestId)
+        );
+        if (!requestSnapshot.exists()) return;
+
+        const status = String(requestSnapshot.data().status || "");
+        if (status === "approved") {
+          finish(resolve, {
+            ok: true,
+            requestId,
+            recoveredFromStatus: true
+          });
+        } else if (status === "rejected") {
+          finish(
+            reject,
+            new Error("הבקשה נדחתה בזמן ניסיון האישור.")
+          );
+        }
+      } catch (pollError) {
+        // ה-iframe עדיין יכול להחזיר תשובה; ממשיכים לנסות עד פסק הזמן.
+      } finally {
+        pollInFlight = false;
+      }
+    };
+
+    timeoutId = setTimeout(() => {
       finish(
         reject,
         new Error(
@@ -7999,7 +8050,9 @@ async function submitContactAddApprovalToScript_(requestId, values) {
     }, 120000);
 
     window.addEventListener("message", onMessage);
+    pollTimer = setInterval(checkApprovalStatus, 2000);
     form.submit();
+    setTimeout(checkApprovalStatus, 1200);
   });
 }
 
