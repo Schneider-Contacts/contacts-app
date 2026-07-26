@@ -4293,7 +4293,7 @@ async function loadContacts() {
   }
 }
 
-async function loadContactsFromOptimizedBundle_() {
+async function loadContactsFromOptimizedBundle_(options = {}) {
   const metaRef = firebaseApi.doc(
     db,
     CONTACT_DIRECTORY_COLLECTION_NAME,
@@ -4343,6 +4343,21 @@ async function loadContactsFromOptimizedBundle_() {
       })
     )
   );
+  const hasInvalidPage = pageSnapshots.some(snapshot => {
+    if (!snapshot.exists()) return true;
+    const data = snapshot.data() || {};
+    return Boolean(version && String(data.version || "") !== version);
+  });
+
+  if (hasInvalidPage) {
+    if (options.retried !== true) {
+      return await loadContactsFromOptimizedBundle_({ retried: true });
+    }
+    throw new Error(
+      "ספריית אנשי הקשר התעדכנה בזמן הטעינה. נסו שוב בעוד רגע."
+    );
+  }
+
   const rawContacts = [];
 
   pageSnapshots.forEach(snapshot => {
@@ -6752,8 +6767,10 @@ async function logout() {
     currentUserHasAppAccess = false;
     currentUserPermissionData = null;
     contacts = [];
-    // המטמון נשמר במכשיר כדי שהכניסה הבאה תהיה מהירה.
-    // בכל כניסה עדיין נקרא manifest אחד שמוודא שהגרסה עדכנית.
+    // ביציאה יזומה מנקים את ספריית אנשי הקשר מהמכשיר המשותף.
+    // סגירת הדפדפן או רענון אינם מגיעים לכאן ולכן ממשיכים ליהנות
+    // מהמטמון ומהכניסה המהירה באותו מכשיר.
+    clearContactsBundleCache_();
     currentUserIsAdmin = false;
     currentUserIsSuperAdmin = false;
     currentAdminRole = "";
@@ -7355,7 +7372,7 @@ async function loadAdminData() {
         phone: String(data.phone || ""),
         email: normalizeEmail(data.email || ""),
         reporterEmail: normalizeEmail(data.reporterEmail || ""),
-        source: ["device_picker", "self_profile"].includes(data.source)
+        source: ["device_picker", "self_profile", "google_form"].includes(data.source)
           ? data.source
           : "manual",
         requestType: data.requestType === "self_update"
@@ -7371,7 +7388,9 @@ async function loadAdminData() {
         updatedAt: data.updatedAt || null,
         handledAt: data.handledAt || null,
         handledBy: normalizeEmail(data.handledBy || ""),
-        approvedContactId: String(data.approvedContactId || "")
+        approvedContactId: String(data.approvedContactId || ""),
+        grantAccessOnApproval: data.grantAccessOnApproval === true,
+        accessApprovalReason: String(data.accessApprovalReason || "")
       };
     });
 
@@ -7554,7 +7573,7 @@ function formatActivityTimestamp(activity) {
 }
 
 function getActivityCategory(action) {
-  if (["contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "access_auto_granted", "manager_add"].includes(action)) {
+  if (["contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "form_access_request_approved", "access_auto_granted", "manager_add"].includes(action)) {
     return "added";
   }
 
@@ -7571,6 +7590,8 @@ function getActivityTitle(activity) {
     form_submission: "נשלח טופס הצטרפות",
     contact_add_detected: "איש קשר נוסף למערכת",
     contact_add_request_approved: "בקשת הוספת איש קשר אושרה",
+    form_access_request_approved: "בקשת הצטרפות וגישה אושרה",
+    form_access_pending_admin: "בקשת הצטרפות ממתינה למנהל",
     contact_add_request_rejected: "בקשת הוספת איש קשר נדחתה",
     self_profile_update_approved: "עדכון פרטים אישיים אושר",
     self_profile_update_rejected: "עדכון פרטים אישיים נדחה",
@@ -8086,11 +8107,16 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
 
   const existingContact = findExistingContactForAddRequest_(values, request);
   const isSelfUpdate = request.requestType === "self_update";
+  const grantsFormAccess = request.grantAccessOnApproval === true;
   const existingMessage = existingContact
     ? isSelfUpdate
       ? `לאשר את עדכון הפרטים של ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}? מספר הטלפון והמייל לא ישתנו.`
-      : `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן רק את הפרטים שמולאו בבקשה; מספר הטלפון של הרשומה הקיימת לא ישתנה. להמשיך?`
-    : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
+      : grantsFormAccess
+        ? `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן את הפרטים ויאשר במפורש גישה למייל ${values.email}. להמשיך?`
+        : `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן רק את הפרטים שמולאו בבקשה; מספר הטלפון של הרשומה הקיימת לא ישתנה. להמשיך?`
+    : grantsFormAccess
+      ? `לאשר את הוספת ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} וגם להעניק גישה למייל ${values.email}?`
+      : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
 
   if (!confirm(existingMessage)) return;
 
@@ -8118,7 +8144,9 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       await loadContacts();
       await loadAdminData();
       setAdminStatus(
-        existingContact
+        grantsFormAccess
+          ? "בקשת ההצטרפות אושרה: איש הקשר והגישה עודכנו."
+          : existingContact
           ? "איש הקשר הקיים עודכן גם בגיליון המקור."
           : "איש הקשר אושר, נשמר בגיליון ונוסף לרשימה.",
         "success"
@@ -8291,13 +8319,18 @@ function renderAdminReports() {
       const statusLabel = request.status === "approved" ? "אושר" : request.status === "rejected" ? "נדחה" : "ממתין";
       const statusClass = request.status === "pending" ? "pending" : request.status;
       const isSelfUpdate = request.requestType === "self_update";
+      const grantsFormAccess = request.grantAccessOnApproval === true;
       const requestLabel = isSelfUpdate
         ? "בקשת עדכון פרטים אישיים"
+        : grantsFormAccess
+          ? "בקשת הצטרפות ואישור גישה"
         : "בקשת הוספת איש קשר";
       const sourceLabel = request.source === "device_picker"
         ? "ספר הטלפונים במכשיר"
         : request.source === "self_profile"
           ? "כפתור „אני” באפליקציה"
+          : request.source === "google_form"
+            ? "Google Form"
           : "טופס ידני";
       const details = [
         request.role ? `<b>תפקיד:</b> ${escapeHtml(request.role)}` : "",
@@ -8321,7 +8354,7 @@ function renderAdminReports() {
           <div class="contactAddRequestDetails">${details}</div>
           ${request.status === "pending" ? `
             <div class="adminCardActions">
-              <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : "אישור והוספה"}</button>
+              <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
               <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
               <button type="button" class="adminActionBtn danger" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחייה</button>
             </div>` : ""}
