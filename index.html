@@ -7911,6 +7911,98 @@ function getContactAddFormValues_() {
   };
 }
 
+async function submitContactAddApprovalToScript_(requestId, values) {
+  const currentUser = auth && auth.currentUser;
+  if (!currentUser || !currentUserIsAdmin) {
+    throw new Error("יש להתחבר מחדש כמנהל כדי לאשר את הבקשה.");
+  }
+
+  const idToken = await currentUser.getIdToken(true);
+  const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+  const frameName = `contactApprovalFrame_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+  const iframe = document.createElement("iframe");
+  const form = document.createElement("form");
+
+  iframe.name = frameName;
+  iframe.style.display = "none";
+  form.method = "post";
+  form.action = AUTH_ROUTER_URL;
+  form.target = frameName;
+  form.style.display = "none";
+
+  const fields = {
+    action: "approveContactAddRequest",
+    idToken,
+    nonce,
+    requestId,
+    firstName: values.firstName || "",
+    lastName: values.lastName || "",
+    titlePrefix: values.titlePrefix || "",
+    role: values.role || "",
+    department: values.department || "",
+    phone: values.phone || "",
+    email: values.email || ""
+  };
+
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = String(value || "");
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(iframe);
+  document.body.appendChild(form);
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      window.removeEventListener("message", onMessage);
+      clearTimeout(timeoutId);
+      form.remove();
+      iframe.remove();
+    };
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
+    const onMessage = event => {
+      const data = event && event.data;
+      if (
+        event.source !== iframe.contentWindow ||
+        !data ||
+        data.source !== "contacts-admin-approval" ||
+        data.nonce !== nonce
+      ) {
+        return;
+      }
+
+      if (data.ok === true) {
+        finish(resolve, data);
+      } else {
+        finish(
+          reject,
+          new Error(data.message || "אישור איש הקשר נכשל.")
+        );
+      }
+    };
+    const timeoutId = setTimeout(() => {
+      finish(
+        reject,
+        new Error(
+          "האישור נמשך זמן רב מהצפוי. טענו מחדש את מסך הניהול לפני ניסיון נוסף."
+        )
+      );
+    }, 120000);
+
+    window.addEventListener("message", onMessage);
+    form.submit();
+  });
+}
+
 async function approveContactAddRequest_(requestId, editedValues = null) {
   if (!currentUserIsAdmin || !requestId) return;
   const request = adminContactAddRequests.find(item => item.docId === requestId);
@@ -7955,6 +8047,40 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
     : normalizePhone(payload.phone).replace(/\D/g, "") || `request_${requestId}`;
 
   setAdminStatus(isSelfUpdate ? "מאשר את עדכון הפרטים..." : "מאשר ומוסיף את איש הקשר...", "loading");
+
+  if (!isSelfUpdate) {
+    try {
+      await submitContactAddApprovalToScript_(requestId, {
+        firstName: payload.first_name_he,
+        lastName: payload.last_name_he,
+        titlePrefix: payload.title_prefix,
+        role: payload.role,
+        department: payload.department,
+        phone: payload.phone,
+        email: payload.email
+      });
+
+      clearContactsBundleCache_();
+      closeContactAddModal_();
+      await loadContacts();
+      await loadAdminData();
+      setAdminStatus(
+        existingContact
+          ? "איש הקשר הקיים עודכן גם בגיליון המקור."
+          : "איש הקשר אושר, נשמר בגיליון ונוסף לרשימה.",
+        "success"
+      );
+    } catch (error) {
+      console.error("Contact addition approval failed", error);
+      setAdminStatus(
+        error && error.message
+          ? error.message
+          : "אישור הבקשה נכשל. נסו שוב.",
+        "error"
+      );
+    }
+    return;
+  }
 
   try {
     const batch = firebaseApi.writeBatch(db);
