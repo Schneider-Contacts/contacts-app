@@ -3397,6 +3397,7 @@ const CONTACT_USE_STORAGE_PREFIX = "contacts_contact_use_v1_";
 const LAST_LOGIN_EMAIL_STORAGE_KEY = "contacts_last_login_email_v1";
 const AUTH_STATUS_TELEMETRY_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const AUTH_STATUS_TELEMETRY_PREFIX = "contacts_auth_status_write_v1_";
+const USER_SUBMISSION_COOLDOWN_MS = 2 * 60 * 1000;
 
 let firebaseApi = null;
 let firebaseApp = null;
@@ -3480,6 +3481,15 @@ function getIsraelDateKey_(date = new Date()) {
   });
 
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getCooldownSubmissionDocumentId_(type, user) {
+  const uid = String(user && user.uid || "").replace(/[^A-Za-z0-9_-]/g, "");
+  if (!uid) throw new Error("לא נמצא מזהה משתמש תקין.");
+
+  const bucket = Math.floor(Date.now() / USER_SUBMISSION_COOLDOWN_MS)
+    .toString(36);
+  return `${type}_${uid}_${bucket}`;
 }
 
 function formatUsageDate_(dateKey) {
@@ -10522,34 +10532,48 @@ async function submitContactAddRequest_() {
   setContactAddStatus_("שולח את הבקשה...", "loading");
 
   try {
-    await firebaseApi.addDoc(firebaseApi.collection(db, "contactAddRequests"), {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      titlePrefix: values.titlePrefix,
-      role: values.role,
-      department: values.department,
-      phone: values.phone ? normalizePhone(values.phone) : "",
-      email: values.email,
-      reporterEmail: normalizeEmail(currentUser.email || ""),
-      source: contactAddSource === "device_picker" ? "device_picker" : "manual",
-      requestType: "contact_add",
-      originalContactId: "",
-      originalPhone: "",
-      originalEmail: "",
-      status: "pending",
-      createdAt: firebaseApi.serverTimestamp(),
-      updatedAt: firebaseApi.serverTimestamp(),
-      handledAt: null,
-      handledBy: "",
-      approvedContactId: ""
-    });
+    const requestId = getCooldownSubmissionDocumentId_("add", currentUser);
+    await firebaseApi.setDoc(
+      firebaseApi.doc(db, "contactAddRequests", requestId),
+      {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        titlePrefix: values.titlePrefix,
+        role: values.role,
+        department: values.department,
+        phone: values.phone ? normalizePhone(values.phone) : "",
+        email: values.email,
+        reporterEmail: normalizeEmail(currentUser.email || ""),
+        source: contactAddSource === "device_picker" ? "device_picker" : "manual",
+        requestType: "contact_add",
+        originalContactId: "",
+        originalPhone: "",
+        originalEmail: "",
+        status: "pending",
+        createdAt: firebaseApi.serverTimestamp(),
+        updatedAt: firebaseApi.serverTimestamp(),
+        handledAt: null,
+        handledBy: "",
+        approvedContactId: ""
+      },
+      { merge: false }
+    );
 
     setContactAddStatus_("תודה על הוספת איש הקשר.", "success");
     document.getElementById("contactAddSubmitBtn").textContent = "נשלח";
     setTimeout(closeContactAddModal_, 1500);
   } catch (error) {
     console.error("Contact addition request failed", error);
-    setContactAddStatus_("שליחת הבקשה נכשלה. בדקו את החיבור ונסו שוב.", "error");
+    const isCooldown = error && [
+      "permission-denied",
+      "firestore/permission-denied"
+    ].includes(error.code);
+    setContactAddStatus_(
+      isCooldown
+        ? "כבר נשלחה בקשה בדקות האחרונות. המתינו מעט לפני שליחה נוספת."
+        : "שליחת הבקשה נכשלה. בדקו את החיבור ונסו שוב.",
+      "error"
+    );
   } finally {
     submitButton.disabled = false;
   }
@@ -10600,8 +10624,12 @@ async function submitContactReport() {
   setStatus("contactReportStatus", "שולח את הדיווח...", "loading");
 
   try {
-    await firebaseApi.addDoc(
-      firebaseApi.collection(db, "contactReports"),
+    const reportId = getCooldownSubmissionDocumentId_(
+      "report",
+      auth.currentUser
+    );
+    await firebaseApi.setDoc(
+      firebaseApi.doc(db, "contactReports", reportId),
       {
         contactDocId: String(activeReportContact.docId || ""),
         contactPhone: String(activeReportContact.phone || ""),
@@ -10611,14 +10639,25 @@ async function submitContactReport() {
         reporterEmail: normalizeEmail(auth.currentUser.email),
         status: "open",
         createdAt: firebaseApi.serverTimestamp()
-      }
+      },
+      { merge: false }
     );
 
     setStatus("contactReportStatus", "הדיווח נשלח למנהלי האפליקציה. תודה.", "success");
     setTimeout(closeContactReportModal, 1300);
   } catch (error) {
     console.error("Contact report submission failed", error);
-    setStatus("contactReportStatus", "לא הצלחנו לשלוח את הדיווח. נסו שוב.", "error");
+    const isCooldown = error && [
+      "permission-denied",
+      "firestore/permission-denied"
+    ].includes(error.code);
+    setStatus(
+      "contactReportStatus",
+      isCooldown
+        ? "כבר נשלח דיווח בדקות האחרונות. המתינו מעט לפני דיווח נוסף."
+        : "לא הצלחנו לשלוח את הדיווח. נסו שוב.",
+      "error"
+    );
   } finally {
     if (button) button.disabled = false;
   }
