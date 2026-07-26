@@ -9378,6 +9378,9 @@ async function saveAdminContactEdit() {
   const emailChanged = newEmail !== oldEmail;
   const oldPhoneKey = originalPhone.replace(/\D/g, "");
   const newPhoneKey = newPhone.replace(/\D/g, "");
+  const existingPermission = getAllowedUserByEmail(oldEmail) ||
+    getAllowedUserByEmail(newEmail);
+  const permissionEmail = newEmail || oldEmail;
 
   if (!payload.first_name_he && !payload.last_name_he) {
     setAdminEditStatus("יש להזין לפחות שם פרטי או שם משפחה.", "error");
@@ -9410,6 +9413,18 @@ async function saveAdminContactEdit() {
     }
   }
 
+  const conflictingPhonePermission = adminAllowedPhones.find(item =>
+    item.phoneKey === newPhoneKey &&
+    normalizeEmail(item.email) !== permissionEmail
+  );
+  if (permissionEmail && conflictingPhonePermission) {
+    setAdminEditStatus(
+      "מספר הטלפון כבר מקושר להרשאת משתמש אחרת. יש לטפל קודם בהרשאה הקיימת.",
+      "error"
+    );
+    return;
+  }
+
   if (phoneChanged) {
     const duplicateContact = adminContacts.find(contact =>
       contact.docId !== adminEditingContact.docId &&
@@ -9424,18 +9439,6 @@ async function saveAdminContactEdit() {
       return;
     }
 
-    const conflictingPhonePermission = adminAllowedPhones.find(item =>
-      item.phoneKey === newPhoneKey &&
-      normalizeEmail(item.email) !== normalizeEmail(newEmail || oldEmail)
-    );
-
-    if (conflictingPhonePermission) {
-      setAdminEditStatus(
-        "המספר החדש כבר מקושר להרשאת משתמש אחרת. יש לטפל קודם בהרשאה הקיימת.",
-        "error"
-      );
-      return;
-    }
   }
 
   const saveButton = document.getElementById("adminSaveContactBtn");
@@ -9488,12 +9491,20 @@ async function saveAdminContactEdit() {
       timestamp: now
     });
 
-    const existingPermission = getAllowedUserByEmail(oldEmail) ||
-      getAllowedUserByEmail(newEmail);
-    const permissionEmail = newEmail || oldEmail;
+    const permissionPairMissing = Boolean(
+      existingPermission &&
+      (
+        !normalizePhone(existingPermission.phone) ||
+        !String(existingPermission.phoneKey || "")
+      )
+    );
     const shouldUpdatePermissionPair = Boolean(
       permissionEmail &&
-      (emailChanged || (phoneChanged && existingPermission))
+      (
+        emailChanged ||
+        (phoneChanged && existingPermission) ||
+        permissionPairMissing
+      )
     );
 
     if (shouldUpdatePermissionPair) {
@@ -9510,7 +9521,9 @@ async function saveAdminContactEdit() {
           active: permissionActive,
           source: phoneChanged
             ? "admin-contact-phone-edit"
-            : "admin-contact-email-edit",
+            : emailChanged
+              ? "admin-contact-email-edit"
+              : "admin-contact-permission-repair",
           updatedAt: now
         },
         { merge: true }
@@ -9525,7 +9538,9 @@ async function saveAdminContactEdit() {
           active: permissionActive,
           source: phoneChanged
             ? "admin-contact-phone-edit"
-            : "admin-contact-email-edit",
+            : emailChanged
+              ? "admin-contact-email-edit"
+              : "admin-contact-permission-repair",
           updatedAt: now
         },
         { merge: true }
