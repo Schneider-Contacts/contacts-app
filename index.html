@@ -220,8 +220,8 @@ button:disabled {
 }
 
 .logoutBtn {
-  margin-right: 8px;
-  padding: 5px 8px;
+  margin: 0;
+  padding: 8px 11px;
   background: #ffffff;
   color: var(--green-700);
   border: 1px solid var(--green-200);
@@ -317,6 +317,53 @@ button:disabled {
   max-width: 100%;
   word-break: break-word;
   z-index: 1;
+}
+
+.appAccountRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.appAccountRow #userInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.adminDashboardBtn {
+  position: relative;
+  z-index: 1;
+  display: none;
+  width: 100%;
+  min-height: 43px;
+  margin-top: 9px;
+  padding: 10px 14px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--green-300);
+  border-radius: 13px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--green-50) 100%);
+  color: var(--green-800);
+  box-shadow: 0 5px 14px rgba(5, 150, 105, 0.09);
+  font-size: 13.5px;
+  font-weight: 850;
+}
+
+.adminDashboardBtn.visible {
+  display: flex;
+}
+
+.adminDashboardBtn:hover {
+  background: var(--green-100);
+}
+
+.adminDashboardIcon {
+  font-size: 17px;
+  line-height: 1;
 }
 
 .controlsCard {
@@ -2717,6 +2764,11 @@ select {
   background: #f3f7f5 !important;
   color: #697d74 !important;
 }
+@media (max-width: 600px) {
+  .appAccountRow { align-items: stretch; }
+  .appAccountRow #userInfo { flex-wrap: wrap; }
+  .appAccountRow .logoutBtn { min-width: 58px; }
+}
 @media (max-width: 390px) {
   #userInfo { flex-wrap: wrap; }
   #userInfoText { flex-basis: 100%; }
@@ -2898,12 +2950,17 @@ select {
       </div>
     </div>
     <div class="appSubtitle">גישה מהירה לאנשי קשר, חיפוש חכם לפי שם ושמירה ישירה למכשיר.</div>
-    <div id="userInfo">
-      <span id="userInfoText"></span>
-      <button type="button" id="myProfileBtn" class="myProfileBtn" onclick="openMyProfileModal()">🙋 אני</button>
-      <button type="button" id="adminOpenBtn" class="adminOnlyButton" onclick="openAdminPanel()">🛡 ניהול</button>
+    <div class="appAccountRow">
+      <div id="userInfo">
+        <span id="userInfoText"></span>
+        <button type="button" id="myProfileBtn" class="myProfileBtn" onclick="openMyProfileModal()">🙋 אני</button>
+      </div>
       <button type="button" class="logoutBtn" onclick="logout()">יציאה</button>
     </div>
+    <button type="button" id="adminOpenBtn" class="adminDashboardBtn" onclick="openAdminPanel()">
+      <span class="adminDashboardIcon" aria-hidden="true">⚙️</span>
+      <span>ניהול המערכת</span>
+    </button>
   </div>
 
 
@@ -3254,9 +3311,9 @@ select {
       </div>
       <div class="adminFormField full">
         <label for="adminPhone">מספר טלפון</label>
-        <input id="adminPhone" type="text" readonly>
+        <input id="adminPhone" type="tel" inputmode="tel" autocomplete="tel">
       </div>
-      <div class="adminFormNote">מספר הטלפון משמש כמזהה הרשומה ולכן שינוי שלו מתבצע כרגע דרך Google Sheets.</div>
+      <div class="adminFormNote">שינוי המספר יעדכן גם את הרשאת הטלפון המקושרת למייל, אם קיימת. המזהה הפנימי של הרשומה יישאר קבוע כדי למנוע כפילויות ושבירת סנכרון.</div>
       <div class="adminFormField full">
         <label for="adminEmail">כתובת מייל</label>
         <input id="adminEmail" type="email" dir="ltr">
@@ -3300,6 +3357,8 @@ const PENDING_AUTH_EMAIL_STORAGE_KEY = "contacts_pending_auth_email_v1";
 const IMPORT_STORAGE_PREFIX = "contacts_import_payload_";
 const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
 const ALLOWED_PHONES_COLLECTION_NAME = "allowedPhones";
+const CONTACT_MANAGER_EMAIL = "schneidercontacts@gmail.com";
+const CONTACT_MANAGER_DISPLAY_NAME = "מנהל אנשי הקשר";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
 const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v3";
@@ -4379,6 +4438,14 @@ function clearContactsBundleCache_() {
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
+}
+
+function getAccountDisplayName_(email, fallback = "") {
+  const normalizedEmail = normalizeEmail(email);
+  if (normalizedEmail === CONTACT_MANAGER_EMAIL) {
+    return CONTACT_MANAGER_DISPLAY_NAME;
+  }
+  return String(fallback || normalizedEmail || "").trim();
 }
 
 function isValidEmail(email) {
@@ -6261,9 +6328,12 @@ function updateUserInfoForUser_(user) {
     contact => normalizeEmail(contact.email) === normalizedUserEmail
   );
 
-  const displayIdentity = matchingContact && matchingContact.name
-    ? matchingContact.name
-    : normalizedUserEmail;
+  const displayIdentity = getAccountDisplayName_(
+    normalizedUserEmail,
+    matchingContact && matchingContact.name
+      ? matchingContact.name
+      : normalizedUserEmail
+  );
 
   const userInfoText = document.getElementById("userInfoText");
   if (userInfoText) {
@@ -6788,9 +6858,33 @@ function startPhonePermissionListener_(email, permission) {
       );
 
       if (!hasAccess) {
-        signOutForPermissionLoss_(
-          "הרשאת מספר הטלפון של החשבון הוסרה או נחסמה."
-        );
+        setTimeout(async () => {
+          try {
+            const refreshedPermission = await getCurrentUserPermission(email);
+            const permissionMoved = Boolean(
+              refreshedPermission &&
+              refreshedPermission.active === true &&
+              refreshedPermission.phoneKey &&
+              refreshedPermission.phone &&
+              (
+                refreshedPermission.phoneKey !== phoneKey ||
+                normalizePhone(refreshedPermission.phone) !== phone
+              )
+            );
+
+            if (permissionMoved) {
+              currentUserPermissionData = refreshedPermission;
+              startPhonePermissionListener_(email, refreshedPermission);
+              return;
+            }
+          } catch (error) {
+            console.error("Phone permission refresh failed", error);
+          }
+
+          signOutForPermissionLoss_(
+            "הרשאת מספר הטלפון של החשבון הוסרה או נחסמה."
+          );
+        }, 350);
       }
     },
     error => {
@@ -8820,7 +8914,7 @@ function renderAdminManagers() {
       <div class="adminCard ${manager.active ? "" : "blocked"}">
         <div class="adminCardTop">
           <div>
-            <div class="adminCardName">${escapeHtml(contact && contact.name ? contact.name : manager.email)}</div>
+            <div class="adminCardName">${escapeHtml(getAccountDisplayName_(manager.email, contact && contact.name ? contact.name : manager.email))}</div>
             <div class="adminCardMeta">
               ${escapeHtml(manager.email)}
               ${contact && contact.phone ? "<br>" + escapeHtml(formatPhoneForDisplay(contact.phone)) : ""}
@@ -9039,7 +9133,7 @@ function buildAdminContactPayload(contact) {
     role: document.getElementById("adminRole").value.trim(),
     department: document.getElementById("adminDepartment").value.trim(),
     hospital: document.getElementById("adminHospital").value.trim(),
-    phone: contact.phone,
+    phone: normalizePhone(document.getElementById("adminPhone").value),
     email: normalizeEmail(document.getElementById("adminEmail").value),
     source: String(contact.source || contact.raw && contact.raw.source || "admin"),
     status: String(contact.status || contact.raw && contact.raw.status || ""),
@@ -9054,15 +9148,72 @@ async function saveAdminContactEdit() {
   if (!currentUserIsAdmin || !adminEditingContact) return;
 
   const payload = buildAdminContactPayload(adminEditingContact);
+  const originalPhone = normalizePhone(adminEditingContact.phone);
+  const newPhone = normalizePhone(payload.phone);
+  const oldEmail = normalizeEmail(adminEditingContact.email);
+  const newEmail = normalizeEmail(payload.email);
+  const phoneChanged = newPhone !== originalPhone;
+  const emailChanged = newEmail !== oldEmail;
+  const oldPhoneKey = originalPhone.replace(/\D/g, "");
+  const newPhoneKey = newPhone.replace(/\D/g, "");
 
   if (!payload.first_name_he && !payload.last_name_he) {
     setAdminEditStatus("יש להזין לפחות שם פרטי או שם משפחה.", "error");
     return;
   }
 
+  if (!isValidPhoneForRouting_(newPhone)) {
+    setAdminEditStatus("יש להזין מספר טלפון ישראלי תקין.", "error");
+    return;
+  }
+
   if (payload.email && !isValidEmail(payload.email)) {
     setAdminEditStatus("כתובת המייל אינה תקינה.", "error");
     return;
+  }
+
+  if (emailChanged && newEmail) {
+    const permissionForNewEmail = getAllowedUserByEmail(newEmail);
+    if (
+      permissionForNewEmail &&
+      permissionForNewEmail.email !== oldEmail &&
+      permissionForNewEmail.phoneKey &&
+      permissionForNewEmail.phoneKey !== newPhoneKey
+    ) {
+      setAdminEditStatus(
+        "המייל החדש כבר מקושר למספר טלפון אחר. יש לטפל קודם בהרשאה הקיימת.",
+        "error"
+      );
+      return;
+    }
+  }
+
+  if (phoneChanged) {
+    const duplicateContact = adminContacts.find(contact =>
+      contact.docId !== adminEditingContact.docId &&
+      normalizePhone(contact.phone) === newPhone
+    );
+
+    if (duplicateContact) {
+      setAdminEditStatus(
+        `המספר החדש כבר משויך ל-${duplicateContact.name || formatPhoneForDisplay(duplicateContact.phone)}.`,
+        "error"
+      );
+      return;
+    }
+
+    const conflictingPhonePermission = adminAllowedPhones.find(item =>
+      item.phoneKey === newPhoneKey &&
+      normalizeEmail(item.email) !== normalizeEmail(newEmail || oldEmail)
+    );
+
+    if (conflictingPhonePermission) {
+      setAdminEditStatus(
+        "המספר החדש כבר מקושר להרשאת משתמש אחרת. יש לטפל קודם בהרשאה הקיימת.",
+        "error"
+      );
+      return;
+    }
   }
 
   const saveButton = document.getElementById("adminSaveContactBtn");
@@ -9074,13 +9225,14 @@ async function saveAdminContactEdit() {
     const contactRef = firebaseApi.doc(db, "contacts", adminEditingContact.docId);
     const overrideRef = firebaseApi.doc(db, "contactOverrides", adminEditingContact.docId);
     const actionRef = firebaseApi.doc(firebaseApi.collection(db, "admin_actions"));
+    const now = firebaseApi.serverTimestamp();
 
     batch.set(contactRef, payload, { merge: true });
     batch.set(overrideRef, {
       ...payload,
       deleted: false,
       updatedBy: currentAdminEmail,
-      updatedAt: firebaseApi.serverTimestamp()
+      updatedAt: now
     }, { merge: false });
 
     const changedFieldMap = {
@@ -9092,6 +9244,7 @@ async function saveAdminContactEdit() {
       role: "תפקיד",
       department: "מחלקה / מכון",
       hospital: "בית חולים",
+      phone: "מספר טלפון",
       email: "מייל"
     };
 
@@ -9104,41 +9257,88 @@ async function saveAdminContactEdit() {
     batch.set(actionRef, {
       action: "contact_edit",
       targetId: adminEditingContact.docId,
-      targetEmail: payload.email || "",
-      targetPhone: adminEditingContact.phone || "",
+      targetEmail: newEmail || "",
+      targetPhone: newPhone || "",
+      previousPhone: originalPhone || "",
       displayName: [payload.first_name_he, payload.last_name_he].filter(Boolean).join(" "),
       changedFields,
       adminEmail: currentAdminEmail,
-      timestamp: firebaseApi.serverTimestamp()
+      timestamp: now
     });
 
-    const oldEmail = normalizeEmail(adminEditingContact.email);
+    const existingPermission = getAllowedUserByEmail(oldEmail) ||
+      getAllowedUserByEmail(newEmail);
+    const permissionEmail = newEmail || oldEmail;
+    const shouldUpdatePermissionPair = Boolean(
+      permissionEmail &&
+      (emailChanged || (phoneChanged && existingPermission))
+    );
 
-    if (payload.email && payload.email !== oldEmail) {
+    if (shouldUpdatePermissionPair) {
+      const permissionActive = existingPermission
+        ? existingPermission.active === true
+        : true;
+
       batch.set(
-        firebaseApi.doc(db, "allowedUsers", payload.email),
+        firebaseApi.doc(db, "allowedUsers", permissionEmail),
         {
-          email: payload.email,
-          active: true,
-          source: "admin-contact-edit",
-          updatedAt: firebaseApi.serverTimestamp()
+          email: permissionEmail,
+          phone: newPhone,
+          phoneKey: newPhoneKey,
+          active: permissionActive,
+          source: phoneChanged
+            ? "admin-contact-phone-edit"
+            : "admin-contact-email-edit",
+          updatedAt: now
         },
         { merge: true }
       );
 
-      const oldEmailUsedElsewhere = oldEmail && adminContacts.some(contact =>
+      batch.set(
+        firebaseApi.doc(db, ALLOWED_PHONES_COLLECTION_NAME, newPhoneKey),
+        {
+          phone: newPhone,
+          phoneKey: newPhoneKey,
+          email: permissionEmail,
+          active: permissionActive,
+          source: phoneChanged
+            ? "admin-contact-phone-edit"
+            : "admin-contact-email-edit",
+          updatedAt: now
+        },
+        { merge: true }
+      );
+
+      if (oldPhoneKey && oldPhoneKey !== newPhoneKey) {
+        const oldPhonePermission = adminAllowedPhones.find(item =>
+          item.phoneKey === oldPhoneKey
+        );
+
+        if (
+          !oldPhonePermission ||
+          [oldEmail, newEmail].includes(normalizeEmail(oldPhonePermission.email))
+        ) {
+          batch.delete(
+            firebaseApi.doc(db, ALLOWED_PHONES_COLLECTION_NAME, oldPhoneKey)
+          );
+        }
+      }
+    }
+
+    if (emailChanged && oldEmail) {
+      const oldEmailUsedElsewhere = adminContacts.some(contact =>
         contact.docId !== adminEditingContact.docId &&
         normalizeEmail(contact.email) === oldEmail
       );
 
-      if (oldEmail && !oldEmailUsedElsewhere && oldEmail !== currentAdminEmail) {
+      if (!oldEmailUsedElsewhere && oldEmail !== currentAdminEmail) {
         batch.set(
           firebaseApi.doc(db, "allowedUsers", oldEmail),
           {
             email: oldEmail,
             active: false,
             source: "admin-email-replaced",
-            updatedAt: firebaseApi.serverTimestamp()
+            updatedAt: now
           },
           { merge: true }
         );
@@ -9146,7 +9346,11 @@ async function saveAdminContactEdit() {
     }
 
     await batch.commit();
-    await updateOptimizedContactBundle_(adminEditingContact.docId, payload, { deleted: false, countDelta: 0 });
+    await updateOptimizedContactBundle_(
+      adminEditingContact.docId,
+      payload,
+      { deleted: false, countDelta: 0 }
+    );
     setAdminEditStatus("השינויים נשמרו.", "success");
     await loadContacts();
     await loadAdminData();
