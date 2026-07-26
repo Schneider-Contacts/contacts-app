@@ -9891,12 +9891,30 @@ async function toggleUserAccess(email, shouldActivate) {
 
   try {
     const userPermission = getAllowedUserByEmail(normalizedEmail);
+    const phonePermission = userPermission && userPermission.phoneKey
+      ? adminAllowedPhones.find(item =>
+          item.phoneKey === userPermission.phoneKey
+        ) || null
+      : null;
+
     if (
       shouldActivate &&
       (!userPermission || !userPermission.phoneKey || !userPermission.phone)
     ) {
       setAdminStatus(
         "לא ניתן להחזיר גישה לפני שקיים קישור תקין בין המייל למספר הטלפון.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      shouldActivate &&
+      phonePermission &&
+      phonePermission.email !== normalizedEmail
+    ) {
+      setAdminStatus(
+        "לא ניתן להחזיר גישה: מספר הטלפון מקושר להרשאת משתמש אחרת.",
         "error"
       );
       return;
@@ -9915,7 +9933,11 @@ async function toggleUserAccess(email, shouldActivate) {
       { merge: true }
     );
 
-    if (userPermission && userPermission.phoneKey) {
+    if (
+      userPermission &&
+      userPermission.phoneKey &&
+      (!phonePermission || phonePermission.email === normalizedEmail)
+    ) {
       batch.set(
         firebaseApi.doc(
           db,
@@ -9969,17 +9991,31 @@ async function deleteUserPermission(email) {
 
   try {
     const userPermission = getAllowedUserByEmail(normalizedEmail);
+    const phonePermission = userPermission && userPermission.phoneKey
+      ? adminAllowedPhones.find(item =>
+          item.phoneKey === userPermission.phoneKey &&
+          item.email === normalizedEmail
+        ) || null
+      : null;
     const batch = firebaseApi.writeBatch(db);
     const now = firebaseApi.serverTimestamp();
 
-    batch.delete(firebaseApi.doc(db, "allowedUsers", normalizedEmail));
+    batch.delete(
+      firebaseApi.doc(
+        db,
+        "allowedUsers",
+        userPermission && userPermission.docId
+          ? userPermission.docId
+          : normalizedEmail
+      )
+    );
 
-    if (userPermission && userPermission.phoneKey) {
+    if (phonePermission) {
       batch.delete(
         firebaseApi.doc(
           db,
           ALLOWED_PHONES_COLLECTION_NAME,
-          userPermission.phoneKey
+          phonePermission.docId
         )
       );
     }
@@ -9996,7 +10032,7 @@ async function deleteUserPermission(email) {
 
     await batch.commit();
     await loadAdminData();
-    setAdminStatus("הרשאת המייל והקישור למספר הטלפון נמחקו.", "success");
+    setAdminStatus("הרשאת המייל נמחקה. קישור טלפון תואם נמחק אם היה קיים.", "success");
   } catch (error) {
     console.error("Permission deletion failed", error);
     setAdminStatus("מחיקת ההרשאה נכשלה.", "error");
