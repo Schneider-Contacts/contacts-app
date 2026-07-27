@@ -546,29 +546,6 @@ function firestoreDocumentToJs_(document) {
   return output;
 }
 
-/**
- * מעדכן רק את ה-chunk שבו נמצא איש הקשר ואת ה-manifest.
- * כך עדכון מייל או שליחת טופס אינם בונים מחדש את כל ארבעת המקטעים.
- */
-function updateSingleContactInBundle_(contact) {
-  return queueDirectoryRebuild_("single-contact-update", {
-    phone: contact && contact.phone,
-    email: contact && contact.email,
-    submittedAt: contact && contact.updated_at
-  });
-}
-
-function getContactBundleChunkIndex_(documentId) {
-  const value = String(documentId || "");
-  let hash = 0;
-
-  for (let index = 0; index < value.length; index++) {
-    hash = ((hash * 31) + value.charCodeAt(index)) >>> 0;
-  }
-
-  return hash % CONTACT_BUNDLE_CHUNK_COUNT;
-}
-
 function buildBundleContactPayload_(contact, docId) {
   const payload = {
     docId: cleanSheetValue_(docId)
@@ -586,27 +563,6 @@ function buildBundleContactPayload_(contact, docId) {
   payload.is_new_contact = contact.is_new_contact === true;
 
   return payload;
-}
-
-function buildBundleDocumentPatchRequest_(documentId, data, token) {
-  return {
-    url:
-      "https://firestore.googleapis.com/v1/projects/" +
-      FIREBASE_PROJECT_ID +
-      "/databases/(default)/documents/" +
-      CONTACT_BUNDLE_COLLECTION_NAME +
-      "/" +
-      encodeURIComponent(documentId),
-    method: "patch",
-    contentType: "application/json",
-    headers: {
-      Authorization: "Bearer " + token
-    },
-    payload: JSON.stringify({
-      fields: toFirestoreFields_(data)
-    }),
-    muteHttpExceptions: true
-  };
 }
 
 function toFirestoreFields_(object) {
@@ -808,4 +764,3 @@ function cleanupObsoleteRuntimeData() {
 
   return { removedProperties, removedTriggers };
 }
-

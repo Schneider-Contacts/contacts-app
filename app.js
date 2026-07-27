@@ -32,10 +32,6 @@ const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
 const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v3";
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
 
-// תמיכה זמנית בחבילה הישנה בזמן מעבר גרסה.
-const LEGACY_CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
-const LEGACY_CONTACT_BUNDLE_MANIFEST_ID = "manifest";
-const LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS = 4;
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_IMPORTED_PHONES_KEY = "contacts_recent_imported_phones_v1";
 const RECENT_CONTACTS_DEFAULT_DAYS = 30;
@@ -46,10 +42,7 @@ const DAILY_CONTACT_USERS_COLLECTION_NAME = "dailyContactUsers";
 const DAILY_CONTACT_USERS_STORAGE_PREFIX = "contacts_daily_contact_user_v1_";
 const PASSWORD_RESET_REQUESTS_COLLECTION_NAME = "passwordResetRequests";
 const USAGE_CONTACT_FLUSH_DELAY_MS = 3 * 60 * 1000;
-const USAGE_LOGIN_FLUSH_DELAY_MS = 1200;
-const USAGE_CONTACT_FLUSH_THRESHOLD = 10;
 const USAGE_PENDING_STORAGE_KEY = "contacts_pending_usage_v3";
-const CONTACT_USE_STORAGE_PREFIX = "contacts_contact_use_v1_";
 const LAST_LOGIN_EMAIL_STORAGE_KEY = "contacts_last_login_email_v1";
 const AUTH_STATUS_TELEMETRY_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const AUTH_STATUS_TELEMETRY_PREFIX = "contacts_auth_status_write_v1_";
@@ -207,38 +200,6 @@ function getPendingContactUseCount_() {
       sum + Math.max(0, Number(counts && counts.contactUses) || 0),
     0
   );
-}
-
-function queueUsageMetric_(metric, amount = 1) {
-  if (!auth || !auth.currentUser || !currentUserHasAppAccess || !db || !firebaseApi) {
-    return;
-  }
-
-  const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
-  if (!safeAmount) return;
-
-  const dateKey = getIsraelDateKey_();
-  const current = pendingUsageByDate[dateKey] || {
-    logins: 0,
-    contactUses: 0
-  };
-
-  if (metric === "login") current.logins += safeAmount;
-  if (metric === "contact_use") current.contactUses += safeAmount;
-
-  pendingUsageByDate[dateKey] = current;
-  persistPendingUsage_();
-
-  if (metric === "login") {
-    scheduleUsageFlush_(USAGE_LOGIN_FLUSH_DELAY_MS);
-    return;
-  }
-
-  if (getPendingContactUseCount_() >= USAGE_CONTACT_FLUSH_THRESHOLD) {
-    scheduleUsageFlush_(0);
-  } else {
-    scheduleUsageFlush_(USAGE_CONTACT_FLUSH_DELAY_MS);
-  }
 }
 
 function scheduleUsageFlush_(delayMs = USAGE_CONTACT_FLUSH_DELAY_MS) {
@@ -1047,58 +1008,6 @@ async function loadContactsFromOptimizedBundle_(options = {}) {
   return rawContacts;
 }
 
-async function loadContactsFromLegacyBundle_() {
-  const manifestRef = firebaseApi.doc(
-    db,
-    LEGACY_CONTACT_BUNDLE_COLLECTION_NAME,
-    LEGACY_CONTACT_BUNDLE_MANIFEST_ID
-  );
-  const manifestSnapshot = await firebaseApi.getDoc(manifestRef);
-
-  if (!manifestSnapshot.exists()) {
-    throw new Error(
-      "ספריית אנשי הקשר עדיין לא נבנתה. יש להריץ syncContactsToFirestore ב-Apps Script."
-    );
-  }
-
-  const manifest = manifestSnapshot.data() || {};
-  const chunkIds = Array.isArray(manifest.chunkIds) && manifest.chunkIds.length
-    ? manifest.chunkIds.map(value => String(value))
-    : Array.from(
-        { length: Number(manifest.chunkCount || LEGACY_CONTACT_BUNDLE_EXPECTED_CHUNKS) },
-        (_, index) => "chunk_" + index
-      );
-  const snapshots = await Promise.all(
-    chunkIds.map(chunkId =>
-      firebaseApi.getDoc(
-        firebaseApi.doc(db, LEGACY_CONTACT_BUNDLE_COLLECTION_NAME, chunkId)
-      )
-    )
-  );
-  const rawContacts = [];
-
-  snapshots.forEach(snapshot => {
-    if (!snapshot.exists()) return;
-    const data = snapshot.data() || {};
-    (Array.isArray(data.contacts) ? data.contacts : [])
-      .forEach(contact => rawContacts.push(contact));
-  });
-
-  return rawContacts;
-}
-
-async function loadContactsFromLegacyCollection_() {
-  const snapshot = await firebaseApi.getDocs(
-    firebaseApi.collection(db, "contacts")
-  );
-
-  return snapshot.docs.map(document => ({
-    id: document.id,
-    docId: document.id,
-    data: document.data() || {}
-  }));
-}
-
 function readContactsBundleCache_() {
   try {
     const raw = localStorage.getItem(CONTACT_DIRECTORY_CACHE_KEY);
@@ -1879,17 +1788,6 @@ async function continueFromPhoneStep() {
   } finally {
     setStepButtonBusy_("phoneContinueBtn", false, "בודק...", "המשך");
   }
-}
-
-function continueWithSavedAccount() {
-  const savedEmail = getSavedLoginEmail_();
-  if (!savedEmail) {
-    showAuthEmailStep_();
-    return;
-  }
-  const input = document.getElementById("emailInput");
-  if (input) input.value = savedEmail;
-  continueFromEmailStep();
 }
 
 async function useDifferentAccount() {
@@ -2888,82 +2786,6 @@ async function loginWithPassword() {
     } else {
       setLoginStatus(getAuthErrorMessage(error), "error");
     }
-  } finally {
-    authActionInProgress = false;
-    setLoginButtonDisabled(false);
-  }
-}
-
-async function resendVerification() {
-  if (!firebaseApi || !auth || !db) return;
-
-  const { email, password } = getAuthInputs();
-  const targetEmail = email || lastUnverifiedEmail;
-
-  if (!isValidEmail(targetEmail) || !password) {
-    setLoginStatus(
-      "כדי לשלוח אימות מחדש, הכניסו את כתובת המייל והסיסמה של החשבון.",
-      "error"
-    );
-    return;
-  }
-
-  if (!ensureAuthEmailCooldownFinished("verification", targetEmail)) {
-    return;
-  }
-
-  setLoginButtonDisabled(true);
-  setLoginStatus("בודק הרשאה ושולח מייל אימות...", "loading");
-  authActionInProgress = true;
-
-  try {
-    const credential = await firebaseApi.signInWithEmailAndPassword(
-      auth,
-      targetEmail,
-      password
-    );
-
-    const eligibility = await getEmailEntryEligibility_(targetEmail);
-
-    if (!eligibility.allowed) {
-      await firebaseApi.signOut(auth);
-
-      setLoginStatus(
-        "לא נמצאה הרשאת כניסה פעילה ולכן לא נשלח מייל אימות.",
-        "error"
-      );
-      return;
-    }
-
-    if (credential.user.emailVerified) {
-      await firebaseApi.signOut(auth);
-
-      setLoginStatus(
-        "כתובת המייל כבר מאומתת. ניתן להתחבר כרגיל.",
-        "success"
-      );
-      return;
-    }
-
-    auth.languageCode = "he";
-
-    await firebaseApi.sendEmailVerification(credential.user, {
-      url: PASSWORD_AUTH_RETURN_URL
-    });
-
-    startAuthEmailCooldown("verification", targetEmail);
-    await recordOwnAuthState_("verification_sent");
-
-    await firebaseApi.signOut(auth);
-    lastUnverifiedEmail = targetEmail;
-
-    setLoginStatus(
-      "נשלח מייל אימות חדש. פתחו אותו ולחצו על הקישור.",
-      "success"
-    );
-  } catch (error) {
-    console.error("Resending verification failed", error);
-    setLoginStatus(getAuthErrorMessage(error), "error");
   } finally {
     authActionInProgress = false;
     setLoginButtonDisabled(false);
@@ -6176,14 +5998,6 @@ async function saveNewManager() {
   }
 }
 
-async function toggleManagerActive() {
-  alert("ניהול מנהלים מתבצע כעת באמצעות הוספה או הסרה בלבד.");
-}
-
-async function changeManagerRole() {
-  alert("קיים מנהל־על יחיד ולא ניתן לשנות דרגת מנהל דרך האפליקציה.");
-}
-
 async function removeManager(email) {
   if (!currentUserIsSuperAdmin) return;
 
@@ -7144,10 +6958,6 @@ function buildContactVCard(c) {
 
   vcardLines.push("END:VCARD");
   return vcardLines.join("\r\n");
-}
-function isAppleMobileDevice() {
-  const ua = navigator.userAgent || "";
-  return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 async function shareOrDownloadVCard(vcardContent, fileName, options = {}) {
   const { preferDirectOpen = false } = options;
@@ -8129,4 +7939,3 @@ function init() {
     });
 }
 init();
-

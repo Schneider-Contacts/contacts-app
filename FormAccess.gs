@@ -16,11 +16,6 @@ function getAllowedPhoneDocumentId_(phone) {
   return normalizeIsraeliPhone(phone).replace(/\D/g, "");
 }
 
-function getAllowedPhoneDocumentPath_(phone) {
-  const phoneKey = getAllowedPhoneDocumentId_(phone);
-  return ALLOWED_PHONES_COLLECTION_NAME + "/" + phoneKey;
-}
-
 function getSubmissionCacheKey_(prefix, normalizedPhone, normalizedEmail) {
   const digest = Utilities.computeDigest(
     Utilities.DigestAlgorithm.SHA_256,
@@ -882,4 +877,3 @@ function migrateExistingPhonePermissions() {
     audit: auditResult
   };
 }
-

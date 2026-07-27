@@ -4,7 +4,6 @@ const FORM_EMAIL_HEADER = "Email";
 const CONTACTS_SHEET_NAME = "contacts";
 const CONTACTS_OLD_SHEET_NAME = "contacts_old";
 const CONTACTS_OLD_PHONE_HEADER = "phone";
-const CONTACTS_EMAIL_HEADER = "email";
 const FORM_RESPONSES_SHEET_NAME = "Form Responses 1";
 const FORM_TIMESTAMP_HEADERS = ["Timestamp", "חותמת זמן"];
 const FORM_PHONE_HEADER = "מספר טלפון";
@@ -13,13 +12,7 @@ const ALLOWED_PHONES_COLLECTION_NAME = "allowedPhones";
 const PASSWORD_RESET_REQUESTS_COLLECTION_NAME = "passwordResetRequests";
 const CONTACT_MANAGER_EMAIL = "schneidercontacts@gmail.com";
 const CONTACT_MANAGER_DISPLAY_NAME = "מנהל אנשי הקשר";
-const FIRESTORE_REQUEST_BATCH_SIZE = 100;
 const CONTACT_OVERRIDES_COLLECTION_NAME = "contactOverrides";
-const CONTACT_BUNDLE_COLLECTION_NAME = "contactBundles";
-const CONTACT_BUNDLE_MANIFEST_ID = "manifest";
-const CONTACT_BUNDLE_CHUNK_COUNT = 4;
-const CONTACT_BUNDLE_SCHEMA_VERSION = 1;
-const CONTACT_BUNDLE_MAX_PAYLOAD_BYTES = 850000;
 
 // ספרייה חכמה: עמוד נתונים יחיד כל עוד הוא נכנס במגבלת Firestore,
 // וחלוקה אוטומטית לעמודים נוספים רק כאשר הגודל מחייב זאת.
@@ -72,7 +65,6 @@ const DISABLE_REPLACED_EMAIL_KEY = "disable_replaced_email";
 const MAIN_APP_URL_KEY = "main_app_url";
 const DEFAULT_MAIN_APP_URL = "https://schneider-contacts.github.io/contacts-app/";
 const PUBLIC_AUTH_ROUTE_CACHE_SECONDS = 2 * 60;
-const PUBLIC_AUTH_TRANSITION_CACHE_SECONDS = 15;
 const PUBLIC_AUTH_ROUTE_COOLDOWN_SECONDS = 2;
 const PUBLIC_AUTH_ROUTE_SOURCE = "schneider-auth-router";
 const PASSWORD_RESET_PUBLIC_COOLDOWN_SECONDS = 5 * 60;
@@ -136,4 +128,3 @@ const CONTACT_FIRESTORE_FIELDS = CONTACT_FIELDS.concat([
   "first_seen_at",
   "is_new_contact"
 ]);
-

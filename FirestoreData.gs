@@ -378,73 +378,6 @@ function getAllowedPhonePermission_(phone) {
   };
 }
 
-function upsertAllowedPhonePermission_(phone, email, source, active) {
-  const normalizedPhone = normalizeIsraeliPhone(phone);
-  const normalizedEmail = normalizeEmail_(email);
-  const phoneKey = getAllowedPhoneDocumentId_(normalizedPhone);
-
-  if (!isValidNormalizedIsraeliPhone_(normalizedPhone) || !phoneKey) {
-    throw new Error("מספר הטלפון להרשאה אינו תקין.");
-  }
-
-  if (!isValidEmail_(normalizedEmail)) {
-    throw new Error("כתובת המייל להרשאת הטלפון אינה תקינה.");
-  }
-
-  const now = new Date().toISOString();
-  const url =
-    "https://firestore.googleapis.com/v1/projects/" +
-    FIREBASE_PROJECT_ID +
-    "/databases/(default)/documents/" +
-    ALLOWED_PHONES_COLLECTION_NAME +
-    "/" +
-    phoneKey +
-    "?updateMask.fieldPaths=phone" +
-    "&updateMask.fieldPaths=phoneKey" +
-    "&updateMask.fieldPaths=email" +
-    "&updateMask.fieldPaths=active" +
-    "&updateMask.fieldPaths=source" +
-    "&updateMask.fieldPaths=updatedAt";
-
-  const response = UrlFetchApp.fetch(url, {
-    method: "patch",
-    contentType: "application/json",
-    headers: {
-      Authorization: "Bearer " + ScriptApp.getOAuthToken()
-    },
-    payload: JSON.stringify({
-      fields: {
-        phone: { stringValue: normalizedPhone },
-        phoneKey: { stringValue: phoneKey },
-        email: { stringValue: normalizedEmail },
-        active: { booleanValue: active !== false },
-        source: { stringValue: source || "unknown" },
-        updatedAt: { timestampValue: now }
-      }
-    }),
-    muteHttpExceptions: true
-  });
-
-  if (
-    response.getResponseCode() < 200 ||
-    response.getResponseCode() >= 300
-  ) {
-    throw new Error(
-      "כתיבת הרשאת הטלפון נכשלה. HTTP " +
-        response.getResponseCode() +
-        ": " +
-        response.getContentText()
-    );
-  }
-
-  return {
-    phone: normalizedPhone,
-    phoneKey,
-    email: normalizedEmail,
-    active: active !== false
-  };
-}
-
 function isAllowedEmailPhonePairActive_(email, allowedUser) {
   const normalizedEmail = normalizeEmail_(email);
   const user = allowedUser || getAllowedUser_(normalizedEmail);
@@ -1382,4 +1315,3 @@ function isValidEmail_(email) {
 /* =========================================================
  * עמוד זמני להשלמה או החלפה של כתובת מייל
  * ========================================================= */
-

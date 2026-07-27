@@ -139,48 +139,6 @@ button:disabled {
 }
 
 
-.loginLinks {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-top: 12px;
-}
-
-#login .loginTextBtn {
-  width: auto;
-  margin: 0;
-  padding: 3px 0;
-  background: transparent;
-  color: var(--green-700);
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-#login .loginTextBtn:hover {
-  text-decoration: underline;
-}
-
-.loginHelp {
-  margin-top: 12px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.loginHelp a {
-  color: var(--green-700);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.loginHelp a:hover {
-  text-decoration: underline;
-}
-
 .logoutBtn {
   margin: 0;
   padding: 8px 11px;
@@ -897,9 +855,7 @@ select {
 }
 
 .authBrand,
-.authTabs,
 .authForm,
-.authHelp,
 #loginStatus {
   position: relative;
   z-index: 1;
@@ -953,39 +909,6 @@ select {
   color: #295746;
   font-size: 12.5px;
   font-weight: 700;
-}
-
-.authTabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
-  margin-bottom: 18px;
-  padding: 5px;
-  border: 1px solid #d7ebe1;
-  border-radius: 16px;
-  background: #edf8f2;
-}
-
-#login .authTab {
-  width: 100%;
-  min-height: 42px;
-  margin: 0;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: #557065;
-  box-shadow: none;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-#login .authTab.active {
-  background: #ffffff;
-  color: var(--green-700);
-  box-shadow:
-    0 5px 14px rgba(15, 23, 42, 0.08),
-    inset 0 0 0 1px rgba(167, 243, 208, 0.85);
 }
 
 .authModeHeading {
@@ -1149,74 +1072,6 @@ select {
   color: #176847;
 }
 
-.authHelp {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid #e1efe8;
-}
-
-.authHelpTitle {
-  margin-bottom: 10px;
-  color: #456558;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.helpActions {
-  display: grid;
-  gap: 9px;
-}
-
-.helpAction {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 13px;
-  border: 1px solid #d8ece1;
-  border-radius: 14px;
-  background: rgba(247, 252, 249, 0.90);
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.08s ease;
-}
-
-.helpAction:hover {
-  border-color: var(--green-300);
-  background: var(--green-50);
-}
-
-.helpAction:active {
-  transform: scale(0.99);
-}
-
-.helpActionText {
-  min-width: 0;
-}
-
-.helpActionTitle {
-  display: block;
-  margin-bottom: 2px;
-  color: #315b4c;
-  font-size: 13.5px;
-  font-weight: 800;
-}
-
-.helpActionSubtitle {
-  display: block;
-  color: #6a7e75;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.helpActionArrow {
-  color: var(--green-600);
-  font-size: 20px;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
 /* ===== Final launch refinements: search ===== */
 
 .controlsCard {
@@ -1354,25 +1209,6 @@ select {
 
 
 /* ===== Admin management ===== */
-
-.adminOnlyButton {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  background: #ffffff;
-  color: var(--green-700);
-  border: 1px solid var(--green-200);
-  box-shadow: none;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.adminOnlyButton.visible {
-  display: inline-flex;
-}
 
 #adminPanel {
   display: none;

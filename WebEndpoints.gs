@@ -120,81 +120,7 @@ function setupEmailUpdatePortal() {
  */
 const EMAIL_UPDATE_RESULT_CACHE_PREFIX = "email-update-result:";
 const EMAIL_UPDATE_RESULT_PROPERTY_PREFIX = "email-update-result-durable:";
-const EMAIL_UPDATE_RESULT_CACHE_SECONDS = 10 * 60;
 const EMAIL_UPDATE_RESULT_PROPERTY_TTL_MS = 6 * 60 * 60 * 1000;
-
-function cacheEmailUpdateResponse_(payload) {
-  const requestId = cleanSheetValue_(
-    payload && payload.requestId
-  );
-
-  if (!requestId) return;
-
-  const persistedPayload = {
-    ...payload,
-    savedAt: Date.now()
-  };
-  const serializedPayload = JSON.stringify(persistedPayload);
-
-  try {
-    CacheService.getScriptCache().put(
-      EMAIL_UPDATE_RESULT_CACHE_PREFIX + requestId,
-      serializedPayload,
-      EMAIL_UPDATE_RESULT_CACHE_SECONDS
-    );
-  } catch (cacheError) {
-    console.error(
-      "שמירת תשובת עדכון המייל במטמון נכשלה:",
-      cacheError
-    );
-  }
-
-  // CacheService הוא מנגנון best-effort ועלול להחזיר null גם לפני תום הזמן.
-  // לכן נשמרת תשובה נוספת ב-Script Properties לצורך אישור אמין ללקוח.
-  try {
-    PropertiesService.getScriptProperties().setProperty(
-      EMAIL_UPDATE_RESULT_PROPERTY_PREFIX + requestId,
-      serializedPayload
-    );
-  } catch (propertyError) {
-    console.error(
-      "שמירת תשובת עדכון המייל באחסון המתמשך נכשלה:",
-      propertyError
-    );
-  }
-
-  if (Math.random() < 0.05) {
-    cleanupExpiredEmailUpdateResponses_();
-  }
-}
-
-function cleanupExpiredEmailUpdateResponses_() {
-  try {
-    const properties = PropertiesService.getScriptProperties();
-    const allProperties = properties.getProperties();
-    const now = Date.now();
-
-    Object.keys(allProperties).forEach(key => {
-      if (!key.startsWith(EMAIL_UPDATE_RESULT_PROPERTY_PREFIX)) return;
-
-      try {
-        const parsed = JSON.parse(allProperties[key] || "{}");
-        const savedAt = Number(parsed.savedAt || 0);
-
-        if (!savedAt || now - savedAt > EMAIL_UPDATE_RESULT_PROPERTY_TTL_MS) {
-          properties.deleteProperty(key);
-        }
-      } catch (error) {
-        properties.deleteProperty(key);
-      }
-    });
-  } catch (cleanupError) {
-    console.error(
-      "ניקוי תשובות עדכון מייל ישנות נכשל:",
-      cleanupError
-    );
-  }
-}
 
 function getCachedEmailUpdateResponse_(requestId) {
   const normalizedRequestId = cleanSheetValue_(requestId);
@@ -477,34 +403,6 @@ function getPublicAuthRouteCacheKey_(kind, normalizedValue) {
 
   return "public-auth-route:" +
     Utilities.base64EncodeWebSafe(digest).replace(/=+$/g, "").slice(0, 28);
-}
-
-function parseAllowedUserResponse_(response, normalizedEmail) {
-  const code = response.getResponseCode();
-
-  if (code === 404) return null;
-
-  if (code < 200 || code >= 300) {
-    throw new Error(
-      "קריאת הרשאת הכניסה נכשלה. HTTP " +
-        code +
-        ": " +
-        response.getContentText()
-    );
-  }
-
-  const document = JSON.parse(response.getContentText() || "{}");
-  const fields = document.fields || {};
-
-  return {
-    email: fields.email && fields.email.stringValue
-      ? normalizeEmail_(fields.email.stringValue)
-      : normalizedEmail,
-    active: fields.active &&
-      typeof fields.active.booleanValue === "boolean"
-        ? fields.active.booleanValue
-        : true
-  };
 }
 
 function isActiveAdminEmail_(email) {
@@ -1264,18 +1162,6 @@ function approveContactAddRequestFromWeb_(parameters) {
   }
 }
 
-function getMainAppOrigin_() {
-  try {
-    const url = cleanSheetValue_(
-      getEmailUpdateSetting_(MAIN_APP_URL_KEY, DEFAULT_MAIN_APP_URL)
-    );
-    const match = url.match(/^(https?:\/\/[^/]+)/i);
-    return match ? match[1] : "https://schneider-contacts.github.io";
-  } catch (error) {
-    return "https://schneider-contacts.github.io";
-  }
-}
-
 function createContactApprovalPostResponse_(e) {
   const parameters = e && e.parameter ? e.parameter : {};
   const nonce = cleanSheetValue_(parameters.nonce).slice(0, 160);
@@ -1392,4 +1278,3 @@ function doGet(e) {
     .setTitle("השלמת או עדכון כתובת מייל")
     .addMetaTag("viewport", "width=device-width, initial-scale=1");
 }
-
