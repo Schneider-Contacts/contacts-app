@@ -8743,8 +8743,8 @@ function renderAdminGeneral() {
       ${getRecentIsraelDateKeys_(14).map(date => `
         <div class="adminUsageRow">
           <div class="adminUsageDate">${escapeHtml(formatUsageDate_(date))}</div>
-          <div class="adminUsageNumber">${escapeHtml(activeUsersByDate.get(date) || 0)}</div>
-          <div class="adminUsageNumber">${escapeHtml(contactUsersByDate.get(date) || 0)}</div>
+          <div class="adminUsageNumber">${escapeHtml(String(activeUsersByDate.get(date) || 0))}</div>
+          <div class="adminUsageNumber">${escapeHtml(String(contactUsersByDate.get(date) || 0))}</div>
         </div>
       `).join("")}
       <p class="adminUsageNote">
@@ -8788,15 +8788,15 @@ function renderAdminGeneral() {
 
       <div class="adminOverviewCards">
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(todayActiveUsers)}</span>
+          <span class="adminMetricValue">${escapeHtml(String(todayActiveUsers))}</span>
           <span class="adminMetricLabel">משתמשים פעילים היום</span>
         </div>
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(todayContactUsers)}</span>
+          <span class="adminMetricValue">${escapeHtml(String(todayContactUsers))}</span>
           <span class="adminMetricLabel">אנשים שהשתמשו בפרטי איש קשר</span>
         </div>
         <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(engagementPercent)}%</span>
+          <span class="adminMetricValue">${escapeHtml(String(engagementPercent))}%</span>
           <span class="adminMetricLabel">מהפעילים השתמשו באיש קשר</span>
         </div>
       </div>
