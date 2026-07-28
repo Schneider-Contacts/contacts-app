@@ -102,6 +102,14 @@ let adminPasswordResetRequests = [];
 let adminReports = [];
 let adminContactAddRequests = [];
 let adminVerificationRequests = [];
+let adminPendingSummary = {
+  verificationRequests: 0,
+  passwordResetRequests: 0,
+  contactRequests: 0,
+  contactReports: 0,
+  loaded: false
+};
+let adminPendingSummaryLoadedAt = 0;
 let pendingUsageByDate = {};
 let usageFlushTimer = null;
 let usageFlushScheduledAt = 0;
@@ -115,6 +123,7 @@ let activeContactAddRequestId = "";
 let contactAddSource = "manual";
 let adminDataLoading = false;
 const ADMIN_LIST_PAGE_SIZE = 25;
+const ADMIN_PENDING_SUMMARY_CACHE_MS = 2 * 60 * 1000;
 let adminVisibleItemCount = ADMIN_LIST_PAGE_SIZE;
 let adminLoadedSections = new Set();
 let adminSectionLoadPromises = new Map();
@@ -1638,8 +1647,8 @@ async function requestPasswordResetHelp_() {
     const managerName = String(result.managerName || "").trim();
     setPasswordResetHelpStatus_(
       result.duplicate
-        ? `כבר קיימת בקשת איפוס פתוחה${managerName ? ` אצל המנהל (${managerName})` : ""}.`
-        : `הבקשה נשלחה למנהל${managerName ? ` (${managerName})` : ""}. לאחר שיישלח הקישור, יש לבדוק גם בספאם ובדואר זבל.`,
+        ? `כבר קיימת בקשת איפוס פתוחה${managerName ? ` אצל המנהל (${managerName})` : ""}. כשהמנהל יטפל בה, יישלח למייל קישור לאיפוס הסיסמה. אין צורך להשאיר את המסך פתוח.`
+        : `הבקשה התקבלה אצל המנהל${managerName ? ` (${managerName})` : ""}. כשהמנהל יטפל בה, יישלח למייל קישור לאיפוס הסיסמה. אין צורך להשאיר את המסך פתוח, ויש לבדוק גם בספאם ובדואר זבל.`,
       false
     );
   } catch (error) {
@@ -1873,7 +1882,7 @@ async function loadOwnVerificationRequestState_() {
     if (state === "pending") {
       setManualApprovalRequestState_(
         "pending",
-        "הבקשה התקבלה. ניתן להשאיר את המסך פתוח; לאחר אישור מנהל־העל הכניסה תתבצע אוטומטית."
+        "הבקשה התקבלה. אם המסך נשאר פתוח, הכניסה תתבצע אוטומטית לאחר האישור. אם יוצאים, אפשר לחזור ולהתחבר באותו מייל וסיסמה — האישור נשמר."
       );
     } else if (state === "approved") {
       setManualApprovalRequestState_(
@@ -1982,7 +1991,7 @@ async function requestManualApproval_() {
 
     setManualApprovalRequestState_(
       "pending",
-      "הבקשה נשלחה למנהל־העל. לאחר אישור, הכניסה תתבצע אוטומטית כל עוד המסך פתוח."
+      "הבקשה נשלחה למנהל־העל. אם המסך נשאר פתוח, הכניסה תתבצע אוטומטית לאחר האישור. אם יוצאים, אפשר לחזור ולהתחבר באותו מייל וסיסמה — האישור נשמר."
     );
     setLoginStatus("בקשת האישור נשלחה בהצלחה.", "success");
   } catch (error) {
@@ -2827,7 +2836,7 @@ async function sendPasswordReset() {
     startAuthEmailCooldown("password-reset", email);
 
     setLoginStatus(
-      "אם קיים חשבון עבור כתובת המייל הזו, נשלח קישור לקביעת סיסמה. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.",
+      "אם קיים חשבון עבור כתובת המייל הזו, נשלח אליו עכשיו קישור לאיפוס הסיסמה. המייל עם הקישור הוא אישור שהאיפוס זמין; לאחר בחירת סיסמה חדשה חוזרים לאפליקציה ונכנסים. חשוב לבדוק גם בספאם ובדואר זבל.",
       "success"
     );
   } catch (error) {
@@ -3326,6 +3335,16 @@ async function detectAdminAccess(user) {
       adminButton.classList.toggle("visible", currentUserIsAdmin);
     }
 
+    if (currentUserIsAdmin) {
+      loadAdminPendingSummary_().catch(error => {
+        console.error("Admin pending summary refresh failed", error);
+      });
+    } else {
+      adminPendingSummary.loaded = false;
+      adminPendingSummaryLoadedAt = 0;
+      updateAdminPendingBadges_();
+    }
+
     return currentUserIsAdmin;
   } catch (error) {
     console.error("Admin detection failed", error);
@@ -3560,23 +3579,107 @@ function setAdminTab(tabName) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+async function getAdminPendingCollectionCount_(collectionName, status) {
+  const countQuery = firebaseApi.query(
+    firebaseApi.collection(db, collectionName),
+    firebaseApi.where("status", "==", status)
+  );
+  const snapshot = await firebaseApi.getCountFromServer(countQuery);
+  const data = snapshot.data() || {};
+  return Number(data.count) || 0;
+}
+
+async function loadAdminPendingSummary_(options = {}) {
+  if (!currentUserIsAdmin || !firebaseApi || !db) return adminPendingSummary;
+
+  const force = options.force === true;
+  if (
+    !force &&
+    adminPendingSummary.loaded &&
+    Date.now() - adminPendingSummaryLoadedAt < ADMIN_PENDING_SUMMARY_CACHE_MS
+  ) {
+    updateAdminPendingBadges_();
+    return adminPendingSummary;
+  }
+
+  const countRequests = [
+    ["verificationRequests", "pending"],
+    [PASSWORD_RESET_REQUESTS_COLLECTION_NAME, "pending"],
+    ["contactAddRequests", "pending"],
+    ["contactReports", "open"]
+  ];
+  const results = await Promise.all(
+    countRequests.map(([collectionName, status]) =>
+      getAdminPendingCollectionCount_(collectionName, status)
+        .catch(error => {
+          console.error(
+            `Pending count failed for ${collectionName}`,
+            error
+          );
+          return null;
+        })
+    )
+  );
+
+  const [
+    verificationRequests,
+    passwordResetRequests,
+    contactRequests,
+    contactReports
+  ] = results;
+
+  adminPendingSummary = {
+    verificationRequests: verificationRequests === null
+      ? adminPendingSummary.verificationRequests
+      : verificationRequests,
+    passwordResetRequests: passwordResetRequests === null
+      ? adminPendingSummary.passwordResetRequests
+      : passwordResetRequests,
+    contactRequests: contactRequests === null
+      ? adminPendingSummary.contactRequests
+      : contactRequests,
+    contactReports: contactReports === null
+      ? adminPendingSummary.contactReports
+      : contactReports,
+    loaded: results.some(value => value !== null)
+  };
+  adminPendingSummaryLoadedAt = adminPendingSummary.loaded
+    ? Date.now()
+    : 0;
+  updateAdminPendingBadges_();
+  return adminPendingSummary;
+}
+
 function getAdminPendingCounts_() {
-  const verificationRequests = adminVerificationRequests.filter(
-    request => request.status === "pending"
-  ).length;
-  const passwordResetRequests = adminPasswordResetRequests.filter(
-    request => request.status === "pending"
-  ).length;
-  const contactRequests = adminContactAddRequests.filter(
-    request => request.status === "pending"
-  ).length;
-  const contactReports = adminReports.filter(
-    report => report.status === "open"
-  ).length;
+  const usersLoaded = adminLoadedSections.has("users");
+  const reportsLoaded = adminLoadedSections.has("reports");
+  const verificationRequests = usersLoaded
+    ? adminVerificationRequests.filter(request => request.status === "pending").length
+    : adminPendingSummary.verificationRequests;
+  const passwordResetRequests = usersLoaded
+    ? adminPasswordResetRequests.filter(request => request.status === "pending").length
+    : adminPendingSummary.passwordResetRequests;
+  const contactRequests = reportsLoaded
+    ? adminContactAddRequests.filter(request => request.status === "pending").length
+    : adminPendingSummary.contactRequests;
+  const contactReports = reportsLoaded
+    ? adminReports.filter(report => report.status === "open").length
+    : adminPendingSummary.contactReports;
+  const users = verificationRequests + passwordResetRequests;
+  const reports = contactRequests + contactReports;
 
   return {
-    users: verificationRequests + passwordResetRequests,
-    reports: contactRequests + contactReports
+    verificationRequests,
+    passwordResetRequests,
+    contactRequests,
+    contactReports,
+    users,
+    reports,
+    total: users + reports,
+    loaded:
+      adminPendingSummary.loaded ||
+      usersLoaded ||
+      reportsLoaded
   };
 }
 
@@ -3591,6 +3694,14 @@ function updateAdminPendingBadges_() {
     badge.hidden = count < 1;
     badge.textContent = count > 99 ? "99+" : String(count);
   });
+
+  const mainBadge = document.getElementById("adminOpenPendingBadge");
+  if (mainBadge) {
+    mainBadge.hidden = !counts.loaded || counts.total < 1;
+    mainBadge.textContent = counts.total > 99
+      ? "99+ לטיפול"
+      : `${counts.total} לטיפול`;
+  }
 }
 
 function updateAdminTabs() {
@@ -3771,7 +3882,8 @@ async function loadAdminGeneralData_() {
   adminUsageHistoryLoaded = false;
   const [activeUsers, contactUsers] = await Promise.all([
     loadDailyActiveUserCounts_([todayKey]),
-    loadDailyContactUserCounts_([todayKey])
+    loadDailyContactUserCounts_([todayKey]),
+    loadAdminPendingSummary_()
   ]);
 
   adminDailyActiveUsers = activeUsers;
@@ -5111,6 +5223,20 @@ function renderAdminReports() {
 
 function renderAdminGeneral() {
   const pendingCounts = getAdminPendingCounts_();
+  const pendingDetails = [
+    pendingCounts.verificationRequests
+      ? `${pendingCounts.verificationRequests} בקשות אישור כניסה`
+      : "",
+    pendingCounts.passwordResetRequests
+      ? `${pendingCounts.passwordResetRequests} בקשות איפוס סיסמה`
+      : "",
+    pendingCounts.contactRequests
+      ? `${pendingCounts.contactRequests} בקשות איש קשר`
+      : "",
+    pendingCounts.contactReports
+      ? `${pendingCounts.contactReports} דיווחים פתוחים`
+      : ""
+  ].filter(Boolean);
   const todayKey = getIsraelDateKey_();
   const activeUsersByDate = new Map(
     adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
@@ -5155,6 +5281,35 @@ function renderAdminGeneral() {
 
   document.getElementById("adminList").innerHTML = `
     <div class="adminOverview">
+      <section class="adminAttentionBanner ${pendingCounts.total ? "hasItems" : "clear"}" aria-live="polite">
+        <span class="adminAttentionIcon" aria-hidden="true">${pendingCounts.total ? "🔔" : "✓"}</span>
+        <div class="adminAttentionContent">
+          <strong class="adminAttentionTitle">
+            ${pendingCounts.total
+              ? `יש ${escapeHtml(String(pendingCounts.total))} פריטים שממתינים לטיפול`
+              : pendingCounts.loaded
+                ? "אין כרגע בקשות שממתינות לטיפול"
+                : "בודק אם יש בקשות שממתינות לטיפול"}
+          </strong>
+          <span class="adminAttentionText">
+            ${pendingDetails.length
+              ? escapeHtml(pendingDetails.join(" · "))
+              : pendingCounts.loaded
+                ? "כל הבקשות והדיווחים הקיימים טופלו."
+                : "הנתונים יופיעו כאן מיד לאחר הבדיקה."}
+          </span>
+          ${pendingCounts.total ? `
+            <div class="adminAttentionActions">
+              ${pendingCounts.users
+                ? `<button type="button" onclick="setAdminTab('users')">הרשאות ואיפוס (${escapeHtml(String(pendingCounts.users))})</button>`
+                : ""}
+              ${pendingCounts.reports
+                ? `<button type="button" onclick="setAdminTab('reports')">בקשות ודיווחים (${escapeHtml(String(pendingCounts.reports))})</button>`
+                : ""}
+            </div>` : ""}
+        </div>
+      </section>
+
       <div class="adminQuickGrid">
         <button type="button" class="adminQuickAction" onclick="setAdminTab('contacts')">
           <span class="adminQuickIcon" aria-hidden="true">👤</span>
@@ -5219,6 +5374,9 @@ async function refreshAdminPage() {
 
   try {
     await flushUsageMetrics_();
+    if (adminActiveTab === "general") {
+      await loadAdminPendingSummary_({ force: true });
+    }
     await loadAdminData({
       section: adminActiveTab,
       force: true
@@ -5735,7 +5893,7 @@ async function sendPasswordResetForUser_(email) {
 
     await logAdminAction("password_reset_link_sent", normalizedEmail, "");
     setAdminStatus(
-      "קישור האיפוס נשלח. יש להזכיר למשתמש לבדוק גם בספאם ובדואר זבל.",
+      `קישור האיפוס נשלח למייל ${normalizedEmail}. המשתמש יקבל הודעת Firebase עם הקישור, ועליו לבדוק גם בספאם ובדואר זבל.`,
       "success"
     );
     await loadAdminData();
@@ -6907,6 +7065,7 @@ async function initializeFirebase() {
     increment: firestoreModule.increment,
     onSnapshot: firestoreModule.onSnapshot,
     query: firestoreModule.query,
+    where: firestoreModule.where,
     orderBy: firestoreModule.orderBy,
     limit: firestoreModule.limit
   };
