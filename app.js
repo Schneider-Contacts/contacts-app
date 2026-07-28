@@ -13,7 +13,7 @@ const FIREBASE_SDK_VERSION = "12.16.0";
 const PASSWORD_AUTH_RETURN_URL =
   "https://schneider-contacts.github.io/contacts-app/";
 const AUTH_ROUTER_URL =
-  "https://script.google.com/macros/s/AKfycbw1aJRjfWl-fYiZveZ5oKdvtv9v_UGUa6JUzv9G1GKQZVK4SKsYdt0GTCgI50fyLE5V/exec";
+  "https://script.google.com/macros/s/AKfycbwqwWDEUgxLRWIOEGX3TaK0tmdacrl-CG_kkdK01dlfAeGcDq3fXdHIjtSjQ2NwZvBK/exec";
 const REGISTRATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
 const AUTH_ROUTE_TIMEOUT_MS = 9000;
