@@ -888,7 +888,12 @@ function getActiveManagerSupportContact_() {
   }
 
   const admins = getActiveAdminRecords_();
-  const contacts = readAndDeduplicateContacts_();
+  let contacts = [];
+  try {
+    contacts = readAndDeduplicateContacts_();
+  } catch (error) {
+    console.warn("קריאת אנשי הקשר לצורך תמיכת מנהל נכשלה:", error);
+  }
   let result = { ok: false };
 
   for (let index = 0; index < admins.length; index += 1) {
@@ -896,15 +901,37 @@ function getActiveManagerSupportContact_() {
     const contact = contacts.find(item =>
       normalizeEmail_(item && item.email) === admin.email
     );
-    const phone = normalizeIsraeliPhone(contact && contact.phone);
+    let phone = normalizeIsraeliPhone(contact && contact.phone);
+
+    // גם מנהל שאינו מופיע כרגע בטאב אנשי הקשר יכול לספק תמיכה,
+    // כל עוד קיימת עבורו הרשאת טלפון פעילה ומקושרת.
+    if (!phone) {
+      try {
+        const allowedUser = getAllowedUser_(admin.email);
+        if (
+          allowedUser &&
+          allowedUser.active === true &&
+          isAllowedEmailPhonePairActive_(admin.email, allowedUser)
+        ) {
+          phone = normalizeIsraeliPhone(allowedUser.phone);
+        }
+      } catch (error) {
+        console.warn(
+          "קריאת טלפון התמיכה של המנהל נכשלה:",
+          admin.email,
+          error
+        );
+      }
+    }
+
     const digits = phone.replace(/\D/g, "");
 
-    if (!contact || !digits) continue;
+    if (!digits) continue;
 
     const name = [
-      cleanSheetValue_(contact.title_prefix),
-      cleanSheetValue_(contact.first_name_he),
-      cleanSheetValue_(contact.last_name_he)
+      cleanSheetValue_(contact && contact.title_prefix),
+      cleanSheetValue_(contact && contact.first_name_he),
+      cleanSheetValue_(contact && contact.last_name_he)
     ].filter(Boolean).join(" ").trim();
 
     result = {
