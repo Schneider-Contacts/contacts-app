@@ -275,7 +275,7 @@ function createEmailUpdateChoicePage_(result, formData) {
   );
 
   return '<!DOCTYPE html><html lang="he" dir="rtl"><head>' +
-    '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta charset="UTF-8"><base target="_top"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<meta name="theme-color" content="#f4fbf7"><title>מספר הטלפון משויך למייל אחר</title>' +
     '<style>' +
     ':root{--g:#059669;--g2:#047857;--bg:#f4fbf7;--border:#d9efe4}' +
@@ -301,7 +301,7 @@ function createEmailUpdateChoicePage_(result, formData) {
     '</a></section>' +
     '<section class="option"><h2>הכתובת הקודמת נכתבה בטעות</h2>' +
     '<p>המשיכו רק אם אתם באמת מתקנים או מחליפים את כתובת המייל.</p>' +
-    '<form method="post" action="' + escapeHtmlForOutput_(webAppUrl) + '">' + hiddenFields +
+    '<form method="post" target="_top" action="' + escapeHtmlForOutput_(webAppUrl) + '">' + hiddenFields +
     '<button class="secondary" type="submit">המשך עם כתובת המייל החדשה</button></form></section>' +
     whatsappLink +
     '<a class="back" href="' + escapeHtmlForOutput_(normalizedBaseUrl + "email-update.html") + '">חזרה לטופס</a>' +
