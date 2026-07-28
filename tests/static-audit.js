@@ -86,6 +86,11 @@ assert.match(
   /getCountFromServer\(countQuery\)/,
   "Admin overview must use lightweight aggregate counts"
 );
+assert.match(
+  appSource,
+  /function showAppForUser\(user\)[\s\S]*?if \(currentUserIsAdmin\) \{\s*openAdminPanel\(\);/,
+  "Administrators must open directly on the management screen"
+);
 
 const functionPattern =
   /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
