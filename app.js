@@ -29,7 +29,7 @@ const CONTACT_MANAGER_EMAIL = "schneidercontacts@gmail.com";
 const CONTACT_MANAGER_DISPLAY_NAME = "מנהל אנשי הקשר";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
-const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v4";
+const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v5";
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
 
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
@@ -901,10 +901,16 @@ function applyRawContacts_(rawContacts) {
   return contacts;
 }
 
-function hasUsableRawContacts_(rawContacts) {
-  return (Array.isArray(rawContacts) ? rawContacts : []).some((row, index) =>
-    Boolean(mapFirestoreContact(row, index).phone)
+function countUsableRawContacts_(rawContacts) {
+  return (Array.isArray(rawContacts) ? rawContacts : []).reduce(
+    (count, row, index) =>
+      count + (mapFirestoreContact(row, index).phone ? 1 : 0),
+    0
   );
+}
+
+function hasUsableRawContacts_(rawContacts) {
+  return countUsableRawContacts_(rawContacts) > 0;
 }
 
 async function loadContactsCollectionFallback_() {
@@ -1078,6 +1084,31 @@ async function loadContactsFromOptimizedBundle_(options = {}) {
     const pageContacts = Array.isArray(data.contacts) ? data.contacts : [];
     pageContacts.forEach(contact => rawContacts.push(contact));
   });
+
+  const currentUsableCount = countUsableRawContacts_(rawContacts);
+  if (currentUsableCount > 0 && currentUsableCount < 25) {
+    try {
+      const previousGenerationContacts =
+        await loadPreviousDirectoryGenerationFallback_();
+      const previousUsableCount =
+        countUsableRawContacts_(previousGenerationContacts);
+      if (
+        previousUsableCount >= currentUsableCount * 2 &&
+        previousUsableCount >= currentUsableCount + 25
+      ) {
+        console.warn(
+          "Active contact directory shrank unexpectedly; using a larger previous generation."
+        );
+        writeContactsBundleCache_(version, previousGenerationContacts);
+        return previousGenerationContacts;
+      }
+    } catch (previousGenerationError) {
+      console.error(
+        "Previous contact directory comparison failed",
+        previousGenerationError
+      );
+    }
+  }
 
   if (!hasUsableRawContacts_(rawContacts)) {
     try {
