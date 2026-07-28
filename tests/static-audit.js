@@ -29,6 +29,10 @@ const reportsAutomationSource = read("ReportsAutomation.gs");
 const codeSource = read("Code.gs");
 const rulesSource = read("firestore.rules");
 const manifestSource = read("appsscript.json");
+const obsoleteAuthRouterId =
+  "AKfycbw1aJRjfWl-fYiZveZ5oKdvtv9v_UGUa6JUzv9G1GKQZVK4SKsYdt0GTCgI50fyLE5V";
+const activeAuthRouterId =
+  "AKfycbwqwWDEUgxLRWIOEGX3TaK0tmdacrl-CG_kkdK01dlfAeGcDq3fXdHIjtSjQ2NwZvBK";
 
 new vm.Script(appSource, { filename: "app.js" });
 appsScriptFiles.forEach(fileName => {
@@ -107,6 +111,16 @@ assert.match(
   indexSource,
   /<script[^>]+src="app\.js\?[^"]+"/,
   "index.html must load app.js"
+);
+assert(
+  appSource.includes(activeAuthRouterId) &&
+    emailUpdateSource.includes(activeAuthRouterId),
+  "Every public authentication form must use the active Apps Script deployment"
+);
+assert(
+  !appSource.includes(obsoleteAuthRouterId) &&
+    !emailUpdateSource.includes(obsoleteAuthRouterId),
+  "Public pages must not reference the obsolete Apps Script deployment"
 );
 assert.match(
   indexSource,
