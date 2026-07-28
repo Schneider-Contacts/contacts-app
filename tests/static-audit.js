@@ -95,6 +95,16 @@ assert.match(
   /function showAppForUser\(user\)[\s\S]*?if \(currentUserIsAdmin\) \{\s*openAdminPanel\(\);/,
   "Administrators must open directly on the management screen"
 );
+assert.match(
+  appSource,
+  /setPersistence\(\s*auth,\s*firebaseApi\.browserLocalPersistence\s*\)/,
+  "Firebase sessions must persist across browser restarts"
+);
+assert.match(
+  appSource,
+  /permission\.accessReviewRequired !== true/,
+  "Existing users without the new review flag must keep their access"
+);
 
 const functionPattern =
   /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
@@ -190,6 +200,21 @@ assert.match(
   rulesSource,
   /accessReviewStatus == "temporary_active"[\s\S]*?temporaryAccessUntil > request\.time/,
   "Temporary access must expire according to the server timestamp"
+);
+assert.match(
+  rulesSource,
+  /!\('accessReviewRequired' in get\([\s\S]*?\|\| get\([\s\S]*?\.data\.accessReviewRequired != true/,
+  "Firestore rules must remain compatible with existing users"
+);
+assert.match(
+  codeSource,
+  /const SUPPORT_CONTACT_CACHE_KEY = "active-manager-support-contact-v2";/,
+  "Support contact cache must be refreshed after the manager-phone fallback"
+);
+assert.match(
+  read("FirestoreData.gs"),
+  /function getActiveManagerSupportContact_\(\)[\s\S]*?isAllowedEmailPhonePairActive_\(admin\.email, allowedUser\)/,
+  "Manager WhatsApp support must fall back to the linked allowed phone"
 );
 assert.match(
   rulesSource,
