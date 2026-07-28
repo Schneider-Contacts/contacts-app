@@ -260,6 +260,11 @@ assert.match(
 );
 assert.match(
   webEndpointsSource,
+  /function createEmailUpdateChoicePage_[\s\S]*?<base target="_top">[\s\S]*?<form method="post" target="_top"/,
+  "Email replacement confirmation must escape the Apps Script iframe"
+);
+assert.match(
+  webEndpointsSource,
   /recoveryTokenHash[\s\S]*?hashPasswordRecoverySecret_/,
   "Password recovery secrets must be stored only as a hash"
 );
