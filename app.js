@@ -3159,9 +3159,14 @@ async function submitMyProfileUpdate_() {
 function showAppForUser(user) {
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
+  document.getElementById("adminPanel").style.display = "none";
   updateUserInfoForUser_(user);
   setLoginStatus("", "");
   show([]);
+
+  if (currentUserIsAdmin) {
+    openAdminPanel();
+  }
 }
 
 function isPermissionDeniedError(error) {
