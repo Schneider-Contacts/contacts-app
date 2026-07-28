@@ -29,7 +29,7 @@ const CONTACT_MANAGER_EMAIL = "schneidercontacts@gmail.com";
 const CONTACT_MANAGER_DISPLAY_NAME = "מנהל אנשי הקשר";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
-const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v3";
+const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v4";
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
 
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
@@ -918,6 +918,54 @@ async function loadContactsCollectionFallback_() {
   }));
 }
 
+function getFirestoreTimestampMillis_(value) {
+  if (value && typeof value.toMillis === "function") {
+    return value.toMillis();
+  }
+
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function loadPreviousDirectoryGenerationFallback_() {
+  const snapshot = await firebaseApi.getDocs(
+    firebaseApi.collection(db, CONTACT_DIRECTORY_COLLECTION_NAME)
+  );
+  const generations = new Map();
+
+  snapshot.docs.forEach(document => {
+    const data = document.data() || {};
+    const pageContacts = Array.isArray(data.contacts) ? data.contacts : [];
+    if (
+      data.kind !== "contacts_page" ||
+      !hasUsableRawContacts_(pageContacts)
+    ) {
+      return;
+    }
+
+    const version = String(data.version || document.id);
+    const generation = generations.get(version) || {
+      contacts: [],
+      updatedAt: 0
+    };
+    pageContacts.forEach(contact => generation.contacts.push(contact));
+    generation.updatedAt = Math.max(
+      generation.updatedAt,
+      getFirestoreTimestampMillis_(data.updatedAt)
+    );
+    generations.set(version, generation);
+  });
+
+  const candidates = Array.from(generations.values())
+    .filter(generation => hasUsableRawContacts_(generation.contacts))
+    .sort((a, b) =>
+      b.contacts.length - a.contacts.length ||
+      b.updatedAt - a.updatedAt
+    );
+
+  return candidates.length ? candidates[0].contacts : [];
+}
+
 function loadContactsFromCache_() {
   const cached = readContactsBundleCache_();
 
@@ -1032,6 +1080,23 @@ async function loadContactsFromOptimizedBundle_(options = {}) {
   });
 
   if (!hasUsableRawContacts_(rawContacts)) {
+    try {
+      const previousGenerationContacts =
+        await loadPreviousDirectoryGenerationFallback_();
+      if (hasUsableRawContacts_(previousGenerationContacts)) {
+        console.warn(
+          "Active contact directory is empty; using a previous directory generation."
+        );
+        writeContactsBundleCache_(version, previousGenerationContacts);
+        return previousGenerationContacts;
+      }
+    } catch (previousGenerationError) {
+      console.error(
+        "Previous contact directory recovery failed",
+        previousGenerationError
+      );
+    }
+
     try {
       const fallbackContacts = await loadContactsCollectionFallback_();
       if (hasUsableRawContacts_(fallbackContacts)) {
