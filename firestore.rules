@@ -1,0 +1,830 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function hasEmailIdentity() {
+      return request.auth != null
+        && request.auth.token.email is string;
+    }
+
+    function hasVerifiedEmail() {
+      return hasEmailIdentity()
+        && request.auth.token.email_verified == true;
+    }
+
+
+    function hasLinkedPhonePermission(email) {
+      let user = get(
+        /databases/$(database)/documents/allowedUsers/$(email)
+      );
+      let phoneKey = user.data.phoneKey;
+
+      return user.data.active == true
+        && user.data.phone is string
+        && user.data.phone.size() >= 11
+        && phoneKey is string
+        && phoneKey.size() >= 11
+        && exists(
+          /databases/$(database)/documents/allowedPhones/$(phoneKey)
+        )
+        && get(
+          /databases/$(database)/documents/allowedPhones/$(phoneKey)
+        ).data.active == true
+        && get(
+          /databases/$(database)/documents/allowedPhones/$(phoneKey)
+        ).data.email == email
+        && get(
+          /databases/$(database)/documents/allowedPhones/$(phoneKey)
+        ).data.phone == user.data.phone;
+    }
+
+    function isAllowed() {
+      return hasEmailIdentity()
+        && exists(
+          /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+        )
+        && hasLinkedPhonePermission(request.auth.token.email)
+        && (
+          (
+            (
+              !('accessReviewRequired' in get(
+                /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+              ).data)
+              || get(
+                /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+              ).data.accessReviewRequired != true
+            )
+            && (
+              hasVerifiedEmail()
+              || (
+                'manualApproved' in get(
+                  /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+                ).data
+                && get(
+                  /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+                ).data.manualApproved == true
+              )
+            )
+          )
+          || (
+            get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.accessReviewRequired == true
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.accessReviewStatus == "temporary_active"
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.temporaryAccessUntil is timestamp
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.temporaryAccessUntil > request.time
+          )
+        );
+    }
+
+    function isAdmin() {
+      return hasVerifiedEmail()
+        && exists(
+          /databases/$(database)/documents/admins/$(request.auth.token.email)
+        )
+        && get(
+          /databases/$(database)/documents/admins/$(request.auth.token.email)
+        ).data.active == true;
+    }
+
+    function isSuperAdmin() {
+      return isAdmin()
+        && get(
+          /databases/$(database)/documents/admins/$(request.auth.token.email)
+        ).data.role == "super_admin";
+    }
+
+    function canDisableReplacedEmail(docId) {
+      return hasVerifiedEmail()
+        && request.auth.token.email != docId
+        && exists(/databases/$(database)/documents/allowedUsers/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/allowedUsers/$(request.auth.token.email)).data.active == true
+        && get(/databases/$(database)/documents/allowedUsers/$(request.auth.token.email)).data.pendingEmailReplacement == true
+        && get(/databases/$(database)/documents/allowedUsers/$(request.auth.token.email)).data.pendingOldEmails is list
+        && docId in get(/databases/$(database)/documents/allowedUsers/$(request.auth.token.email)).data.pendingOldEmails
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["active", "source", "updatedAt"])
+        && request.resource.data.active == false
+        && request.resource.data.email == resource.data.email;
+    }
+
+    function canCompleteOwnEmailReplacement(docId) {
+      return hasVerifiedEmail()
+        && request.auth.token.email == docId
+        && resource.data.active == true
+        && resource.data.pendingEmailReplacement == true
+        && resource.data.pendingOldEmails is list
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "pendingOldEmails",
+            "pendingEmailReplacement",
+            "replacementCompletedAt",
+            "updatedAt"
+          ])
+        && request.resource.data.pendingOldEmails is list
+        && request.resource.data.pendingOldEmails.size() == 0
+        && request.resource.data.pendingEmailReplacement == false;
+    }
+
+    function canAdminMaintainAllowedUser(docId) {
+      return isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["active", "email", "phone", "phoneKey", "source", "updatedAt"])
+        && request.resource.data.email == docId;
+    }
+
+    function canAdminSetAccessReview(docId) {
+      return isAdmin()
+        && request.auth.token.email != docId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "accessReviewRequired",
+            "accessReviewStatus",
+            "temporaryAccessUntil",
+            "temporaryAccessReason",
+            "temporaryAccessGrantedAt",
+            "temporaryAccessGrantedBy",
+            "permanentApprovedAt",
+            "permanentApprovedBy",
+            "manualApproved",
+            "manualApprovedAt",
+            "manualApprovedBy",
+            "manualApprovalReason",
+            "updatedAt"
+          ])
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                "accessReviewRequired",
+                "accessReviewStatus",
+                "temporaryAccessUntil",
+                "temporaryAccessReason",
+                "temporaryAccessGrantedAt",
+                "temporaryAccessGrantedBy",
+                "updatedAt"
+              ])
+            &&
+            request.resource.data.accessReviewRequired == true
+            && request.resource.data.accessReviewStatus == "temporary_active"
+            && request.resource.data.temporaryAccessUntil is timestamp
+            && request.resource.data.temporaryAccessUntil > request.time
+            && request.resource.data.temporaryAccessReason is string
+            && request.resource.data.temporaryAccessGrantedAt == request.time
+            && request.resource.data.temporaryAccessGrantedBy == request.auth.token.email
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                "accessReviewRequired",
+                "accessReviewStatus",
+                "temporaryAccessUntil",
+                "temporaryAccessReason",
+                "temporaryAccessGrantedAt",
+                "temporaryAccessGrantedBy",
+                "permanentApprovedAt",
+                "permanentApprovedBy",
+                "manualApproved",
+                "manualApprovedAt",
+                "manualApprovedBy",
+                "manualApprovalReason",
+                "updatedAt"
+              ])
+            &&
+            request.resource.data.accessReviewRequired == false
+            && request.resource.data.accessReviewStatus == "approved"
+            && request.resource.data.temporaryAccessUntil == null
+            && request.resource.data.temporaryAccessReason == ""
+            && request.resource.data.temporaryAccessGrantedAt == null
+            && request.resource.data.temporaryAccessGrantedBy == ""
+            && request.resource.data.permanentApprovedAt == request.time
+            && request.resource.data.permanentApprovedBy == request.auth.token.email
+            && request.resource.data.manualApproved == true
+            && request.resource.data.manualApprovedAt == request.time
+            && request.resource.data.manualApprovedBy == request.auth.token.email
+            && request.resource.data.manualApprovalReason is string
+            && request.resource.data.manualApprovalReason.size() >= 3
+            && request.resource.data.manualApprovalReason.size() <= 300
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                "accessReviewRequired",
+                "accessReviewStatus",
+                "temporaryAccessUntil",
+                "temporaryAccessReason",
+                "temporaryAccessGrantedAt",
+                "temporaryAccessGrantedBy",
+                "updatedAt"
+              ])
+            &&
+            request.resource.data.accessReviewRequired == true
+            && request.resource.data.accessReviewStatus == "rejected"
+            && request.resource.data.temporaryAccessUntil == null
+            && request.resource.data.temporaryAccessReason == ""
+            && request.resource.data.temporaryAccessGrantedAt == null
+            && request.resource.data.temporaryAccessGrantedBy == ""
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                "accessReviewRequired",
+                "accessReviewStatus",
+                "temporaryAccessUntil",
+                "temporaryAccessReason",
+                "temporaryAccessGrantedAt",
+                "temporaryAccessGrantedBy",
+                "manualApproved",
+                "manualApprovedAt",
+                "manualApprovedBy",
+                "manualApprovalReason",
+                "updatedAt"
+              ])
+            &&
+            request.resource.data.accessReviewRequired == true
+            && request.resource.data.accessReviewStatus == "revoked"
+            && request.resource.data.temporaryAccessUntil == null
+            && request.resource.data.temporaryAccessReason == ""
+            && request.resource.data.temporaryAccessGrantedAt == null
+            && request.resource.data.temporaryAccessGrantedBy == ""
+            && request.resource.data.manualApproved == false
+            && request.resource.data.manualApprovedAt == null
+            && request.resource.data.manualApprovedBy == ""
+            && request.resource.data.manualApprovalReason == ""
+          )
+        );
+    }
+
+    function canUpdateOwnAuthTelemetry(docId) {
+      return hasEmailIdentity()
+        && request.auth.token.email == docId
+        && resource.data.active == true
+        && request.resource.data.email == docId
+        && request.resource.data.active == resource.data.active
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "authState",
+            "verificationSentAt",
+            "lastVerifiedLoginAt",
+            "lastAccessAt",
+            "updatedAt"
+          ])
+        && request.resource.data.authState in [
+          "verification_sent",
+          "verified",
+          "manual_approved",
+          "temporary_approved"
+        ]
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.authState == "verification_sent"
+            && !hasVerifiedEmail()
+            && request.resource.data.verificationSentAt == request.time
+          )
+          ||
+          (
+            request.resource.data.authState == "verified"
+            && hasVerifiedEmail()
+            && request.resource.data.lastVerifiedLoginAt == request.time
+            && request.resource.data.lastAccessAt == request.time
+          )
+          ||
+          (
+            request.resource.data.authState == "manual_approved"
+            && !hasVerifiedEmail()
+            && 'manualApproved' in resource.data
+            && resource.data.manualApproved == true
+            && request.resource.data.lastAccessAt == request.time
+          )
+          ||
+          (
+            request.resource.data.authState == "temporary_approved"
+            && 'accessReviewRequired' in resource.data
+            && resource.data.accessReviewRequired == true
+            && resource.data.accessReviewStatus == "temporary_active"
+            && resource.data.temporaryAccessUntil is timestamp
+            && resource.data.temporaryAccessUntil > request.time
+            && request.resource.data.lastAccessAt == request.time
+          )
+        );
+    }
+
+    match /contacts/{docId} {
+      allow read: if isAllowed() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // חבילת אנשי קשר מרוכזת: משתמש רגיל קורא manifest ועוד מספר קטן
+    // של chunks במקום מאות מסמכי contacts. מנהלים מעדכנים אותה
+    // במקביל לעריכת איש קשר.
+    match /contactBundles/{docId} {
+      allow read: if isAllowed() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ספריית אנשי קשר חכמה: מסמך meta קטן ומספר עמודי נתונים קטנים.
+    // מספר העמודים נקבע אוטומטית לפי גודל ספריית אנשי הקשר.
+    match /contactDirectory/{docId} {
+      allow read: if isAllowed() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /allowedUsers/{docId} {
+      allow get: if isAdmin()
+        || (
+          hasEmailIdentity()
+          && request.auth.token.email == docId
+        );
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if canAdminMaintainAllowedUser(docId)
+        || canAdminSetAccessReview(docId)
+        || canUpdateOwnAuthTelemetry(docId)
+        || canDisableReplacedEmail(docId)
+        || canCompleteOwnEmailReplacement(docId);
+    }
+
+    match /allowedPhones/{docId} {
+      allow get: if isAdmin()
+        || (
+          hasEmailIdentity()
+          && resource.data.email == request.auth.token.email
+        );
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /admins/{docId} {
+      // כל מנהל רשאי לקרוא את מסמך ההרשאה של עצמו.
+      // מנהל־על רשאי לקרוא את רשימת המנהלים.
+      allow get: if hasVerifiedEmail()
+        && (
+          request.auth.token.email == docId
+          || isSuperAdmin()
+        );
+
+      allow list: if isSuperAdmin();
+
+      // ניתן ליצור מנהלים רגילים בלבד.
+      allow create: if isSuperAdmin()
+        && request.resource.data.email == docId
+        && request.resource.data.active == true
+        && request.resource.data.role == "admin";
+
+      // אין שינוי דרגות או השבתה דרך האפליקציה.
+      allow update: if false;
+
+      // מנהל־על יכול להסיר מנהל רגיל, אך לא את עצמו
+      // ולא מסמך שמוגדר כמנהל־על.
+      allow delete: if isSuperAdmin()
+        && request.auth.token.email != docId
+        && (!('role' in resource.data) || resource.data.role != "super_admin");
+    }
+
+    match /contactOverrides/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /admin_actions/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.adminEmail == request.auth.token.email;
+      allow update, delete: if false;
+    }
+
+
+    // בקשות אישור ידני כאשר מייל האימות לא התקבל.
+    // הבקשה ניתנת ליצירה רק מתוך חשבון קיים ששייך למייל פעיל במערכת.
+    match /verificationRequests/{docId} {
+      allow get: if isAdmin()
+        || (
+          hasEmailIdentity()
+          && request.auth.token.email == docId
+        );
+      allow list: if isAdmin();
+
+      allow create: if hasEmailIdentity()
+        && request.auth.token.email == docId
+        && exists(/databases/$(database)/documents/allowedUsers/$(docId))
+        && hasLinkedPhonePermission(docId)
+        && (
+          !('manualApproved' in get(/databases/$(database)/documents/allowedUsers/$(docId)).data)
+          || get(/databases/$(database)/documents/allowedUsers/$(docId)).data.manualApproved != true
+        )
+        && request.resource.data.keys().hasOnly([
+          "email",
+          "status",
+          "requestedAt",
+          "updatedAt",
+          "handledBy",
+          "handledAt"
+        ])
+        && request.resource.data.email == docId
+        && request.resource.data.status == "pending"
+        && request.resource.data.requestedAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.handledBy == ""
+        && request.resource.data.handledAt == null;
+
+      allow update: if (
+          hasEmailIdentity()
+          && request.auth.token.email == docId
+          && exists(/databases/$(database)/documents/allowedUsers/$(docId))
+          && hasLinkedPhonePermission(docId)
+          && (
+            !('manualApproved' in get(/databases/$(database)/documents/allowedUsers/$(docId)).data)
+            || get(/databases/$(database)/documents/allowedUsers/$(docId)).data.manualApproved != true
+          )
+          && request.resource.data.keys().hasOnly([
+            "email",
+            "status",
+            "requestedAt",
+            "updatedAt",
+            "handledBy",
+            "handledAt"
+          ])
+          && request.resource.data.email == docId
+          && request.resource.data.status == "pending"
+          && request.resource.data.requestedAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.handledBy == ""
+          && request.resource.data.handledAt == null
+        )
+        || (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              "status",
+              "temporaryAccessUntil",
+              "handledAt",
+              "handledBy",
+              "updatedAt"
+            ])
+          && request.resource.data.status in [
+            "temporary_active",
+            "approved",
+            "rejected",
+            "revoked"
+          ]
+          && request.resource.data.handledAt == request.time
+          && request.resource.data.handledBy == request.auth.token.email
+          && request.resource.data.updatedAt == request.time
+          && (
+            (
+              request.resource.data.status == "temporary_active"
+              && request.resource.data.temporaryAccessUntil is timestamp
+              && request.resource.data.temporaryAccessUntil > request.time
+            )
+            ||
+            (
+              request.resource.data.status != "temporary_active"
+              && (
+                !('temporaryAccessUntil' in request.resource.data)
+                || request.resource.data.temporaryAccessUntil == null
+              )
+            )
+          )
+          && (
+            (
+              resource.data.status == "pending"
+              && request.resource.data.status in [
+                "temporary_active",
+                "approved",
+                "rejected"
+              ]
+            )
+            || (
+              resource.data.status == "temporary_active"
+              && request.resource.data.status in [
+                "approved",
+                "rejected",
+                "revoked"
+              ]
+            )
+            || (
+              resource.data.status == "approved"
+              && request.resource.data.status == "revoked"
+            )
+          )
+        );
+
+      allow delete: if false;
+    }
+
+
+    // דיווחי משתמשים על פרטים שגויים. משתמש פעיל יוצר דיווח בלבד;
+    // מנהלים קוראים ומשנים רק את מצב הטיפול.
+    match /contactReports/{docId} {
+      allow create: if (isAllowed() || isAdmin())
+        && request.resource.data.keys().hasOnly([
+          "contactDocId",
+          "contactPhone",
+          "contactName",
+          "issueType",
+          "details",
+          "reporterEmail",
+          "status",
+          "createdAt"
+        ])
+        && request.resource.data.reporterEmail == request.auth.token.email
+        && request.resource.data.contactDocId is string
+        && request.resource.data.contactDocId.size() <= 200
+        && request.resource.data.contactPhone is string
+        && request.resource.data.contactPhone.size() <= 30
+        && request.resource.data.contactName is string
+        && request.resource.data.contactName.size() <= 200
+        && request.resource.data.reporterEmail is string
+        && request.resource.data.reporterEmail.size() <= 320
+        && request.resource.data.issueType in [
+          "phone", "email", "name", "role", "department", "other"
+        ]
+        && request.resource.data.details is string
+        && request.resource.data.details.size() >= 3
+        && request.resource.data.details.size() <= 1000
+        && request.resource.data.status == "open"
+        && request.resource.data.createdAt == request.time;
+
+      allow read: if isAdmin();
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status", "resolvedAt", "resolvedBy"
+        ])
+        && request.resource.data.status in ["open", "resolved"]
+        && request.resource.data.resolvedBy is string
+        && request.resource.data.resolvedBy.size() <= 320
+        && (
+          (request.resource.data.status == "resolved"
+            && request.resource.data.resolvedBy == request.auth.token.email
+            && request.resource.data.resolvedAt == request.time)
+          ||
+          (request.resource.data.status == "open"
+            && request.resource.data.resolvedBy == ""
+            && request.resource.data.resolvedAt == null)
+        );
+
+      allow delete: if false;
+    }
+
+    // בקשות משתמשים להוספת אנשי קשר. כל השדות בטופס אופציונליים,
+    // אך יש לשלוח לפחות פרט אחד. רק מנהל יכול לאשר או לדחות.
+    match /contactAddRequests/{docId} {
+      allow create: if (isAllowed() || isAdmin())
+        && request.resource.data.keys().hasOnly([
+          "firstName",
+          "lastName",
+          "titlePrefix",
+          "role",
+          "department",
+          "phone",
+          "email",
+          "reporterEmail",
+          "source",
+          "requestType",
+          "originalContactId",
+          "originalPhone",
+          "originalEmail",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "handledAt",
+          "handledBy",
+          "approvedContactId"
+        ])
+        && request.resource.data.firstName is string
+        && request.resource.data.firstName.size() <= 100
+        && request.resource.data.lastName is string
+        && request.resource.data.lastName.size() <= 100
+        && request.resource.data.titlePrefix is string
+        && request.resource.data.titlePrefix.size() <= 60
+        && request.resource.data.role is string
+        && request.resource.data.role.size() <= 160
+        && request.resource.data.department is string
+        && request.resource.data.department.size() <= 160
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 320
+        && request.resource.data.reporterEmail == request.auth.token.email
+        && request.resource.data.reporterEmail.size() <= 320
+        && request.resource.data.source in ["manual", "device_picker", "self_profile"]
+        && request.resource.data.requestType in ["contact_add", "self_update"]
+        && request.resource.data.originalContactId is string
+        && request.resource.data.originalContactId.size() <= 160
+        && request.resource.data.originalPhone is string
+        && request.resource.data.originalPhone.size() <= 30
+        && request.resource.data.originalEmail is string
+        && request.resource.data.originalEmail.size() <= 320
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.handledAt == null
+        && request.resource.data.handledBy == ""
+        && request.resource.data.approvedContactId == ""
+        && (
+          request.resource.data.firstName.size() > 0
+          || request.resource.data.lastName.size() > 0
+          || request.resource.data.titlePrefix.size() > 0
+          || request.resource.data.role.size() > 0
+          || request.resource.data.department.size() > 0
+          || request.resource.data.phone.size() > 0
+          || request.resource.data.email.size() > 0
+        );
+
+      allow read: if isAdmin();
+
+      allow update: if isAdmin()
+        && resource.data.status == "pending"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "firstName",
+          "lastName",
+          "titlePrefix",
+          "role",
+          "department",
+          "phone",
+          "email",
+          "status",
+          "updatedAt",
+          "handledAt",
+          "handledBy",
+          "approvedContactId"
+        ])
+        && request.resource.data.firstName is string
+        && request.resource.data.firstName.size() <= 100
+        && request.resource.data.lastName is string
+        && request.resource.data.lastName.size() <= 100
+        && request.resource.data.titlePrefix is string
+        && request.resource.data.titlePrefix.size() <= 60
+        && request.resource.data.role is string
+        && request.resource.data.role.size() <= 160
+        && request.resource.data.department is string
+        && request.resource.data.department.size() <= 160
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 320
+        && request.resource.data.status in ["approved", "rejected"]
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.handledAt == request.time
+        && request.resource.data.handledBy == request.auth.token.email
+        && request.resource.data.reporterEmail == resource.data.reporterEmail
+        && request.resource.data.source == resource.data.source
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          (
+            request.resource.data.status == "approved"
+            && request.resource.data.phone.size() > 0
+            && request.resource.data.approvedContactId.size() > 0
+          )
+          ||
+          (
+            request.resource.data.status == "rejected"
+            && request.resource.data.approvedContactId == ""
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // משתמשים פעילים ייחודיים ליום.
+    // כל חשבון כותב רק למסמך הנושא את ה-UID שלו, ולכן הוא נספר פעם אחת ביום
+    // גם אם האפליקציה נפתחה שוב או ממכשיר נוסף.
+    match /dailyActiveUsers/{dateKey}/users/{uid} {
+      allow read: if isAdmin();
+
+      allow create, update: if (isAllowed() || isAdmin())
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["date"])
+        && request.resource.data.date == dateKey;
+
+      allow delete: if false;
+    }
+
+    // משתמשים ייחודיים שביצעו פעולה שימושית על פרטי איש קשר.
+    // כל חשבון נרשם פעם אחת ביום בלבד, ללא שמירת איש הקשר או סוג הפעולה.
+    match /dailyContactUsers/{dateKey}/users/{uid} {
+      allow read: if isAdmin();
+
+      allow create, update: if (isAllowed() || isAdmin())
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["date"])
+        && request.resource.data.date == dateKey;
+
+      allow delete: if false;
+    }
+
+    // מוני חיפוש יומיים ללא שמירת מילות חיפוש או מידע אישי.
+    // שדה loginCount נשמר זמנית לתאימות עם גרסאות ישנות שכבר נמצאות במטמון.
+    match /usageDaily/{docId} {
+      allow read: if isAdmin();
+
+      allow create: if (isAllowed() || isAdmin())
+        && request.resource.data.keys().hasOnly([
+          "date",
+          "loginCount",
+          "searchCount",
+          "contactUseCount",
+          "updatedAt"
+        ])
+        && request.resource.data.date == docId
+        && request.resource.data.loginCount is int
+        && request.resource.data.searchCount is int
+        && request.resource.data.contactUseCount is int
+        && request.resource.data.loginCount >= 0
+        && request.resource.data.loginCount <= 1
+        && request.resource.data.searchCount >= 0
+        && request.resource.data.searchCount <= 50
+        && request.resource.data.contactUseCount >= 0
+        && request.resource.data.contactUseCount <= 50;
+
+      allow update: if (isAllowed() || isAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "loginCount",
+          "searchCount",
+          "contactUseCount",
+          "updatedAt"
+        ])
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.loginCount is int
+        && request.resource.data.searchCount is int
+        && request.resource.data.contactUseCount is int
+        && request.resource.data.loginCount >= resource.data.loginCount
+        && request.resource.data.loginCount <= resource.data.loginCount + 1
+        && request.resource.data.searchCount >= resource.data.searchCount
+        && request.resource.data.searchCount <= resource.data.searchCount + 50
+        && request.resource.data.contactUseCount >= (
+          ('contactUseCount' in resource.data)
+            ? resource.data.contactUseCount
+            : 0
+        )
+        && request.resource.data.contactUseCount <= (
+          ('contactUseCount' in resource.data)
+            ? resource.data.contactUseCount + 50
+            : 50
+        );
+
+      allow delete: if false;
+    }
+
+    // בקשות עזרה באיפוס סיסמה נוצרות על ידי Apps Script הציבורי.
+    // רק מנהל יכול לקרוא, לשלוח קישור חלופי או לבטל אישור פעיל.
+    match /passwordResetRequests/{docId} {
+      allow read: if isAdmin();
+      allow create: if false;
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "sentAt",
+          "handledAt",
+          "handledBy",
+          "updatedAt"
+        ])
+        && request.resource.data.status in ["sent", "closed"]
+        && request.resource.data.handledAt == request.time
+        && request.resource.data.handledBy == request.auth.token.email
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            resource.data.status == "pending"
+            && request.resource.data.status == "sent"
+            && request.resource.data.sentAt == request.time
+          )
+          ||
+          (
+            resource.data.status in ["pending", "approved"]
+            && request.resource.data.status == "closed"
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /pendingUsers/{docId} {
+      allow create: if hasVerifiedEmail()
+        && request.auth.token.email == docId
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.status == "pending";
+
+      allow read: if isAdmin()
+        || (
+          hasVerifiedEmail()
+          && request.auth.token.email == docId
+        );
+
+      allow update, delete: if isAdmin();
+    }
+  }
+}
