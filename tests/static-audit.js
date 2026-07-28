@@ -23,6 +23,8 @@ const appsScriptFiles = [
 const appsScriptSource = appsScriptFiles
   .map(read)
   .join("\n");
+const directorySyncSource = read("DirectorySync.gs");
+const webEndpointsSource = read("WebEndpoints.gs");
 
 new vm.Script(appSource, { filename: "app.js" });
 appsScriptFiles.forEach(fileName => {
@@ -125,6 +127,22 @@ requiredAppsScriptEntrypoints.forEach(name => {
     `Missing Apps Script entrypoint: ${name}`
   );
 });
+
+assert.match(
+  webEndpointsSource,
+  /function upsertApprovedContactInContactsSheet_\(values\)[\s\S]*?getSheetByName\(CONTACTS_OLD_SHEET_NAME\)/,
+  "Approved contacts must be stored in the static contacts_old source"
+);
+assert.match(
+  directorySyncSource,
+  /assertDirectoryContactCountIsSafe_\(\s*existingDirectoryState\.contactCount,\s*normalizedContacts\.length\s*\)/,
+  "Directory writes must enforce the contact-count shrink guard"
+);
+assert.match(
+  directorySyncSource,
+  /function assertDirectoryContactCountIsSafe_\(existingCount, nextCount\)/,
+  "Directory shrink guard implementation must exist"
+);
 
 const classNames = new Set(
   [...stylesSource.matchAll(/\.([A-Za-z_-][A-Za-z0-9_-]*)/g)]
