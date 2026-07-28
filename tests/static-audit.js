@@ -35,6 +35,69 @@ appsScriptFiles.forEach(fileName => {
   new vm.Script(read(fileName), { filename: fileName });
 });
 
+const extractAppsScriptFunction = (source, functionName) => {
+  const match = source.match(
+    new RegExp(
+      `function\\s+${functionName}\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\}`
+    )
+  );
+  assert(match, `Could not extract Apps Script function: ${functionName}`);
+  return match[0];
+};
+
+const authRouteSandbox = {
+  normalizeEmail_: value => String(value || "").trim().toLowerCase(),
+  normalizeIsraeliPhone: value => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.startsWith("0")) digits = `972${digits.slice(1)}`;
+    else if (digits && !digits.startsWith("972")) digits = `972${digits}`;
+    return digits ? `+${digits}` : "";
+  },
+  isValidEmail_: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+  getAllowedUser_: email => {
+    if (email === "active@example.com") return { active: true };
+    if (email === "blocked@example.com") return { active: false };
+    return null;
+  },
+  isAllowedEmailPhonePairActive_: email => email === "active@example.com",
+  isValidNormalizedIsraeliPhone_: phone => /^\+9725\d{8}$/.test(phone),
+  findEmailUpdateMatches_: phone =>
+    phone === "+972541234567" ? [{ phone }] : []
+};
+vm.createContext(authRouteSandbox);
+vm.runInContext(
+  [
+    extractAppsScriptFunction(webEndpointsSource, "getPublicEmailAuthRoute_"),
+    extractAppsScriptFunction(webEndpointsSource, "getPublicPhoneAuthRoute_")
+  ].join("\n"),
+  authRouteSandbox
+);
+
+assert.strictEqual(
+  authRouteSandbox.getPublicEmailAuthRoute_("active@example.com"),
+  "PASSWORD"
+);
+assert.strictEqual(
+  authRouteSandbox.getPublicEmailAuthRoute_("new@example.com"),
+  "ASK_PHONE"
+);
+assert.strictEqual(
+  authRouteSandbox.getPublicEmailAuthRoute_("blocked@example.com"),
+  "BLOCKED"
+);
+assert.strictEqual(
+  authRouteSandbox.getPublicPhoneAuthRoute_("054-123-4567"),
+  "UPDATE_EMAIL"
+);
+assert.strictEqual(
+  authRouteSandbox.getPublicPhoneAuthRoute_("050-000-0000"),
+  "OPEN_FORM"
+);
+assert.strictEqual(
+  authRouteSandbox.getPublicPhoneAuthRoute_("123"),
+  "INVALID_PHONE"
+);
+
 assert.match(
   indexSource,
   /<link[^>]+href="styles\.css\?[^"]+"/,
