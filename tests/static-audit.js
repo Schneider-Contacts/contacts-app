@@ -55,6 +55,11 @@ assert.match(
   "Reports tab must expose a pending-items badge"
 );
 assert.match(
+  indexSource,
+  /id="adminOpenPendingBadge"[^>]+hidden/,
+  "Main admin button must expose a central pending-items badge"
+);
+assert.match(
   appSource,
   /<details class="adminCardMore"/,
   "Admin cards must render expandable details"
@@ -68,6 +73,16 @@ assert.match(
   appSource,
   /function updateAdminPendingBadges_\(\)/,
   "Admin pending badge updater must exist"
+);
+assert.match(
+  appSource,
+  /class="adminAttentionBanner/,
+  "Admin overview must render the central attention banner"
+);
+assert.match(
+  appSource,
+  /getCountFromServer\(countQuery\)/,
+  "Admin overview must use lightweight aggregate counts"
 );
 
 const functionPattern =
