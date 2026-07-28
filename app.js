@@ -901,15 +901,36 @@ function applyRawContacts_(rawContacts) {
   return contacts;
 }
 
+function hasUsableRawContacts_(rawContacts) {
+  return (Array.isArray(rawContacts) ? rawContacts : []).some((row, index) =>
+    Boolean(mapFirestoreContact(row, index).phone)
+  );
+}
+
+async function loadContactsCollectionFallback_() {
+  const snapshot = await firebaseApi.getDocs(
+    firebaseApi.collection(db, "contacts")
+  );
+
+  return snapshot.docs.map(document => ({
+    docId: document.id,
+    ...(document.data() || {})
+  }));
+}
+
 function loadContactsFromCache_() {
   const cached = readContactsBundleCache_();
 
-  if (!cached || !Array.isArray(cached.contacts)) {
+  if (
+    !cached ||
+    !Array.isArray(cached.contacts) ||
+    !hasUsableRawContacts_(cached.contacts)
+  ) {
     return false;
   }
 
   applyRawContacts_(cached.contacts);
-  return contacts.length > 0 || cached.contacts.length === 0;
+  return contacts.length > 0;
 }
 
 async function loadContacts() {
@@ -963,7 +984,8 @@ async function loadContactsFromOptimizedBundle_(options = {}) {
     version &&
     cached &&
     cached.version === version &&
-    Array.isArray(cached.contacts)
+    Array.isArray(cached.contacts) &&
+    hasUsableRawContacts_(cached.contacts)
   ) {
     return cached.contacts;
   }
@@ -1009,8 +1031,25 @@ async function loadContactsFromOptimizedBundle_(options = {}) {
     pageContacts.forEach(contact => rawContacts.push(contact));
   });
 
-  if (!rawContacts.length && Number(meta.contactCount || 0) > 0) {
-    throw new Error("ספריית אנשי הקשר קיימת אך מסמכי הנתונים חסרים.");
+  if (!hasUsableRawContacts_(rawContacts)) {
+    try {
+      const fallbackContacts = await loadContactsCollectionFallback_();
+      if (hasUsableRawContacts_(fallbackContacts)) {
+        console.warn(
+          "Optimized contact directory is empty; using contacts collection fallback."
+        );
+        writeContactsBundleCache_(version, fallbackContacts);
+        return fallbackContacts;
+      }
+    } catch (fallbackError) {
+      console.error("Contacts collection fallback failed", fallbackError);
+    }
+
+    throw new Error(
+      Number(meta.contactCount || 0) > 0
+        ? "ספריית אנשי הקשר קיימת אך מסמכי הנתונים חסרים או פגומים."
+        : "ספריית אנשי הקשר ריקה ולא נמצא מקור התאוששות זמין."
+    );
   }
 
   writeContactsBundleCache_(version, rawContacts);
