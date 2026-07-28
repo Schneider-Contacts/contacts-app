@@ -1218,17 +1218,12 @@ select {
 }
 
 .adminHeader {
-  position: sticky;
-  top: 8px;
-  z-index: 110;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   padding: 14px;
   border: 1px solid var(--border-strong);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: #ffffff;
+  box-shadow: 0 7px 20px rgba(15, 23, 42, 0.07);
 }
 
 .adminHeaderTop {
@@ -1262,11 +1257,25 @@ select {
   flex-shrink: 0;
 }
 
+.adminStickyControls {
+  position: sticky;
+  top: 8px;
+  z-index: 110;
+  margin-bottom: 10px;
+  padding: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: rgba(244, 251, 247, 0.96);
+  box-shadow: 0 9px 24px rgba(15, 23, 42, 0.10);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 .adminTabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 5px;
-  margin-top: 13px;
+  margin-top: 0;
   padding: 5px;
   border: 1px solid #d7ebe1;
   border-radius: 15px;
@@ -1290,13 +1299,32 @@ select {
   box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
 }
 
+.adminTabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  min-height: 20px;
+  margin-inline-start: 3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #be123c;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.adminTabBadge[hidden] {
+  display: none;
+}
+
 .adminToolbar {
-  margin-bottom: 12px;
-  padding: 13px;
-  border: 1px solid var(--border);
-  border-radius: 17px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
+  margin: 7px 0 0;
+  padding: 10px;
+  border: 1px solid #dcebe4;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: none;
 }
 
 .adminSearchWrap {
@@ -1354,12 +1382,12 @@ select {
 }
 
 .adminCard {
-  margin: 9px 0;
-  padding: 14px;
+  margin: 7px 0;
+  padding: 11px 12px;
   border: 1px solid #dfede6;
-  border-radius: 17px;
+  border-radius: 15px;
   background: #ffffff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 }
 
 .adminCard.removed,
@@ -1403,10 +1431,10 @@ select {
 }
 
 .adminCardMeta {
-  margin-top: 5px;
+  margin-top: 3px;
   color: #5b7167;
-  font-size: 12.5px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.45;
   word-break: break-word;
 }
 
@@ -1438,6 +1466,95 @@ select {
   margin-top: 12px;
   padding-top: 11px;
   border-top: 1px solid #e8f1ec;
+}
+
+.adminCardMore {
+  margin-top: 9px;
+  border-top: 1px solid #e8f1ec;
+}
+
+.adminCardMore > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 35px;
+  padding-top: 8px;
+  color: var(--green-700);
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 850;
+}
+
+.adminCardMore > summary::-webkit-details-marker,
+.adminActionMenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.adminCardMore > summary::after {
+  content: "⌄";
+  margin-inline-start: 8px;
+  color: #6f837b;
+  font-size: 16px;
+  transition: transform 0.16s ease;
+}
+
+.adminCardMore[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.adminCardMoreBody {
+  padding-top: 3px;
+}
+
+.adminCardDetailsList {
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: #f7fbf9;
+  color: #516b60;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.adminCardMore .adminCardActions {
+  margin-top: 9px;
+  padding-top: 9px;
+}
+
+.adminActionMenu {
+  flex: 1 1 120px;
+  position: relative;
+}
+
+.adminActionMenu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #d8ece1;
+  border-radius: 11px;
+  background: #f7fcf9;
+  color: #4b695d;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.adminActionMenu[open] > summary {
+  border-color: #fecdd3;
+  background: #fff7f8;
+  color: #9f1239;
+}
+
+.adminActionMenuBody {
+  margin-top: 7px;
+}
+
+.adminActionMenuBody .adminActionBtn {
+  width: 100%;
 }
 
 .adminActionBtn {
@@ -2255,16 +2372,7 @@ select {
 
 .reportCard { border-right: 4px solid #f59e0b; }
 .reportCard.resolved { border-right-color: var(--green-500); opacity: .9; }
-.reportDetails {
-  margin-top: 9px;
-  padding: 10px 11px;
-  border-radius: 11px;
-  background: #f7fbf9;
-  color: #405e52;
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
+.reportCard .adminCardDetailsList { white-space: pre-wrap; }
 
 .passwordGuidance {
   display: grid;
@@ -2380,7 +2488,8 @@ select {
 }
 
 .adminQuickAction {
-  min-height: 112px;
+  position: relative;
+  min-height: 100px;
   padding: 15px;
   border: 1px solid #d7ebe1;
   border-radius: 17px;
@@ -2388,6 +2497,23 @@ select {
   color: #214c3d;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
   text-align: right;
+}
+
+.adminQuickBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
+  min-height: 23px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #be123c;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .adminQuickAction:hover {
@@ -2461,6 +2587,13 @@ select {
     padding: 12px;
   }
 
+  .adminStickyControls {
+    top: 5px;
+    margin-inline: -4px;
+    padding: 6px;
+    border-radius: 16px;
+  }
+
   .adminTabs,
   .adminTabs.hasManagers {
     display: flex;
@@ -2484,7 +2617,11 @@ select {
   }
 
   .adminQuickAction {
-    min-height: 92px;
+    min-height: 82px;
+  }
+
+  .adminCard {
+    padding: 10px 11px;
   }
 }
 
@@ -2562,23 +2699,6 @@ select {
 .contactAddRequestCard.rejected {
   opacity: 0.82;
 }
-
-.contactAddRequestDetails {
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: var(--text-soft);
-  text-align: right;
-  line-height: 1.65;
-  font-size: 14px;
-}
-
-.contactAddRequestDetails b {
-  color: var(--text);
-}
-
-
 
 /* ===== Logo separation: home-screen icon vs. in-app logo ===== */
 .authLogoBox {

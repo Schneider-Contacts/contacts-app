@@ -3557,6 +3557,40 @@ function setAdminTab(tabName) {
   resetAdminVisibleItems_();
   updateAdminTabs();
   loadAdminData({ section: requestedTab, force: false });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function getAdminPendingCounts_() {
+  const verificationRequests = adminVerificationRequests.filter(
+    request => request.status === "pending"
+  ).length;
+  const passwordResetRequests = adminPasswordResetRequests.filter(
+    request => request.status === "pending"
+  ).length;
+  const contactRequests = adminContactAddRequests.filter(
+    request => request.status === "pending"
+  ).length;
+  const contactReports = adminReports.filter(
+    report => report.status === "open"
+  ).length;
+
+  return {
+    users: verificationRequests + passwordResetRequests,
+    reports: contactRequests + contactReports
+  };
+}
+
+function updateAdminPendingBadges_() {
+  const counts = getAdminPendingCounts_();
+  [
+    ["adminUsersPendingBadge", counts.users],
+    ["adminReportsPendingBadge", counts.reports]
+  ].forEach(([elementId, count]) => {
+    const badge = document.getElementById(elementId);
+    if (!badge) return;
+    badge.hidden = count < 1;
+    badge.textContent = count > 99 ? "99+" : String(count);
+  });
 }
 
 function updateAdminTabs() {
@@ -3630,6 +3664,7 @@ function updateAdminTabs() {
     );
   }
 
+  updateAdminPendingBadges_();
   updateAdminFilterButtons();
 
   const activeTabButton = document.querySelector(".adminTabBtn.active");
@@ -3705,6 +3740,7 @@ function resetAdminDataCache_() {
   adminReports = [];
   adminContactAddRequests = [];
   adminVerificationRequests = [];
+  updateAdminPendingBadges_();
 }
 
 function syncAdminContactsFromDirectory_() {
@@ -4059,6 +4095,7 @@ async function loadAdminData(options = null) {
   const loadPromise = (async () => {
     await getAdminSectionLoader_(section)();
     adminLoadedSections.add(section);
+    updateAdminPendingBadges_();
     if (adminActiveTab === section) {
       setAdminStatus("", "");
       renderAdminList();
@@ -5017,13 +5054,23 @@ function renderAdminReports() {
             </div>
             <span class="adminStatusBadge ${request.status === "pending" ? "pending" : ""}">${statusLabel}</span>
           </div>
-          <div class="contactAddRequestDetails">${details}</div>
-          ${request.status === "pending" ? `
-            <div class="adminCardActions">
-              <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
-              <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
-              <button type="button" class="adminActionBtn danger" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחייה</button>
-            </div>` : ""}
+          <details class="adminCardMore" ${request.status === "pending" ? "open" : ""}>
+            <summary>פרטים ופעולות</summary>
+            <div class="adminCardMoreBody">
+              <div class="adminCardDetailsList">${details}</div>
+              ${request.status === "pending" ? `
+                <div class="adminCardActions">
+                  <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
+                  <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
+                  <details class="adminActionMenu">
+                    <summary>פעולות נוספות</summary>
+                    <div class="adminActionMenuBody">
+                      <button type="button" class="adminActionBtn danger" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחיית הבקשה</button>
+                    </div>
+                  </details>
+                </div>` : ""}
+            </div>
+          </details>
         </div>
       `;
     }
@@ -5043,12 +5090,17 @@ function renderAdminReports() {
           </div>
           <span class="adminStatusBadge ${report.status === "resolved" ? "" : "blocked"}">${report.status === "resolved" ? "טופל" : "פתוח"}</span>
         </div>
-        <div class="reportDetails">${escapeHtml(report.details)}</div>
-        <div class="adminCardActions">
-          <button type="button" class="adminActionBtn ${report.status === "resolved" ? "secondary" : "primary"}" onclick="setContactReportStatus_('${report.docId}', '${report.status === "resolved" ? "open" : "resolved"}')">
-            ${report.status === "resolved" ? "פתיחה מחדש" : "סימון כטופל"}
-          </button>
-        </div>
+        <details class="adminCardMore" ${report.status === "resolved" ? "" : "open"}>
+          <summary>פרטים ופעולות</summary>
+          <div class="adminCardMoreBody">
+            <div class="adminCardDetailsList">${escapeHtml(report.details) || "לא נמסרו פרטים נוספים."}</div>
+            <div class="adminCardActions">
+              <button type="button" class="adminActionBtn ${report.status === "resolved" ? "secondary" : "primary"}" onclick="setContactReportStatus_('${report.docId}', '${report.status === "resolved" ? "open" : "resolved"}')">
+                ${report.status === "resolved" ? "פתיחה מחדש" : "סימון כטופל"}
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     `;
   }).join("");
@@ -5058,6 +5110,7 @@ function renderAdminReports() {
 }
 
 function renderAdminGeneral() {
+  const pendingCounts = getAdminPendingCounts_();
   const todayKey = getIsraelDateKey_();
   const activeUsersByDate = new Map(
     adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
@@ -5112,11 +5165,13 @@ function renderAdminGeneral() {
           <span class="adminQuickIcon" aria-hidden="true">🔑</span>
           <span class="adminQuickTitle">הרשאות כניסה</span>
           <span class="adminQuickNote">אימות, חסימה ובקשות סיסמה</span>
+          ${pendingCounts.users ? `<span class="adminQuickBadge">${escapeHtml(String(pendingCounts.users))} לטיפול</span>` : ""}
         </button>
         <button type="button" class="adminQuickAction" onclick="setAdminTab('reports')">
           <span class="adminQuickIcon" aria-hidden="true">📥</span>
           <span class="adminQuickTitle">בקשות ודיווחים</span>
           <span class="adminQuickNote">פריטים שממתינים לטיפול מנהל</span>
+          ${pendingCounts.reports ? `<span class="adminQuickBadge">${escapeHtml(String(pendingCounts.reports))} לטיפול</span>` : ""}
         </button>
         <button type="button" class="adminQuickAction" onclick="setAdminTab('activity')">
           <span class="adminQuickIcon" aria-hidden="true">🕘</span>
@@ -5264,6 +5319,11 @@ function renderAdminContacts() {
     const accessAction = contact.email && normalizeEmail(contact.email) !== currentAdminEmail
       ? `<button type="button" class="adminActionBtn secondary" onclick="openAdminPermissionForEmail_('${escapeJsString(contact.email)}')">פתיחת הרשאה</button>`
       : "";
+    const details = [
+      contact.dept ? `<b>מחלקה:</b> ${escapeHtml(contact.dept)}` : "",
+      contact.hospital ? `<b>בית חולים:</b> ${escapeHtml(contact.hospital)}` : "",
+      contact.email ? `<b>מייל:</b> ${escapeHtml(contact.email)}` : ""
+    ].filter(Boolean).join("<br>") || "אין פרטים נוספים.";
 
     return `
       <div class="adminCard ${contact.deleted ? "removed" : ""}">
@@ -5272,20 +5332,31 @@ function renderAdminContacts() {
             <div class="adminCardName">${escapeHtml(contact.name || formatPhoneForDisplay(contact.phone))}</div>
             <div class="adminCardMeta">
               ${contact.role ? escapeHtml(contact.role) + "<br>" : ""}
-              ${contact.dept ? escapeHtml(contact.dept) + " · " : ""}${escapeHtml(formatPhoneForDisplay(contact.phone))}
-              ${contact.email ? "<br>" + escapeHtml(contact.email) : ""}
+              ${escapeHtml(formatPhoneForDisplay(contact.phone))}
             </div>
           </div>
           <span class="adminStatusBadge ${contact.deleted ? "removed" : ""}">${contact.deleted ? "הוסר" : "מופיע"}</span>
         </div>
 
-        <div class="adminCardActions">
-          ${contact.deleted
-            ? `<button type="button" class="adminActionBtn primary" onclick="restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לאפליקציה</button>`
-            : `<button type="button" class="adminActionBtn secondary" onclick="openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>
-               <button type="button" class="adminActionBtn danger" onclick="removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>`}
-          ${accessAction}
-        </div>
+        <details class="adminCardMore" ${contact.deleted ? "open" : ""}>
+          <summary>פרטים ופעולות</summary>
+          <div class="adminCardMoreBody">
+            <div class="adminCardDetailsList">${details}</div>
+            <div class="adminCardActions">
+              ${contact.deleted
+                ? `<button type="button" class="adminActionBtn primary" onclick="restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לאפליקציה</button>`
+                : `<button type="button" class="adminActionBtn secondary" onclick="openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>`}
+              ${accessAction}
+              ${contact.deleted ? "" : `
+                <details class="adminActionMenu">
+                  <summary>פעולות נוספות</summary>
+                  <div class="adminActionMenuBody">
+                    <button type="button" class="adminActionBtn danger" onclick="removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>
+                  </div>
+                </details>`}
+            </div>
+          </div>
+        </details>
       </div>
     `;
   }).join("");
@@ -5787,6 +5858,16 @@ function renderAdminUsers() {
       phone_missing: "טלפון חסר",
       unknown: "פעיל"
     })[accessState.key] || (user.active ? "פעיל" : "חסום");
+    const phone = contact && contact.phone ? contact.phone : user.phone;
+    const userDetails = [
+      contact && contact.dept ? `<b>מחלקה:</b> ${escapeHtml(contact.dept)}` : "",
+      user.source ? `<b>מקור:</b> ${escapeHtml(user.source)}` : "",
+      `<div class="accessStateLine ${escapeHtml(accessState.key)}">
+        ${escapeHtml(accessState.label)}
+        ${accessState.note ? `<span class="accessStateNote">${escapeHtml(accessState.note)}</span>` : ""}
+        ${lastAccess}
+      </div>`
+    ].filter(Boolean).join("<br>");
 
     let approvalActions = "";
     if (accessState.key === "pending" && request && request.status === "pending") {
@@ -5806,30 +5887,30 @@ function renderAdminUsers() {
             ${isNewToday ? `<span class="adminNewAccessBadge">${escapeHtml(getUserAccessGrantLabel_(user))}</span>` : ""}
             <div class="adminCardMeta">
               ${escapeHtml(user.email)}
-              ${(contact && contact.phone) || user.phone
-                ? "<br>" + escapeHtml(formatPhoneForDisplay(
-                    contact && contact.phone ? contact.phone : user.phone
-                  ))
-                : ""}
-              ${contact && contact.dept ? " · " + escapeHtml(contact.dept) : ""}
-              ${user.source ? "<br>מקור: " + escapeHtml(user.source) : ""}
-              <div class="accessStateLine ${escapeHtml(accessState.key)}">
-                ${escapeHtml(accessState.label)}
-                ${accessState.note ? `<span class="accessStateNote">${escapeHtml(accessState.note)}</span>` : ""}
-                ${lastAccess}
-              </div>
+              ${phone ? "<br>" + escapeHtml(formatPhoneForDisplay(phone)) : ""}
             </div>
           </div>
           <span class="adminStatusBadge ${escapeHtml(accessState.badgeClass)}">${escapeHtml(accessBadgeText)}</span>
         </div>
 
-        <div class="adminCardActions">
-          ${approvalActions}
-          ${isSelf
-            ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
-            : `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>
-               <button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>`}
-        </div>
+        <details class="adminCardMore" ${accessState.key === "pending" ? "open" : ""}>
+          <summary>פרטים ופעולות</summary>
+          <div class="adminCardMoreBody">
+            <div class="adminCardDetailsList">${userDetails}</div>
+            <div class="adminCardActions">
+              ${approvalActions}
+              ${isSelf
+                ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
+                : `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>
+                   <details class="adminActionMenu">
+                     <summary>פעולות נוספות</summary>
+                     <div class="adminActionMenuBody">
+                       <button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>
+                     </div>
+                   </details>`}
+            </div>
+          </div>
+        </details>
       </div>
     `;
   }).join("");
@@ -5884,19 +5965,31 @@ function renderAdminManagers() {
             <div class="adminCardMeta">
               ${escapeHtml(manager.email)}
               ${contact && contact.phone ? "<br>" + escapeHtml(formatPhoneForDisplay(contact.phone)) : ""}
-              ${contact && contact.dept ? " · " + escapeHtml(contact.dept) : ""}
-              ${manager.createdBy ? "<br>נוסף על ידי: " + escapeHtml(manager.createdBy) : ""}
             </div>
             <span class="adminRoleBadge ${isSuperAdmin ? "super" : ""}">${roleLabel}</span>
           </div>
           <span class="adminStatusBadge ${manager.active ? "" : "blocked"}">${manager.active ? "פעיל" : "מושבת"}</span>
         </div>
 
-        <div class="adminCardActions">
-          ${isSuperAdmin
-            ? '<button type="button" class="adminActionBtn secondary" disabled>לא ניתן לשנות את מנהל־העל</button>'
-            : `<button type="button" class="adminActionBtn danger" onclick="removeManager('${escapeJsString(manager.email)}')">הסרת מנהל</button>`}
-        </div>
+        <details class="adminCardMore">
+          <summary>פרטים ופעולות</summary>
+          <div class="adminCardMoreBody">
+            <div class="adminCardDetailsList">
+              ${contact && contact.dept ? `<b>מחלקה:</b> ${escapeHtml(contact.dept)}<br>` : ""}
+              ${manager.createdBy ? `<b>נוסף על ידי:</b> ${escapeHtml(manager.createdBy)}` : "אין פרטים נוספים."}
+            </div>
+            <div class="adminCardActions">
+              ${isSuperAdmin
+                ? '<button type="button" class="adminActionBtn secondary" disabled>לא ניתן לשנות את מנהל־העל</button>'
+                : `<details class="adminActionMenu">
+                     <summary>פעולות נוספות</summary>
+                     <div class="adminActionMenuBody">
+                       <button type="button" class="adminActionBtn danger" onclick="removeManager('${escapeJsString(manager.email)}')">הסרת מנהל</button>
+                     </div>
+                   </details>`}
+            </div>
+          </div>
+        </details>
       </div>
     `;
   }).join("");

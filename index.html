@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260727-cleanup2">
+<link rel="stylesheet" href="styles.css?v=20260728-adminui1">
 
 
 
@@ -286,57 +286,66 @@
       <button type="button" class="adminBackBtn" onclick="closeAdminPanel()">חזרה</button>
     </div>
 
+  </div>
+
+  <div class="adminStickyControls">
     <div class="adminTabs" role="tablist" aria-label="תחומי ניהול">
       <button type="button" role="tab" id="adminGeneralTab" class="adminTabBtn active" onclick="setAdminTab('general')">🏠 ראשי</button>
       <button type="button" role="tab" id="adminContactsTab" class="adminTabBtn" onclick="setAdminTab('contacts')">👤 אנשי קשר</button>
-      <button type="button" role="tab" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">🔑 הרשאות</button>
-      <button type="button" role="tab" id="adminReportsTab" class="adminTabBtn" onclick="setAdminTab('reports')">📥 בקשות ודיווחים</button>
+      <button type="button" role="tab" id="adminUsersTab" class="adminTabBtn" onclick="setAdminTab('users')">
+        🔑 הרשאות
+        <span id="adminUsersPendingBadge" class="adminTabBadge" hidden></span>
+      </button>
+      <button type="button" role="tab" id="adminReportsTab" class="adminTabBtn" onclick="setAdminTab('reports')">
+        📥 בקשות ודיווחים
+        <span id="adminReportsPendingBadge" class="adminTabBadge" hidden></span>
+      </button>
       <button type="button" role="tab" id="adminActivityTab" class="adminTabBtn" onclick="setAdminTab('activity')">🕘 פעילות</button>
       <button type="button" role="tab" id="adminManagersTab" class="adminTabBtn adminSuperOnly" onclick="setAdminTab('managers')">⚙️ מנהלים</button>
     </div>
-  </div>
 
-  <div class="adminToolbar" id="adminToolbar">
-    <div class="adminSearchWrap" id="adminSearchWrap">
-      <span class="adminSearchIcon" aria-hidden="true">⌕</span>
-      <input type="text" id="adminSearchInput" placeholder="חיפוש לפי שם, מייל או טלפון" oninput="handleAdminSearchInput_()">
-    </div>
+    <div class="adminToolbar" id="adminToolbar">
+      <div class="adminSearchWrap" id="adminSearchWrap">
+        <span class="adminSearchIcon" aria-hidden="true">⌕</span>
+        <input type="text" id="adminSearchInput" placeholder="חיפוש לפי שם, מייל או טלפון" oninput="handleAdminSearchInput_()">
+      </div>
 
-    <div id="adminContactFilters" class="adminFilterRow">
-      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">מופיעים באפליקציה</button>
-      <button type="button" class="adminFilterBtn" data-filter="removed" onclick="setAdminFilter('removed')">הוסרו</button>
-    </div>
+      <div id="adminContactFilters" class="adminFilterRow">
+        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
+        <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">מופיעים באפליקציה</button>
+        <button type="button" class="adminFilterBtn" data-filter="removed" onclick="setAdminFilter('removed')">הוסרו</button>
+      </div>
 
-    <div id="adminUserFilters" class="adminFilterRow" style="display:none;">
-      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">פעילים</button>
-      <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">חסומים</button>
-      <button type="button" class="adminFilterBtn" data-filter="verified" onclick="setAdminFilter('verified')">מייל מאומת</button>
-      <button type="button" class="adminFilterBtn" data-filter="manual" onclick="setAdminFilter('manual')">אישור ידני</button>
-      <button type="button" class="adminFilterBtn" data-filter="pending" onclick="setAdminFilter('pending')">בקשות אימות</button>
-    </div>
+      <div id="adminUserFilters" class="adminFilterRow" style="display:none;">
+        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
+        <button type="button" class="adminFilterBtn" data-filter="active" onclick="setAdminFilter('active')">פעילים</button>
+        <button type="button" class="adminFilterBtn" data-filter="blocked" onclick="setAdminFilter('blocked')">חסומים</button>
+        <button type="button" class="adminFilterBtn" data-filter="verified" onclick="setAdminFilter('verified')">מייל מאומת</button>
+        <button type="button" class="adminFilterBtn" data-filter="manual" onclick="setAdminFilter('manual')">אישור ידני</button>
+        <button type="button" class="adminFilterBtn" data-filter="pending" onclick="setAdminFilter('pending')">בקשות אימות</button>
+      </div>
 
-    <div id="adminActivityFilters" class="adminFilterRow" style="display:none;">
-      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="added" onclick="setAdminFilter('added')">נוספו</button>
-      <button type="button" class="adminFilterBtn" data-filter="changed" onclick="setAdminFilter('changed')">שינויים</button>
-    </div>
+      <div id="adminActivityFilters" class="adminFilterRow" style="display:none;">
+        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
+        <button type="button" class="adminFilterBtn" data-filter="added" onclick="setAdminFilter('added')">נוספו</button>
+        <button type="button" class="adminFilterBtn" data-filter="changed" onclick="setAdminFilter('changed')">שינויים</button>
+      </div>
 
-    <div id="adminReportFilters" class="adminFilterRow" style="display:none;">
-      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-      <button type="button" class="adminFilterBtn" data-filter="pending_additions" onclick="setAdminFilter('pending_additions')">בקשות ממתינות</button>
-      <button type="button" class="adminFilterBtn" data-filter="open_reports" onclick="setAdminFilter('open_reports')">דיווחים פתוחים</button>
-      <button type="button" class="adminFilterBtn" data-filter="handled" onclick="setAdminFilter('handled')">טופלו</button>
-    </div>
+      <div id="adminReportFilters" class="adminFilterRow" style="display:none;">
+        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
+        <button type="button" class="adminFilterBtn" data-filter="pending_additions" onclick="setAdminFilter('pending_additions')">בקשות ממתינות</button>
+        <button type="button" class="adminFilterBtn" data-filter="open_reports" onclick="setAdminFilter('open_reports')">דיווחים פתוחים</button>
+        <button type="button" class="adminFilterBtn" data-filter="handled" onclick="setAdminFilter('handled')">טופלו</button>
+      </div>
 
-    <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
-      <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">כל המנהלים</button>
-    </div>
+      <div id="adminManagerFilters" class="adminFilterRow" style="display:none;">
+        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">כל המנהלים</button>
+      </div>
 
-    <div class="adminToolbarTop">
-      <div id="adminSummary" class="adminSummary"></div>
-      <button type="button" id="adminAddManagerBtn" class="adminAddBtn" onclick="openAddManagerModal()">＋ הוספת מנהל</button>
+      <div class="adminToolbarTop">
+        <div id="adminSummary" class="adminSummary"></div>
+        <button type="button" id="adminAddManagerBtn" class="adminAddBtn" onclick="openAddManagerModal()">＋ הוספת מנהל</button>
+      </div>
     </div>
   </div>
 
@@ -600,7 +609,7 @@
 </div>
 
 
-<script src="app.js?v=20260727-cleanup2"></script>
+<script src="app.js?v=20260728-adminui1"></script>
 
 </body>
 </html>
