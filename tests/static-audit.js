@@ -39,6 +39,36 @@ assert.match(
   /<script[^>]+src="app\.js\?[^"]+"/,
   "index.html must load app.js"
 );
+assert.match(
+  indexSource,
+  /class="adminStickyControls"/,
+  "Admin navigation controls must use the sticky wrapper"
+);
+assert.match(
+  indexSource,
+  /id="adminUsersPendingBadge"[^>]+hidden/,
+  "Users tab must expose a pending-items badge"
+);
+assert.match(
+  indexSource,
+  /id="adminReportsPendingBadge"[^>]+hidden/,
+  "Reports tab must expose a pending-items badge"
+);
+assert.match(
+  appSource,
+  /<details class="adminCardMore"/,
+  "Admin cards must render expandable details"
+);
+assert.match(
+  appSource,
+  /<details class="adminActionMenu"/,
+  "Destructive admin actions must render in a secondary action menu"
+);
+assert.match(
+  appSource,
+  /function updateAdminPendingBadges_\(\)/,
+  "Admin pending badge updater must exist"
+);
 
 const functionPattern =
   /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
