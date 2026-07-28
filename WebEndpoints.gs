@@ -847,33 +847,34 @@ function getContactApprovalValues_(parameters) {
 
 function upsertApprovedContactInContactsSheet_(values) {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = spreadsheet.getSheetByName(CONTACTS_SHEET_NAME);
+  const sheet = spreadsheet.getSheetByName(CONTACTS_OLD_SHEET_NAME);
 
   if (!sheet) {
-    throw new Error('לא נמצא טאב בשם "' + CONTACTS_SHEET_NAME + '".');
+    throw new Error('לא נמצא טאב בשם "' + CONTACTS_OLD_SHEET_NAME + '".');
   }
 
   const lastColumn = sheet.getLastColumn();
   if (lastColumn < 1) {
-    throw new Error("בטאב contacts אין שורת כותרות.");
+    throw new Error("בטאב contacts_old אין שורת כותרות.");
   }
 
   const headers = sheet
     .getRange(1, 1, 1, lastColumn)
     .getDisplayValues()[0]
     .map(cleanSheetValue_);
-  const missingHeaders = CONTACT_FIELDS.filter(
+  const sourceFields = CONTACT_FIELDS.slice(0, 11);
+  const missingHeaders = sourceFields.filter(
     field => findHeaderColumn_(headers, field) === 0
   );
 
   if (missingHeaders.length) {
     throw new Error(
-      "בטאב contacts חסרות הכותרות: " + missingHeaders.join(", ")
+      "בטאב contacts_old חסרות הכותרות: " + missingHeaders.join(", ")
     );
   }
 
   const headerIndexes = {};
-  CONTACT_FIELDS.forEach(field => {
+  sourceFields.forEach(field => {
     headerIndexes[field] = findHeaderColumn_(headers, field) - 1;
   });
 
@@ -895,13 +896,13 @@ function upsertApprovedContactInContactsSheet_(values) {
 
   if (matches.length > 1) {
     throw new Error(
-      "נמצאו כמה שורות בטאב contacts עם אותו מספר טלפון. יש לטפל בכפילות לפני האישור."
+      "נמצאו כמה שורות בטאב contacts_old עם אותו מספר טלפון. יש לטפל בכפילות לפני האישור."
     );
   }
 
   const existingMatch = matches[0] || null;
   const existingContact = {};
-  CONTACT_FIELDS.forEach(field => {
+  sourceFields.forEach(field => {
     existingContact[field] = existingMatch
       ? cleanSheetValue_(existingMatch.values[headerIndexes[field]])
       : "";
@@ -924,22 +925,24 @@ function upsertApprovedContactInContactsSheet_(values) {
     hospital: existingContact.hospital || "",
     phone: values.phone,
     email: values.email || existingContact.email || "",
-    source:
-      existingContact.source ||
-      (existingMatch ? "admin-approved-update" : "user-submission-approved"),
-    status: existingContact.status || "active",
-    created_at: existingContact.created_at || now,
+    source: existingMatch
+      ? "admin-approved-update"
+      : "user-submission-approved",
+    status: "active",
+    created_at: now,
     updated_at: now
   };
   const targetRow = existingMatch
     ? existingMatch.rowNumber
     : Math.max(2, lastRow + 1);
 
-  CONTACT_FIELDS.forEach(field => {
-    sheet
-      .getRange(targetRow, headerIndexes[field] + 1)
-      .setValue(contact[field]);
+  const targetValues = existingMatch
+    ? existingMatch.values.slice()
+    : new Array(lastColumn).fill("");
+  sourceFields.forEach(field => {
+    targetValues[headerIndexes[field]] = contact[field];
   });
+  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([targetValues]);
   SpreadsheetApp.flush();
 
   return {

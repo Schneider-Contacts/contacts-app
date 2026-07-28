@@ -2,6 +2,9 @@
  * מסנכרן את רשימת אנשי הקשר לספרייה חכמה.
  * ברוב המקרים נכתב מסמך נתונים יחיד; עמודים נוספים נוצרים רק אם הגודל מחייב.
  */
+const CONTACT_DIRECTORY_SHRINK_GUARD_MIN_EXISTING = 25;
+const CONTACT_DIRECTORY_SHRINK_GUARD_RATIO = 0.5;
+
 function syncContactsToFirestore() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
@@ -85,6 +88,10 @@ function writeSmartContactDirectory_(contacts) {
     CONTACT_DIRECTORY_PAGE_PREFIX + versionKey + "_" + index
   );
   const existingDirectoryState = readExistingDirectoryState_(token);
+  assertDirectoryContactCountIsSafe_(
+    existingDirectoryState.contactCount,
+    normalizedContacts.length
+  );
   const previousPageIds = existingDirectoryState.pageIds;
 
   const pageRequests = pages.map((pageContacts, index) => {
@@ -209,11 +216,11 @@ function readExistingDirectoryState_(token) {
     });
 
     if (response.getResponseCode() === 404) {
-      return { pageIds: [], previousPageIds: [] };
+      return { pageIds: [], previousPageIds: [], contactCount: 0 };
     }
     if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
       console.warn("לא ניתן לקרוא meta קודם לצורך ניקוי עמודים ישנים.");
-      return { pageIds: [], previousPageIds: [] };
+      return { pageIds: [], previousPageIds: [], contactCount: 0 };
     }
 
     const document = JSON.parse(response.getContentText() || "{}");
@@ -224,12 +231,39 @@ function readExistingDirectoryState_(token) {
         : [],
       previousPageIds: Array.isArray(data.previousPageIds)
         ? data.previousPageIds.map(String)
-        : []
+        : [],
+      contactCount: Math.max(0, Number(data.contactCount) || 0)
     };
   } catch (error) {
     console.warn("קריאת עמודי הספרייה הקודמים נכשלה:", error);
-    return { pageIds: [], previousPageIds: [] };
+    return { pageIds: [], previousPageIds: [], contactCount: 0 };
   }
+}
+
+function assertDirectoryContactCountIsSafe_(existingCount, nextCount) {
+  const previous = Math.max(0, Number(existingCount) || 0);
+  const next = Math.max(0, Number(nextCount) || 0);
+
+  if (previous < CONTACT_DIRECTORY_SHRINK_GUARD_MIN_EXISTING) {
+    return;
+  }
+
+  const minimumSafeCount = Math.max(
+    10,
+    Math.floor(previous * CONTACT_DIRECTORY_SHRINK_GUARD_RATIO)
+  );
+  if (next >= minimumSafeCount) {
+    return;
+  }
+
+  throw new Error(
+    "הסנכרון נעצר כדי למנוע מחיקה חריגה של אנשי קשר. " +
+      "בגרסה הקיימת יש " +
+      previous +
+      " אנשי קשר, אך המקור החזיר רק " +
+      next +
+      ". בדקו את טאב contacts ואת הנוסחה ב-A2 לפני ניסיון נוסף."
+  );
 }
 
 function deleteStaleDirectoryPages_(previousPageIds, currentPageIds, token) {
