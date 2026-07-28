@@ -3883,7 +3883,7 @@ async function loadAdminGeneralData_() {
   const [activeUsers, contactUsers] = await Promise.all([
     loadDailyActiveUserCounts_([todayKey]),
     loadDailyContactUserCounts_([todayKey]),
-    loadAdminPendingSummary_()
+    loadAdminPendingSummary_({ force: true })
   ]);
 
   adminDailyActiveUsers = activeUsers;
@@ -5374,9 +5374,6 @@ async function refreshAdminPage() {
 
   try {
     await flushUsageMetrics_();
-    if (adminActiveTab === "general") {
-      await loadAdminPendingSummary_({ force: true });
-    }
     await loadAdminData({
       section: adminActiveTab,
       force: true
