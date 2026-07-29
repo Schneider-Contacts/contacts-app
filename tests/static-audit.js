@@ -185,7 +185,23 @@ const createClassList = () => {
   return {
     add: (...names) => names.forEach(name => values.add(name)),
     remove: (...names) => names.forEach(name => values.delete(name)),
-    contains: name => values.has(name)
+    contains: name => values.has(name),
+    toggle: (name, force) => {
+      if (force === true) {
+        values.add(name);
+        return true;
+      }
+      if (force === false) {
+        values.delete(name);
+        return false;
+      }
+      if (values.has(name)) {
+        values.delete(name);
+        return false;
+      }
+      values.add(name);
+      return true;
+    }
   };
 };
 
@@ -362,6 +378,308 @@ assert(
     Object.keys(headerSignature.copyAttributes).length === 0,
   "The header logo must change its symbol without showing signature text"
 );
+
+const adminFocusSandbox = {
+  adminAllowedUsers: [
+    { email: "one@example.com", phone: "+972501111111", active: true },
+    { email: "orphan@example.com", phone: "+972502222222", active: false }
+  ],
+  adminContacts: [
+    {
+      docId: "contact-one",
+      email: "one@example.com",
+      phone: "+972501111111",
+      name: "One"
+    }
+  ],
+  adminRemovedContacts: [
+    {
+      docId: "contact-removed",
+      email: "removed@example.com",
+      phone: "+972503333333",
+      name: "Removed",
+      deleted: true
+    }
+  ],
+  adminContactAddRequests: [
+    { docId: "contact-request", status: "pending", createdAt: 30 }
+  ],
+  adminReports: [
+    { docId: "report-request", status: "open", createdAt: 20 }
+  ],
+  normalizeEmail: value => String(value || "").trim().toLowerCase(),
+  normalizePhone: value => String(value || "").replace(/\D/g, ""),
+  getUserAccessState_: user => ({
+    key: user.active ? "pending" : "blocked"
+  }),
+  getVerificationRequestByEmail_: email =>
+    email === "one@example.com"
+      ? { status: "pending", requestedAt: 50 }
+      : null,
+  getAdminTimestampMillis_: value => Number(value) || 0,
+  getPendingPasswordResetRequests_: () => [
+    { email: "reset@example.com", requestedAt: 40 }
+  ],
+  getContactAddRequestTimestamp_: request => Number(request.createdAt) || 0,
+  getReportTimestamp_: report => Number(report.createdAt) || 0,
+  Map,
+  Set
+};
+vm.createContext(adminFocusSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "getAdminAttentionItems_"),
+    extractCompleteFunction(appSource, "getAdminPeople_")
+  ].join("\n"),
+  adminFocusSandbox
+);
+
+const focusedPeople = adminFocusSandbox.getAdminPeople_();
+assert.strictEqual(
+  focusedPeople.length,
+  3,
+  "The people view must merge matching contacts and access records"
+);
+assert(
+  focusedPeople.some(
+    person =>
+      person.contact &&
+      person.user &&
+      person.user.email === "one@example.com"
+  ),
+  "A matching contact and access record must render as one person"
+);
+
+const attentionItems = adminFocusSandbox.getAdminAttentionItems_();
+assert.deepStrictEqual(
+  Array.from(attentionItems, item => item.kind),
+  ["access", "reset", "contact", "report"],
+  "The attention queue must consolidate and sort every pending request type"
+);
+
+const moreRendererSource = extractCompleteFunction(
+  appSource,
+  "renderAdminMore_"
+);
+assert.match(
+  moreRendererSource,
+  /אנשים השתמשו באפליקציה היום/,
+  "The More view must show one clear daily-usage number"
+);
+assert.doesNotMatch(
+  moreRendererSource,
+  /%|14 הימים|השתמשו בפרטי איש קשר/,
+  "The More view must not show percentages or detailed usage analytics"
+);
+
+const adminFocusElements = {
+  adminSummary: { textContent: "" },
+  adminList: { innerHTML: "" },
+  adminSearchInput: { value: "" }
+};
+Object.assign(adminFocusSandbox, {
+  document: {
+    getElementById: id => adminFocusElements[id] || null
+  },
+  adminActiveFilter: "all",
+  adminVisibleItemCount: 25,
+  currentAdminEmail: "manager@example.com",
+  currentUserIsSuperAdmin: false,
+  adminDailyActiveUsers: [
+    { date: "2026-07-29", activeUserCount: 7 }
+  ],
+  adminActivity: [],
+  adminManagers: [],
+  escapeHtml: value => String(value || ""),
+  escapeJsString: value => String(value || ""),
+  getAdminSearchQuery: () => "",
+  getVisibleAdminItems_: items => items.slice(0, 25),
+  renderAdminLoadMore_: () => "",
+  findContactByEmail: email =>
+    adminFocusSandbox.adminContacts.find(
+      contact => contact.email === email
+    ) || null,
+  formatPhoneForDisplay: value => String(value || ""),
+  formatAdminTimestamp_: value => String(value || ""),
+  formatContactAddRequestTimestamp_: value =>
+    String(value && value.createdAt || ""),
+  getContactAddRequestName_: request =>
+    [request.firstName, request.lastName].filter(Boolean).join(" "),
+  getReportTypeLabel_: () => "פרטים לא מעודכנים",
+  formatReportTimestamp_: value =>
+    String(value && value.createdAt || ""),
+  adminContactAddRequestMatchesQuery_: () => true,
+  adminReportMatchesQuery_: () => true,
+  adminUserMatchesQuery: () => true,
+  getActivePasswordRecoveryForUser_: () => null,
+  getAccountDisplayName_: (email, fallback) => fallback || email,
+  getIsraelDateKey_: () => "2026-07-29",
+  getActivityCategory: () => "changed",
+  getActivityTitle: () => "פעילות",
+  formatActivityTimestamp: () => "עכשיו"
+});
+adminFocusSandbox.getUserAccessState_ = user => ({
+  key: user.active ? "pending" : "blocked",
+  label: user.active ? "ממתין לאישור" : "גישה חסומה",
+  note: "",
+  badgeClass: user.active ? "pending" : "blocked"
+});
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "adminAttentionItemMatchesQuery_"),
+    extractCompleteFunction(appSource, "renderAdminAttentionAccessCard_"),
+    extractCompleteFunction(appSource, "renderAdminAttentionResetCard_"),
+    extractCompleteFunction(appSource, "renderAdminAttentionContactCard_"),
+    extractCompleteFunction(appSource, "renderAdminAttentionReportCard_"),
+    extractCompleteFunction(appSource, "renderAdminAttention_"),
+    extractCompleteFunction(appSource, "adminPersonMatchesQuery_"),
+    extractCompleteFunction(appSource, "renderAdminPersonContactSection_"),
+    extractCompleteFunction(appSource, "renderAdminPersonAccessSection_"),
+    extractCompleteFunction(appSource, "renderAdminPeople_"),
+    extractCompleteFunction(appSource, "renderAdminMoreActivityHtml_"),
+    extractCompleteFunction(appSource, "renderAdminMoreManagersHtml_"),
+    extractCompleteFunction(appSource, "renderAdminMore_")
+  ].join("\n"),
+  adminFocusSandbox
+);
+
+adminFocusSandbox.renderAdminAttention_();
+assert.match(
+  adminFocusElements.adminList.innerHTML,
+  /טיפול בבקשה[\s\S]*?טיפול באיפוס הסיסמה[\s\S]*?בדיקת הבקשה[\s\S]*?טיפול בדיווח/,
+  "Every pending request type must render through one focused action"
+);
+
+adminFocusSandbox.renderAdminPeople_();
+assert.match(
+  adminFocusElements.adminList.innerHTML,
+  /ניהול האדם[\s\S]*?פרטי איש קשר[\s\S]*?כניסה והרשאות/,
+  "Each person card must combine contact details and access management"
+);
+
+adminFocusSandbox.renderAdminMore_();
+assert.match(
+  adminFocusElements.adminList.innerHTML,
+  />7<[\s\S]*?אנשים השתמשו באפליקציה היום/,
+  "The More view must render the daily active-user count"
+);
+
+const focusedAdminRenderSource = [
+  "renderAdminAttentionAccessCard_",
+  "renderAdminAttentionResetCard_",
+  "renderAdminAttentionContactCard_",
+  "renderAdminAttentionReportCard_",
+  "renderAdminPersonContactSection_",
+  "renderAdminPersonAccessSection_",
+  "renderAdminMoreManagersHtml_",
+  "renderAdminMore_"
+].map(name => extractCompleteFunction(appSource, name)).join("\n");
+const focusedAdminActionFunctions = [
+  "approveManualAccess_",
+  "rejectManualAccess_",
+  "revokeManualAccess_",
+  "approvePasswordRecoveryForUser_",
+  "sendPasswordResetForUser_",
+  "closePasswordResetRequest_",
+  "approveContactAddRequest_",
+  "openContactAddRequestForApproval_",
+  "rejectContactAddRequest_",
+  "setContactReportStatus_",
+  "restoreAdminContact",
+  "openAdminEditModal",
+  "removeAdminContact",
+  "preparePasswordRecoveryForUser_",
+  "cancelPreparedPasswordRecoveryForUser_",
+  "toggleUserAccess",
+  "deleteUserPermission",
+  "openAddManagerModal",
+  "removeManager",
+  "refreshAdminPage"
+];
+
+focusedAdminActionFunctions.forEach(name => {
+  assert(
+    focusedAdminRenderSource.includes(name),
+    `Focused admin UI must keep the existing action wired: ${name}`
+  );
+  assert(
+    new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`).test(appSource),
+    `Focused admin action function must still exist: ${name}`
+  );
+});
+assert.match(
+  extractCompleteFunction(appSource, "setContactReportStatus_"),
+  /renderAdminList\(\)/,
+  "Resolving a report must refresh the consolidated attention queue"
+);
+
+const createAdminTabElement = () => ({
+  classList: createClassList(),
+  style: {},
+  attributes: {},
+  setAttribute(name, value) {
+    this.attributes[name] = value;
+  }
+});
+const adminTabElements = {
+  adminAttentionTab: createAdminTabElement(),
+  adminPeopleTab: createAdminTabElement(),
+  adminMoreTab: createAdminTabElement(),
+  adminToolbar: createAdminTabElement(),
+  adminAttentionFilters: createAdminTabElement(),
+  adminPeopleFilters: createAdminTabElement(),
+  adminSearchInput: { value: "", placeholder: "" },
+  adminPanel: { style: { display: "block" } }
+};
+const adminTabsSandbox = {
+  adminActiveTab: "attention",
+  document: {
+    getElementById: id => adminTabElements[id] || null,
+    querySelector: () => null
+  },
+  updateAdminPendingBadges_: () => {},
+  updateAdminFilterButtons: () => {}
+};
+vm.createContext(adminTabsSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "updateAdminTabs"),
+  adminTabsSandbox
+);
+
+adminTabsSandbox.updateAdminTabs();
+assert.strictEqual(adminTabElements.adminToolbar.style.display, "block");
+assert.strictEqual(
+  adminTabElements.adminAttentionFilters.style.display,
+  "flex"
+);
+assert.strictEqual(
+  adminTabElements.adminPeopleFilters.style.display,
+  "none"
+);
+
+adminTabsSandbox.adminActiveTab = "people";
+adminTabsSandbox.updateAdminTabs();
+assert.strictEqual(
+  adminTabElements.adminAttentionFilters.style.display,
+  "none"
+);
+assert.strictEqual(
+  adminTabElements.adminPeopleFilters.style.display,
+  "flex"
+);
+assert.strictEqual(
+  adminTabElements.adminSearchInput.placeholder,
+  "חיפוש אדם לפי שם, מייל או טלפון"
+);
+
+adminTabsSandbox.adminActiveTab = "more";
+adminTabsSandbox.updateAdminTabs();
+assert.strictEqual(
+  adminTabElements.adminToolbar.style.display,
+  "none",
+  "The More tab must hide search and filters"
+);
+
 assert(
   !appSource.includes(obsoleteAuthRouterId) &&
     !emailUpdateSource.includes(obsoleteAuthRouterId),
@@ -374,13 +692,18 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="adminUsersPendingBadge"[^>]+hidden/,
-  "Users tab must expose a pending-items badge"
+  /id="adminAttentionPendingBadge"[^>]+hidden/,
+  "The focused attention tab must expose one pending-items badge"
 );
-assert.match(
+assert.strictEqual(
+  (indexSource.match(/class="adminTabBtn/g) || []).length,
+  3,
+  "Admin navigation must expose exactly three primary tabs"
+);
+assert.doesNotMatch(
   indexSource,
-  /id="adminReportsPendingBadge"[^>]+hidden/,
-  "Reports tab must expose a pending-items badge"
+  /id="admin(?:General|Contacts|Users|Reports|Activity|Managers)Tab"/,
+  "Legacy admin tabs must not remain in the primary navigation"
 );
 assert.match(
   indexSource,
@@ -389,8 +712,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /<details class="adminCardMore"/,
-  "Admin cards must render expandable details"
+  /<details class="adminFocusAction"/,
+  "Focused admin cards must expose one expandable primary action"
 );
 assert.match(
   appSource,
@@ -404,8 +727,23 @@ assert.match(
 );
 assert.match(
   appSource,
-  /class="adminAttentionBanner/,
-  "Admin overview must render the central attention banner"
+  /function renderAdminAttention_\(\)/,
+  "Admin must render a single consolidated attention queue"
+);
+assert.match(
+  appSource,
+  /function renderAdminPeople_\(\)/,
+  "Admin must render contacts and access permissions together"
+);
+assert.match(
+  appSource,
+  /אנשים השתמשו באפליקציה היום/,
+  "Admin usage must be reduced to one clear daily number"
+);
+assert.doesNotMatch(
+  indexSource,
+  /הצגת 14 הימים האחרונים/,
+  "The admin interface must not expose usage-history controls"
 );
 assert.match(
   appSource,

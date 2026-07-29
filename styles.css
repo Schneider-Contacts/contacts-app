@@ -1765,19 +1765,6 @@ select {
 
 
 
-/* ===== Super-admin management ===== */
-.adminSuperOnly {
-  display: none !important;
-}
-
-.adminSuperOnly.visible {
-  display: inline-flex !important;
-}
-
-.adminTabs.hasManagers {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .adminToolbarTop {
   display: flex;
   align-items: center;
@@ -1788,25 +1775,6 @@ select {
 
 .adminToolbarTop .adminSummary {
   margin: 0;
-}
-
-.adminAddBtn {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 9px 13px;
-  border-radius: 12px;
-  background: var(--green-600);
-  color: #ffffff;
-  box-shadow: 0 7px 16px rgba(5, 150, 105, 0.20);
-  font-size: 13px;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.adminAddBtn.visible {
-  display: inline-flex;
 }
 
 .adminRoleBadge {
@@ -1854,9 +1822,6 @@ select {
     flex-direction: column;
   }
 
-  .adminAddBtn {
-    width: 100%;
-  }
 }
 
 
@@ -1869,12 +1834,6 @@ select {
   justify-content: center;
   text-align: center;
 }
-
-.adminTabs .adminSuperOnly.visible {
-  display: flex !important;
-  width: 100%;
-}
-
 
 /* ===== Recent contacts import ===== */
 .quickFilters {
@@ -1947,14 +1906,6 @@ select {
   line-height: 1.55;
 }
 
-.adminTabs {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.adminTabs.hasManagers {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
 .activityCard {
   border-right: 4px solid var(--green-300);
 }
@@ -1998,199 +1949,8 @@ select {
     font-size: 12px;
   }
 
-  .adminTabs.hasManagers .adminTabBtn {
-    font-size: 11.5px;
-  }
 }
 
-
-/* ===== Admin overview and lightweight usage analytics ===== */
-.adminOverview {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.adminAttentionBanner {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  padding: 14px;
-  border: 1px solid var(--green-200);
-  border-radius: 18px;
-  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
-}
-
-.adminAttentionBanner.hasItems {
-  border-color: #f1c56a;
-  background: linear-gradient(135deg, #fff8df 0%, #ffffff 100%);
-}
-
-.adminAttentionIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
-  border-radius: 13px;
-  background: #dcfce7;
-  color: #166534;
-  font-size: 19px;
-  font-weight: 900;
-}
-
-.adminAttentionBanner.hasItems .adminAttentionIcon {
-  background: #ffe7a8;
-  color: #854d0e;
-}
-
-.adminAttentionContent {
-  flex: 1;
-  min-width: 0;
-}
-
-.adminAttentionTitle,
-.adminAttentionText {
-  display: block;
-}
-
-.adminAttentionTitle {
-  color: #17352d;
-  font-size: 15px;
-  line-height: 1.4;
-}
-
-.adminAttentionText {
-  margin-top: 4px;
-  color: #63766e;
-  font-size: 12.5px;
-  font-weight: 650;
-  line-height: 1.5;
-}
-
-.adminAttentionActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 10px;
-}
-
-.adminAttentionActions button {
-  min-height: 35px;
-  padding: 7px 11px;
-  border: 1px solid #e8c66f;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #80530b;
-  box-shadow: none;
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.adminOverviewCards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.adminMetricCard {
-  min-width: 0;
-  padding: 14px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 17px;
-  background:
-    radial-gradient(circle at top left, rgba(209, 250, 229, 0.42), transparent 45%),
-    #ffffff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
-  text-align: center;
-}
-
-.adminMetricValue {
-  display: block;
-  color: #0f6a4b;
-  font-size: 27px;
-  font-weight: 900;
-  line-height: 1.05;
-}
-
-.adminMetricLabel {
-  display: block;
-  margin-top: 7px;
-  color: #5b7167;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.adminUsagePanel {
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 17px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
-}
-
-.adminUsageTitle {
-  margin: 0 0 10px;
-  color: #17352d;
-  font-size: 16px;
-  font-weight: 850;
-}
-
-.adminUsageRow {
-  display: grid;
-  grid-template-columns: minmax(92px, 1.2fr) 1fr 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 2px;
-  border-bottom: 1px solid #e7f1ec;
-  color: #456257;
-  font-size: 13px;
-}
-
-.adminUsageRow:last-child {
-  border-bottom: 0;
-}
-
-.adminUsageRow.header {
-  padding-top: 2px;
-  color: #6a7d75;
-  font-size: 11.5px;
-  font-weight: 850;
-}
-
-.adminUsageDate {
-  font-weight: 800;
-}
-
-.adminUsageNumber {
-  text-align: center;
-  font-weight: 850;
-}
-
-.adminUsageNote {
-  margin: 12px 0 0;
-  padding: 10px 11px;
-  border-radius: 12px;
-  background: #f7fbf9;
-  color: #657970;
-  font-size: 11.5px;
-  line-height: 1.55;
-}
-
-.adminRefreshFooter {
-  display: none;
-  max-width: 560px;
-  margin: 16px auto 4px;
-  padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 4px);
-}
-
-#adminPanel[style*="block"] .adminRefreshFooter,
-.adminRefreshFooter.visible {
-  display: block;
-}
 
 .adminRefreshBtn {
   width: 100%;
@@ -2209,27 +1969,6 @@ select {
   opacity: 0.65;
   cursor: wait;
 }
-
-@media (max-width: 600px) {
-  .adminOverviewCards {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .adminMetricCard:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .adminMetricValue {
-    font-size: 25px;
-  }
-
-  .adminUsageRow {
-    grid-template-columns: minmax(82px, 1.15fr) 1fr 1fr;
-    font-size: 12.5px;
-  }
-}
-
-
 
 /* ===== v13: guided authentication, verification assistance and contact reports ===== */
 .authProgress {
@@ -2699,99 +2438,7 @@ select {
   border-color: #f2dc9f;
 }
 
-@media (max-width: 600px) {
-  .adminTabs,
-  .adminTabs.hasManagers {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 /* ===== Admin navigation and incremental lists ===== */
-.adminTabs,
-.adminTabs.hasManagers {
-  display: flex;
-  grid-template-columns: none;
-  gap: 7px;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scroll-snap-type: inline proximity;
-  scrollbar-width: thin;
-}
-
-.adminTabs .adminTabBtn,
-.adminTabs.hasManagers .adminTabBtn {
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 106px;
-  scroll-snap-align: start;
-}
-
-.adminTabs .adminTabBtn:nth-child(4) {
-  min-width: 154px;
-}
-
-.adminQuickGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.adminQuickAction {
-  position: relative;
-  min-height: 100px;
-  padding: 15px;
-  border: 1px solid #d7ebe1;
-  border-radius: 17px;
-  background: #ffffff;
-  color: #214c3d;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055);
-  text-align: right;
-}
-
-.adminQuickBadge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 23px;
-  min-height: 23px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: #be123c;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.adminQuickAction:hover {
-  border-color: var(--green-300);
-  background: var(--green-50);
-}
-
-.adminQuickIcon {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 22px;
-}
-
-.adminQuickTitle {
-  display: block;
-  font-size: 15px;
-  font-weight: 850;
-}
-
-.adminQuickNote {
-  display: block;
-  margin-top: 4px;
-  color: #667d73;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.45;
-}
-
-.adminUsagePlaceholder,
 .adminLoadingCard {
   padding: 18px 15px;
   border: 1px dashed #cce4d8;
@@ -2803,7 +2450,6 @@ select {
   line-height: 1.55;
 }
 
-.adminInlineBtn,
 .adminLoadMoreBtn {
   min-height: 40px;
   padding: 9px 15px;
@@ -2814,10 +2460,6 @@ select {
   box-shadow: none;
   font-size: 13px;
   font-weight: 800;
-}
-
-.adminInlineBtn {
-  margin-top: 10px;
 }
 
 .adminLoadMore {
@@ -2841,32 +2483,6 @@ select {
     margin-inline: -4px;
     padding: 6px;
     border-radius: 16px;
-  }
-
-  .adminTabs,
-  .adminTabs.hasManagers {
-    display: flex;
-    grid-template-columns: none;
-    margin-inline: -2px;
-  }
-
-  .adminTabs .adminTabBtn,
-  .adminTabs.hasManagers .adminTabBtn {
-    min-width: 102px;
-    padding-inline: 10px;
-    font-size: 12px;
-  }
-
-  .adminTabs .adminTabBtn:nth-child(4) {
-    min-width: 144px;
-  }
-
-  .adminQuickGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .adminQuickAction {
-    min-height: 82px;
   }
 
   .adminCard {
@@ -3268,4 +2884,383 @@ select {
 @media (max-width: 390px) {
   #userInfo { flex-wrap: wrap; }
   #userInfoText { flex-basis: 100%; }
+}
+
+/* ===== Focused admin experience: attention, people and more ===== */
+.adminTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.adminTabs .adminTabBtn {
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  padding: 9px 8px;
+  scroll-snap-align: none;
+  white-space: nowrap;
+}
+
+#adminAttentionFilters,
+#adminPeopleFilters {
+  overflow: visible;
+}
+
+#adminAttentionFilters .adminFilterBtn,
+#adminPeopleFilters .adminFilterBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 8px;
+  text-align: center;
+}
+
+.adminFocusCard,
+.adminPersonCard {
+  overflow: visible;
+}
+
+.adminFocusAction {
+  margin-top: 12px;
+  border-top: 1px solid #e4eee9;
+}
+
+.adminFocusAction > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 9px 13px;
+  border: 1px solid var(--green-300);
+  border-radius: 12px;
+  background: var(--green-50);
+  color: var(--green-800);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  list-style: none;
+}
+
+.adminFocusAction > summary::-webkit-details-marker {
+  display: none;
+}
+
+.adminFocusAction > summary::after {
+  content: "⌄";
+  margin-inline-start: 8px;
+  font-size: 15px;
+  transition: transform 0.18s ease;
+}
+
+.adminFocusAction[open] > summary {
+  border-color: var(--green-500);
+  background: var(--green-100);
+}
+
+.adminFocusAction[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.adminFocusActionBody {
+  padding-top: 12px;
+}
+
+.adminFocusHelp {
+  margin: 0;
+  color: #60766d;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.adminFocusEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 30px 20px;
+  border: 1px solid var(--green-200);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--green-50) 100%);
+  color: var(--green-800);
+  text-align: center;
+}
+
+.adminFocusEmpty > span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--green-100);
+  color: var(--green-700);
+  font-size: 23px;
+  font-weight: 900;
+}
+
+.adminFocusEmpty strong {
+  font-size: 15px;
+}
+
+.adminFocusEmpty small {
+  color: #688077;
+  font-size: 12px;
+}
+
+.adminPersonBadges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  max-width: 47%;
+}
+
+.adminMiniStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 4px 8px;
+  border: 1px solid var(--green-200);
+  border-radius: 999px;
+  background: var(--green-50);
+  color: var(--green-800);
+  font-size: 10.5px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.adminMiniStatus.pending,
+.adminMiniStatus.manual {
+  border-color: #f2d38d;
+  background: #fff8e8;
+  color: #8b6416;
+}
+
+.adminMiniStatus.blocked {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #a51d3d;
+}
+
+.adminPersonSections {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.adminPersonSection {
+  padding: 13px;
+  border: 1px solid #dfece6;
+  border-radius: 14px;
+  background: #fbfefc;
+}
+
+.adminPersonSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.adminPersonSectionTitle {
+  color: #24463c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.adminPersonSection .adminCardActions {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.adminMorePage {
+  display: grid;
+  gap: 12px;
+}
+
+.adminDailyUseCard {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid var(--green-300);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffffff 0%, var(--green-50) 100%);
+  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.08);
+}
+
+.adminDailyUseValue {
+  min-width: 56px;
+  color: var(--green-700);
+  font-size: 34px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+.adminDailyUseCard strong,
+.adminDailyUseCard small {
+  display: block;
+}
+
+.adminDailyUseCard strong {
+  color: #23483d;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.adminDailyUseCard small {
+  margin-top: 4px;
+  color: #6a8078;
+  font-size: 11.5px;
+}
+
+.adminMoreSection {
+  overflow: hidden;
+  border: 1px solid #dceae4;
+  border-radius: 17px;
+  background: #ffffff;
+}
+
+.adminMoreSection > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 13px 15px;
+  color: #294a40;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 900;
+  list-style: none;
+}
+
+.adminMoreSection > summary::-webkit-details-marker {
+  display: none;
+}
+
+.adminMoreSection > summary small {
+  color: #71857e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.adminMoreSection[open] > summary {
+  border-bottom: 1px solid #e7f0ec;
+  background: var(--green-50);
+}
+
+.adminMoreSectionBody {
+  padding: 8px 14px 14px;
+}
+
+.adminMoreRow,
+.adminMoreManager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px solid #edf3f0;
+}
+
+.adminMoreRow:last-child,
+.adminMoreManager:last-child {
+  border-bottom: 0;
+}
+
+.adminMoreRow div,
+.adminMoreManager div {
+  min-width: 0;
+}
+
+.adminMoreRow strong,
+.adminMoreRow span,
+.adminMoreManager strong,
+.adminMoreManager span {
+  display: block;
+}
+
+.adminMoreRow strong,
+.adminMoreManager strong {
+  color: #29483e;
+  font-size: 12.5px;
+  font-weight: 850;
+}
+
+.adminMoreRow span,
+.adminMoreManager span {
+  margin-top: 3px;
+  color: #6d8179;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.adminMoreRow time {
+  flex: 0 0 auto;
+  color: #788b84;
+  font-size: 10.5px;
+  text-align: left;
+}
+
+.adminMoreAddManager {
+  width: 100%;
+  margin: 4px 0 8px;
+}
+
+.adminMoreManager .adminActionMenu {
+  flex: 0 0 auto;
+  min-width: 92px;
+}
+
+.adminMoreRefresh {
+  width: 100%;
+  margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .adminTabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-inline: 0;
+  }
+
+  .adminTabs .adminTabBtn {
+    min-width: 0;
+    padding-inline: 5px;
+    font-size: 12px;
+  }
+
+  #adminAttentionFilters .adminFilterBtn,
+  #adminPeopleFilters .adminFilterBtn {
+    padding-inline: 5px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .adminPersonSectionHeader {
+    flex-direction: column;
+  }
+
+  .adminPersonBadges {
+    max-width: 50%;
+  }
+
+  .adminDailyUseCard {
+    padding: 15px;
+  }
+
+  .adminDailyUseValue {
+    font-size: 31px;
+  }
+
+  .adminMoreRow,
+  .adminMoreManager {
+    align-items: flex-start;
+  }
 }
