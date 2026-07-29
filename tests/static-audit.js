@@ -322,6 +322,11 @@ assert.match(
   "The next login after manager approval must open the password-reset identity step"
 );
 assert.match(
+  appSource,
+  /recovery\.managerPrepared === true[\s\S]*?"צור סיסמה חדשה"/,
+  "A manager-prepared reset must clearly label the new-password step"
+);
+assert.match(
   indexSource,
   /authChoicePrompt">נא לבחור את האפשרות המתאימה:/,
   "The account-path choice must have an explicit instruction"
