@@ -293,6 +293,16 @@ assert.match(
   /function createEmailUpdateChoicePage_[\s\S]*?<base target="_top">[\s\S]*?<form method="post" target="_top"/,
   "Email replacement confirmation must escape the Apps Script iframe"
 );
+assert.doesNotMatch(
+  webEndpointsSource,
+  /window\.parent\.postMessage/,
+  "Apps Script action responses must not stop at the nested wrapper iframe"
+);
+assert.match(
+  webEndpointsSource,
+  /window\.top\.postMessage/,
+  "Apps Script action responses must reach the application window"
+);
 assert.match(
   webEndpointsSource,
   /recoveryTokenHash[\s\S]*?hashPasswordRecoverySecret_/,
