@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260729-auth-e2e2">
+<link rel="stylesheet" href="styles.css?v=20260729-manager-reset-ui">
 
 
 
@@ -113,8 +113,8 @@
     </div>
 
     <div id="authPhoneStep" style="display:none;">
-      <h3 class="authModeHeading">בדיקת מספר הטלפון</h3>
-      <p class="authModeDescription">כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
+      <h3 id="authPhoneTitle" class="authModeHeading">בדיקת מספר הטלפון</h3>
+      <p id="authPhoneDescription" class="authModeDescription">כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
 
       <div class="authField">
         <label for="phoneInput">מספר טלפון</label>
@@ -131,6 +131,7 @@
     <div id="authPasswordStep" style="display:none;">
       <h3 id="loginTitle" class="authModeHeading">כניסה או יצירת חשבון</h3>
       <p id="authModeDescription" class="authModeDescription">בחרו את מסלול הכניסה המתאים.</p>
+      <div class="authChoicePrompt">נא לבחור את האפשרות המתאימה:</div>
       <div class="authPathChoice" aria-label="בחירת מסלול כניסה">
         <button type="button" id="existingAccountPathBtn" onclick="selectAuthPasswordPath_('login')">
           <strong>כבר נכנסתי בעבר</strong>
@@ -162,13 +163,24 @@
       </div>
 
       <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
+      <div class="authHelpHeading">לא מצליחים להיכנס? פעלו לפי הסדר:</div>
       <div class="authSecondaryLinks">
-        <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שליחת קישור לאיפוס סיסמה</button>
-        <button type="button" class="authLinkBtn" id="passwordResetHelpBtn" onclick="requestPasswordResetHelp_()">לא הצלחתי לקבל את הקישור — בקשת אישור ממנהל</button>
+        <div class="authHelpStep regular">
+          <span class="authHelpStepNumber">1</span>
+          <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שליחת קישור לאיפוס סיסמה</button>
+          <div class="authHelpStepNote">לאחר השליחה יש לבדוק גם בספאם ובדואר זבל.</div>
+        </div>
+        <div class="authHelpStep manager">
+          <span class="authHelpStepNumber">2</span>
+          <button type="button" class="authLinkBtn" id="passwordResetHelpBtn" onclick="requestPasswordResetHelp_()">הקישור לא הגיע — בקשת אישור ממנהל</button>
+          <div class="authHelpStepNote">יש להשתמש באפשרות זו רק אחרי שניסיתם לקבל קישור במייל.</div>
+        </div>
       </div>
       <div id="passwordResetHelpStatus" class="passwordResetHelpStatus" aria-live="polite"></div>
-      <a id="passwordResetSupportLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">פנייה למנהל ב־WhatsApp</a>
-      <div class="passwordHelpNote">לא הגיע קישור? <b>יש לבדוק בתיקיות ספאם ודואר זבל</b> לפני ששולחים בקשה נוספת.</div>
+      <div class="authHelpStep whatsapp">
+        <span class="authHelpStepNumber">3</span>
+        <a id="passwordResetSupportLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">כבר שלחתם בקשה? פנייה למנהל ב־WhatsApp</a>
+      </div>
       <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
       <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
     </div>
@@ -677,7 +689,7 @@
 </div>
 
 
-<script src="app.js?v=20260729-auth-e2e2"></script>
+<script src="app.js?v=20260729-manager-reset-ui"></script>
 
 </body>
 </html>
