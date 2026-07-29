@@ -18,8 +18,8 @@ const REGISTRATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
 const AUTH_ROUTE_TIMEOUT_MS = 9000;
 const PASSWORD_HELP_TIMEOUT_MS = 30000;
-const AUTH_ROUTE_CACHE_MS = 2 * 60 * 1000;
-const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v1_";
+const AUTH_ROUTE_CACHE_MS = 15 * 1000;
+const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v2_";
 const SUPPORT_CONTACT_CACHE_KEY = "contacts_support_contact_v1";
 const SUPPORT_CONTACT_CACHE_MS = 30 * 60 * 1000;
 const PENDING_AUTH_EMAIL_STORAGE_KEY = "contacts_pending_auth_email_v1";
@@ -78,6 +78,7 @@ let pendingManualApprovalIntentHandled = false;
 let verificationSuccessUser = null;
 let lastUnverifiedEmail = "";
 let lastUnknownEmail = "";
+let managerPasswordResetEmail = "";
 let authRouteRequestSequence = 0;
 let pendingAuthRedirectTimer = null;
 let managerSupportContactPromise = null;
@@ -1452,7 +1453,8 @@ function updateAuthProgress_(stage) {
     password: "שלב 2 מתוך 3 — בחירת מסלול וסיסמה",
     verification: "שלב 3 מתוך 3 — אימות או אישור מנהל",
     verification_success: "האימות הושלם — אפשר להיכנס",
-    password_recovery: "איפוס סיסמה — ממתינים לאישור מנהל"
+    password_recovery: "איפוס סיסמה — ממתינים לאישור מנהל",
+    password_recovery_identity: "איפוס סיסמה — אימות מספר הטלפון"
   };
   if (progress) {
     progress.style.display = stage ? "block" : "none";
@@ -1531,6 +1533,7 @@ function showAuthEmailStep_(options = {}) {
   authPurpose = "login";
   authMode = "login";
   authRouteIsAdmin = false;
+  managerPasswordResetEmail = "";
   forceEmailEntry = options.forceEmailEntry === true;
   setVerificationPanelVisible_(false);
   setPasswordRecoveryPanelVisible_(false);
@@ -1555,10 +1558,12 @@ function showAuthEmailStep_(options = {}) {
   }, 0);
 }
 
-function showAuthPhoneStep_(email) {
+function showAuthPhoneStep_(email, purpose = "email_update") {
   const normalizedEmail = normalizeEmail(email);
-  authStage = "phone";
+  const isPasswordReset = purpose === "password_reset";
+  authStage = isPasswordReset ? "password_recovery_claim" : "phone";
   lastUnknownEmail = normalizedEmail;
+  managerPasswordResetEmail = isPasswordReset ? normalizedEmail : "";
   setVerificationPanelVisible_(false);
   setPasswordRecoveryPanelVisible_(false);
   setAuthRedirectPanelVisible_(false);
@@ -1567,10 +1572,32 @@ function showAuthPhoneStep_(email) {
   const form = document.getElementById("authForm");
   const phoneStep = document.getElementById("authPhoneStep");
   const phoneInput = document.getElementById("phoneInput");
+  const phoneTitle = document.getElementById("authPhoneTitle");
+  const phoneDescription = document.getElementById(
+    "authPhoneDescription"
+  );
+  const phoneButton = document.getElementById("phoneContinueBtn");
   if (form) form.style.display = "block";
   if (phoneStep) phoneStep.style.display = "block";
   if (phoneInput) phoneInput.value = "";
-  updateAuthProgress_("phone");
+  if (phoneTitle) {
+    phoneTitle.textContent = isPasswordReset
+      ? "האיפוס אושר — אימות קצר"
+      : "בדיקת מספר הטלפון";
+  }
+  if (phoneDescription) {
+    phoneDescription.textContent = isPasswordReset
+      ? "המנהל אישר איפוס סיסמה עד 23:59. הזינו את מספר הטלפון שמקושר לחשבון, ולאחר מכן תוכלו ליצור סיסמה חדשה."
+      : "כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.";
+  }
+  if (phoneButton) {
+    phoneButton.textContent = isPasswordReset
+      ? "המשך ליצירת סיסמה חדשה"
+      : "המשך";
+  }
+  updateAuthProgress_(
+    isPasswordReset ? "password_recovery_identity" : "phone"
+  );
   setLoginStatus("", "");
   setTimeout(() => {
     if (phoneInput) phoneInput.focus();
@@ -1992,6 +2019,65 @@ function requestPasswordResetAssistance_(email) {
   });
 }
 
+function requestManagerPasswordRecoveryClaim_(email, phone) {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedPhone = normalizePhone(phone);
+
+  return new Promise((resolve, reject) => {
+    const callbackName =
+      `__contactsManagerPasswordClaim_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try {
+        delete window[callbackName];
+      } catch (error) {
+        window[callbackName] = undefined;
+      }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("אימות מספר הטלפון נמשך זמן רב מדי. נסו שוב."));
+    }, PASSWORD_HELP_TIMEOUT_MS);
+
+    window[callbackName] = payload => {
+      cleanup();
+      if (!payload || payload.ok !== true) {
+        reject(
+          new Error(
+            payload && payload.message
+              ? payload.message
+              : "לא ניתן לפתוח את איפוס הסיסמה כרגע."
+          )
+        );
+        return;
+      }
+      resolve(payload);
+    };
+
+    const params = new URLSearchParams({
+      action: "claimManagerPasswordReset",
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      callback: callbackName,
+      _: String(Date.now())
+    });
+    script.src = `${AUTH_ROUTER_URL}?${params.toString()}`;
+    script.async = true;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("לא ניתן להתחבר לשירות האיפוס כרגע."));
+    };
+    document.head.appendChild(script);
+  });
+}
+
 function savePendingPasswordRecovery_(recovery) {
   activePasswordRecovery = recovery && typeof recovery === "object"
     ? { ...recovery }
@@ -2074,7 +2160,9 @@ function showPasswordRecoveryPanel_(recovery) {
   if (waiting) waiting.style.display = "block";
   if (form) form.style.display = "none";
   setPasswordRecoveryStatus_(
-    "הבקשה ממתינה לאישור מנהל. האישור, אם יינתן, יהיה תקף עד 23:59 היום."
+    recovery.managerPrepared === true
+      ? "אישור המנהל נמצא. פותח את טופס יצירת הסיסמה החדשה..."
+      : "הבקשה ממתינה לאישור מנהל. האישור, אם יינתן, יהיה תקף עד 23:59 היום."
   );
   updateManagerWhatsappLink_().catch(error => {
     console.warn("Password recovery support link failed", error);
@@ -2358,6 +2446,16 @@ async function continueFromEmailStep(options = {}) {
       return;
     }
 
+    if (route === "PASSWORD_RESET_READY") {
+      rememberPendingAuthEmail_(email);
+      showAuthPhoneStep_(email, "password_reset");
+      setLoginStatus(
+        "המנהל אישר איפוס סיסמה עד 23:59. לאחר התאמת מספר הטלפון תוכלו ליצור סיסמה חדשה.",
+        "success"
+      );
+      return;
+    }
+
     if (route === "ASK_PHONE") {
       authRouteIsAdmin = false;
       showAuthPhoneStep_(email);
@@ -2421,10 +2519,46 @@ async function continueFromPhoneStep() {
     return;
   }
 
-  setStepButtonBusy_("phoneContinueBtn", true, "בודק...", "המשך");
-  setLoginStatus("מחפש את מספר הטלפון בספר אנשי הקשר...", "loading");
+  const isManagerPasswordReset =
+    authStage === "password_recovery_claim";
+  setStepButtonBusy_(
+    "phoneContinueBtn",
+    true,
+    "בודק...",
+    isManagerPasswordReset
+      ? "המשך ליצירת סיסמה חדשה"
+      : "המשך"
+  );
+  setLoginStatus(
+    isManagerPasswordReset
+      ? "מאמת את מספר הטלפון ופותח יצירת סיסמה חדשה..."
+      : "מחפש את מספר הטלפון בספר אנשי הקשר...",
+    "loading"
+  );
 
   try {
+    if (isManagerPasswordReset) {
+      const email = normalizeEmail(managerPasswordResetEmail);
+      const result = await requestManagerPasswordRecoveryClaim_(
+        email,
+        phone
+      );
+      if (!result.requestId || !result.recoveryToken) {
+        throw new Error(
+          "אישור האיפוס אינו זמין עוד. יש לפנות למנהל."
+        );
+      }
+
+      showPasswordRecoveryPanel_({
+        email,
+        requestId: String(result.requestId),
+        recoveryToken: String(result.recoveryToken),
+        createdAt: Date.now(),
+        managerPrepared: true
+      });
+      return;
+    }
+
     const result = await requestPublicAuthRoute_("phone", phone, { forceFresh: true });
     const route = String(result.route || "SYSTEM_ERROR");
 
@@ -2459,9 +2593,21 @@ async function continueFromPhoneStep() {
     setLoginStatus("לא הצלחנו לבדוק את מספר הטלפון כרגע. נסו שוב בעוד רגע.", "error");
   } catch (error) {
     console.error("Phone route lookup failed", error);
-    setLoginStatus("בדיקת מספר הטלפון נכשלה זמנית. בדקו את החיבור ונסו שוב.", "error");
+    setLoginStatus(
+      error && error.message
+        ? error.message
+        : "בדיקת מספר הטלפון נכשלה זמנית. בדקו את החיבור ונסו שוב.",
+      "error"
+    );
   } finally {
-    setStepButtonBusy_("phoneContinueBtn", false, "בודק...", "המשך");
+    setStepButtonBusy_(
+      "phoneContinueBtn",
+      false,
+      "בודק...",
+      isManagerPasswordReset
+        ? "המשך ליצירת סיסמה חדשה"
+        : "המשך"
+    );
   }
 }
 
@@ -3151,7 +3297,10 @@ async function handlePrimaryAuthAction() {
     return;
   }
 
-  if (authStage === "phone") {
+  if (
+    authStage === "phone" ||
+    authStage === "password_recovery_claim"
+  ) {
     await continueFromPhoneStep();
     return;
   }
@@ -4908,6 +5057,7 @@ async function loadAdminUsersData_() {
       email: normalizeEmail(data.email || document.id),
       status: [
         "pending",
+        "manager_ready",
         "approved",
         "consuming",
         "used",
@@ -4927,6 +5077,8 @@ async function loadAdminUsersData_() {
       sentAt: data.sentAt || null,
       approvedAt: data.approvedAt || null,
       approvedUntil: data.approvedUntil || null,
+      preparedAt: data.preparedAt || null,
+      claimedAt: data.claimedAt || null,
       consumedAt: data.consumedAt || null
     };
   });
@@ -6980,6 +7132,156 @@ function getPendingPasswordResetRequests_() {
     );
 }
 
+function getActivePasswordRecoveryForUser_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  return adminPasswordResetRequests.find(request => {
+    if (request.email !== normalizedEmail) return false;
+    if (
+      ![
+        "pending",
+        "manager_ready",
+        "approved",
+        "consuming"
+      ].includes(request.status)
+    ) {
+      return false;
+    }
+    if (request.status === "consuming") return true;
+    const expiry = getAdminTimestampMillis_(
+      ["manager_ready", "approved"].includes(request.status)
+        ? request.approvedUntil
+        : request.requestExpiresAt
+    );
+    return !expiry || expiry > Date.now();
+  }) || null;
+}
+
+async function preparePasswordRecoveryForUser_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const user = getAllowedUserByEmail(normalizedEmail);
+  if (
+    !user ||
+    user.active !== true ||
+    !auth ||
+    !auth.currentUser ||
+    !currentUserIsAdmin
+  ) {
+    return;
+  }
+
+  const activeRecovery = getActivePasswordRecoveryForUser_(
+    normalizedEmail
+  );
+  if (activeRecovery) {
+    setAdminStatus(
+      activeRecovery.status === "pending"
+        ? "כבר קיימת בקשה של המשתמש. אשרו אותה בכרטיס בקשת האיפוס."
+        : "כבר קיים אישור איפוס פעיל לחשבון הזה.",
+      "error"
+    );
+    return;
+  }
+
+  const contact = findContactByEmail(normalizedEmail);
+  const identity = [
+    contact && contact.name
+      ? contact.name
+      : user.name || "ללא שם תואם",
+    normalizedEmail,
+    contact && contact.phone
+      ? formatPhoneForDisplay(contact.phone)
+      : user.phone
+        ? formatPhoneForDisplay(user.phone)
+        : "ללא טלפון תואם"
+  ].join("\n");
+  const reason = await requestAdminReason_({
+    title: "אישור יזום לאיפוס סיסמה",
+    intro: "האישור יהיה תקף עד 23:59. בכניסה הבאה המשתמש יזין את מספר הטלפון שמקושר לחשבון, ולאחר ההתאמה יוכל ליצור סיסמה חדשה בלי מייל.",
+    identity
+  });
+  if (reason === null) return;
+  const cleanReason = String(reason || "").trim();
+  if (cleanReason.length < 3) {
+    alert("יש לרשום דרך זיהוי קצרה לפני האישור.");
+    return;
+  }
+
+  setAdminStatus("מכין איפוס סיסמה עד 23:59...", "loading");
+  try {
+    const idToken = await auth.currentUser.getIdToken(true);
+    const result = await submitAuthRouterForm_(
+      "preparePasswordRecovery",
+      {
+        idToken,
+        email: normalizedEmail,
+        reason: cleanReason.slice(0, 300)
+      },
+      "contacts-auth-management"
+    );
+    clearCachedAuthRoute_("email", normalizedEmail);
+    setAdminStatus(
+      result.duplicate
+        ? "כבר קיים אישור איפוס פעיל עד 23:59."
+        : "האיפוס אושר. בכניסה הבאה המשתמש יוכל ליצור סיסמה חדשה לאחר התאמת מספר הטלפון.",
+      "success"
+    );
+    await loadAdminData();
+  } catch (error) {
+    console.error("Password recovery preparation failed", error);
+    setAdminStatus(
+      error && error.message
+        ? error.message
+        : "הכנת איפוס הסיסמה נכשלה.",
+      "error"
+    );
+  }
+}
+
+async function cancelPreparedPasswordRecoveryForUser_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const request = getActivePasswordRecoveryForUser_(
+    normalizedEmail
+  );
+  if (
+    !request ||
+    !request.requestId ||
+    !auth ||
+    !auth.currentUser ||
+    !currentUserIsAdmin
+  ) {
+    return;
+  }
+
+  if (!confirm(`לבטל את אישור איפוס הסיסמה של ${normalizedEmail}?`)) {
+    return;
+  }
+
+  setAdminStatus("מבטל את אישור האיפוס...", "loading");
+  try {
+    const idToken = await auth.currentUser.getIdToken(true);
+    await submitAuthRouterForm_(
+      "cancelPasswordRecovery",
+      {
+        idToken,
+        email: normalizedEmail,
+        requestId: request.requestId
+      },
+      "contacts-auth-management"
+    );
+    clearCachedAuthRoute_("email", normalizedEmail);
+    setAdminStatus("אישור האיפוס בוטל.", "success");
+    await loadAdminData();
+  } catch (error) {
+    console.error("Password recovery cancellation failed", error);
+    setAdminStatus(
+      error && error.message
+        ? error.message
+        : "ביטול אישור האיפוס נכשל.",
+      "error"
+    );
+  }
+}
+
 async function approvePasswordRecoveryForUser_(email) {
   const normalizedEmail = normalizeEmail(email);
   const request = adminPasswordResetRequests.find(item =>
@@ -7093,21 +7395,31 @@ async function closePasswordResetRequest_(email) {
   const normalizedEmail = normalizeEmail(email);
   const request = adminPasswordResetRequests.find(item =>
     item.email === normalizedEmail &&
-    ["pending", "approved"].includes(item.status)
+    ["pending", "manager_ready", "approved"].includes(item.status)
   );
-  if (!request || !firebaseApi || !db) return;
+  if (
+    !request ||
+    !request.requestId ||
+    !auth ||
+    !auth.currentUser ||
+    !currentUserIsAdmin
+  ) {
+    return;
+  }
 
   try {
-    await firebaseApi.updateDoc(
-      firebaseApi.doc(db, PASSWORD_RESET_REQUESTS_COLLECTION_NAME, request.docId),
+    const idToken = await auth.currentUser.getIdToken(true);
+    await submitAuthRouterForm_(
+      "cancelPasswordRecovery",
       {
-        status: "closed",
-        handledAt: firebaseApi.serverTimestamp(),
-        handledBy: currentAdminEmail,
-        updatedAt: firebaseApi.serverTimestamp()
-      }
+        idToken,
+        email: normalizedEmail,
+        requestId: request.requestId
+      },
+      "contacts-auth-management"
     );
-    await logAdminAction("password_reset_request_closed", normalizedEmail, "");
+    clearCachedAuthRoute_("email", normalizedEmail);
+    setAdminStatus("בקשת האיפוס נסגרה.", "success");
     await loadAdminData();
   } catch (error) {
     console.error("Password reset request close failed", error);
@@ -7204,6 +7516,8 @@ function renderAdminUsers() {
     const isSelf = normalizeEmail(user.email) === currentAdminEmail;
     const accessState = getUserAccessState_(user);
     const request = getVerificationRequestByEmail_(user.email);
+    const passwordRecovery =
+      getActivePasswordRecoveryForUser_(user.email);
     const isNewToday = isUserNewToday_(user);
     const lastAccess = user.lastAccessAt
       ? `<span class="accessStateNote">גישה אחרונה שנרשמה: ${escapeHtml(formatAdminTimestamp_(user.lastAccessAt))}</span>`
@@ -7250,6 +7564,25 @@ function renderAdminUsers() {
       approvalActions = `<button type="button" class="adminActionBtn warning" onclick="revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`;
     }
 
+    let passwordRecoveryActions = "";
+    if (!isSelf && user.active) {
+      if (!passwordRecovery) {
+        passwordRecoveryActions =
+          `<button type="button" class="adminActionBtn secondary" onclick="preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">אישור איפוס סיסמה</button>`;
+      } else if (passwordRecovery.status === "pending") {
+        passwordRecoveryActions =
+          '<button type="button" class="adminActionBtn secondary" disabled>בקשת איפוס ממתינה לטיפול</button>';
+      } else if (passwordRecovery.status === "consuming") {
+        passwordRecoveryActions =
+          '<button type="button" class="adminActionBtn secondary" disabled>הסיסמה מתעדכנת כעת</button>';
+      } else {
+        passwordRecoveryActions = `
+          <button type="button" class="adminActionBtn secondary" disabled>${passwordRecovery.status === "manager_ready" ? "איפוס מאושר עד 23:59" : "ממתין לבחירת סיסמה חדשה"}</button>
+          <button type="button" class="adminActionBtn warning" onclick="cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>
+        `;
+      }
+    }
+
     return `
       <div class="adminCard ${user.active ? "" : "blocked"} ${isNewToday ? "newAccess" : ""}">
         <div class="adminCardTop">
@@ -7270,6 +7603,7 @@ function renderAdminUsers() {
             <div class="adminCardDetailsList">${userDetails}</div>
             <div class="adminCardActions">
               ${approvalActions}
+              ${passwordRecoveryActions}
               ${isSelf
                 ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
                 : `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>
