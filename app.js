@@ -1454,7 +1454,8 @@ function updateAuthProgress_(stage) {
     verification: "שלב 3 מתוך 3 — אימות או אישור מנהל",
     verification_success: "האימות הושלם — אפשר להיכנס",
     password_recovery: "איפוס סיסמה — ממתינים לאישור מנהל",
-    password_recovery_identity: "איפוס סיסמה — אימות מספר הטלפון"
+    password_recovery_identity: "איפוס סיסמה — אימות מספר הטלפון",
+    password_recovery_new: "איפוס סיסמה — יצירת סיסמה חדשה"
   };
   if (progress) {
     progress.style.display = stage ? "block" : "none";
@@ -2144,13 +2145,26 @@ function showPasswordRecoveryPanel_(recovery) {
   authStage = "password_recovery";
   showLoginScreen();
   setPasswordRecoveryPanelVisible_(true);
+  setLoginStatus("", "");
 
   const email = document.getElementById("passwordRecoveryEmail");
   const reference = document.getElementById(
     "passwordRecoveryReference"
   );
+  const title = document.getElementById("passwordRecoveryTitle");
+  const lead = document.getElementById("passwordRecoveryLead");
   const waiting = document.getElementById("passwordRecoveryWaiting");
   const form = document.getElementById("passwordRecoveryForm");
+  if (title) {
+    title.textContent = recovery.managerPrepared === true
+      ? "צור סיסמה חדשה"
+      : "איפוס סיסמה באישור מנהל";
+  }
+  if (lead) {
+    lead.textContent = recovery.managerPrepared === true
+      ? "המנהל אישר את האיפוס. לאחר התאמת מספר הטלפון אפשר לבחור כעת סיסמה חדשה."
+      : "הבקשה נשלחה וממתינה לאישור מנהל.";
+  }
   if (email) email.textContent = recovery.email;
   if (reference) {
     reference.textContent =
@@ -2247,6 +2261,7 @@ async function checkPasswordRecoveryStatus_() {
     stopPasswordRecoveryStatusPolling_();
     if (waiting) waiting.style.display = "none";
     if (form) form.style.display = "block";
+    updateAuthProgress_("password_recovery_new");
     setPasswordRecoveryStatus_(
       "המנהל אישר את האיפוס. אפשר לבחור כעת סיסמה חדשה. האישור תקף עד 23:59 היום."
     );
