@@ -3045,36 +3045,22 @@ select {
   color: #a51d3d;
 }
 
-.adminPersonSections {
-  display: grid;
-  gap: 10px;
+.adminPersonManagement {
   padding-top: 12px;
 }
 
-.adminPersonSection {
-  padding: 13px;
-  border: 1px solid #dfece6;
-  border-radius: 14px;
-  background: #fbfefc;
+.adminPersonManagement .adminFocusHelp {
+  margin-top: 8px;
+  text-align: right;
 }
 
-.adminPersonSectionHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.adminPersonSectionTitle {
-  color: #24463c;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.adminPersonSection .adminCardActions {
+.adminPersonManagement .adminCardActions {
   margin-top: 10px;
   padding-top: 10px;
+}
+
+.adminPersonManagement .adminActionMenu {
+  flex-basis: 100%;
 }
 
 .adminMorePage {
@@ -3241,10 +3227,6 @@ select {
     padding-inline: 5px;
     font-size: 11px;
     line-height: 1.25;
-  }
-
-  .adminPersonSectionHeader {
-    flex-direction: column;
   }
 
   .adminPersonBadges {
