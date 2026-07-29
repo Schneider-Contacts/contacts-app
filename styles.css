@@ -2989,8 +2989,6 @@ select {
   min-width: 135px;
   margin: 24px auto 16px;
   border-radius: 0;
-  object-fit: contain;
-  filter: drop-shadow(0 12px 18px rgba(15, 72, 50, 0.14));
 }
 @media (max-width: 600px) {
   .authLogoBox { width: 76px; height: 76px; }
@@ -3019,11 +3017,23 @@ select {
 
 .green-signature-flipper {
   position: relative;
-  width: 56px;
-  height: 56px;
   transform-style: preserve-3d;
   transition: transform 620ms cubic-bezier(0.22, 0.72, 0.26, 1);
   will-change: transform;
+}
+
+.green-signature-header .green-signature-flipper {
+  width: 56px;
+  height: 56px;
+}
+
+.green-signature-large {
+  display: block;
+}
+
+.green-signature-large .green-signature-flipper {
+  width: 100%;
+  aspect-ratio: 1;
 }
 
 .green-signature-flipper,
@@ -3056,18 +3066,34 @@ select {
 
 .green-signature-symbol {
   display: block;
-  width: 56px;
-  height: 56px;
   object-fit: contain;
   filter: drop-shadow(0 5px 8px rgba(15, 72, 50, 0.14));
 }
 
+.green-signature-header .green-signature-symbol {
+  width: 56px;
+  height: 56px;
+}
+
+.green-signature-large .green-signature-symbol {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 12px 18px rgba(15, 72, 50, 0.14));
+}
+
+.green-signature-large-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(15, 72, 50, 0.14));
+}
+
 .green-signature-copy {
-  position: absolute;
-  z-index: 3;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 190px;
+  width: 100%;
+  max-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
   color: #146c43;
   text-align: center;
   direction: ltr;
@@ -3076,6 +3102,8 @@ select {
   visibility: hidden;
   transform: translateY(-4px);
   transition:
+    max-height 320ms ease,
+    margin-top 320ms ease,
     opacity 320ms ease,
     transform 320ms ease,
     visibility 0s linear 320ms;
@@ -3112,27 +3140,21 @@ select {
 }
 
 .green-signature-root.green-signature-active .green-signature-copy {
+  max-height: 70px;
+  margin-top: 10px;
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
   transition-delay: 260ms;
 }
 
-.appHeaderTop.green-signature-host-active {
-  margin-bottom: 72px;
-  transition: margin-bottom 320ms ease;
-}
-
 @media (max-width: 600px) {
-  .green-signature-flipper,
-  .green-signature-symbol {
+  .green-signature-header .green-signature-flipper,
+  .green-signature-header .green-signature-symbol {
     width: 50px;
     height: 50px;
   }
 
-  .green-signature-copy {
-    width: 178px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3159,8 +3181,7 @@ select {
     opacity: 1;
   }
 
-  .green-signature-copy,
-  .appHeaderTop.green-signature-host-active {
+  .green-signature-copy {
     transition-duration: 180ms;
   }
 }
