@@ -2389,8 +2389,10 @@ function doPost(e) {
     return createTemporaryAccessPostResponse_(e);
   }
   if (
+    action === "preparePasswordRecovery" ||
     action === "approvePasswordRecovery" ||
-    action === "consumePasswordRecovery"
+    action === "consumePasswordRecovery" ||
+    action === "cancelPasswordRecovery"
   ) {
     return createAuthManagementPostResponse_(e);
   }
