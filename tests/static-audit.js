@@ -130,6 +130,187 @@ assert(
     emailUpdateSource.includes(activeAuthRouterId),
   "Every public authentication form must use the active Apps Script deployment"
 );
+assert.match(
+  appSource,
+  /function initHiddenGreenSignature_\(\)/,
+  "The permanent owner signature initializer must exist"
+);
+assert.match(
+  appSource,
+  /PROTECTED_EASTER_EGG_START[\s\S]*?PROTECTED_EASTER_EGG_END/,
+  "The permanent owner signature JavaScript must remain protected"
+);
+assert.match(
+  indexSource,
+  /data-green-signature-root[\s\S]*?Since 1913[\s\S]*?Built with green intent\.[\s\S]*?G 💚/,
+  "The permanent owner signature wording must remain intact"
+);
+assert.strictEqual(
+  (indexSource.match(/data-green-signature-root/g) || []).length,
+  1,
+  "The hidden signature must target exactly one in-app logo"
+);
+assert(
+  fs.existsSync(path.join(root, "maccabi-haifa-symbol.svg")),
+  "The local Maccabi Haifa symbol must exist"
+);
+
+const extractCompleteFunction = (source, functionName) => {
+  const start = source.indexOf(`function ${functionName}(`);
+  assert(start >= 0, `Could not find function: ${functionName}`);
+
+  const bodyStart = source.indexOf("{", start);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+
+  throw new Error(`Could not extract complete function: ${functionName}`);
+};
+
+const createClassList = () => {
+  const values = new Set();
+  return {
+    add: (...names) => names.forEach(name => values.add(name)),
+    remove: (...names) => names.forEach(name => values.delete(name)),
+    contains: name => values.has(name)
+  };
+};
+
+const signatureListeners = new Map();
+const signatureRoot = {
+  dataset: {},
+  classList: createClassList(),
+  addEventListener: (eventName, listener) => {
+    const listeners = signatureListeners.get(eventName) || [];
+    listeners.push(listener);
+    signatureListeners.set(eventName, listeners);
+  }
+};
+const signatureHost = { classList: createClassList() };
+const signatureCopyAttributes = {};
+const signatureCopy = {
+  setAttribute: (name, value) => {
+    signatureCopyAttributes[name] = value;
+  }
+};
+signatureRoot.closest = selector =>
+  selector === ".appHeaderTop" ? signatureHost : null;
+signatureRoot.querySelector = selector =>
+  selector === ".green-signature-copy" ? signatureCopy : null;
+
+let signatureClock = 0;
+let signatureTimerId = 0;
+const signatureTimers = new Map();
+const advanceSignatureClock = durationMs => {
+  const targetTime = signatureClock + durationMs;
+
+  while (true) {
+    const nextTimer = [...signatureTimers.entries()]
+      .filter(([, timer]) => timer.time <= targetTime)
+      .sort((left, right) => left[1].time - right[1].time)[0];
+    if (!nextTimer) break;
+
+    const [timerId, timer] = nextTimer;
+    signatureTimers.delete(timerId);
+    signatureClock = timer.time;
+    timer.callback();
+  }
+
+  signatureClock = targetTime;
+};
+const dispatchSignaturePointer = (eventName, overrides = {}) => {
+  const event = {
+    pointerId: 1,
+    pointerType: "touch",
+    button: 0,
+    isPrimary: true,
+    clientX: 10,
+    clientY: 10,
+    preventDefault() {},
+    ...overrides
+  };
+  (signatureListeners.get(eventName) || []).forEach(listener => listener(event));
+};
+
+const signatureSandbox = {
+  document: {
+    querySelector: selector =>
+      selector === "[data-green-signature-root]" ? signatureRoot : null
+  },
+  window: {
+    setTimeout: (callback, durationMs) => {
+      signatureTimerId += 1;
+      signatureTimers.set(signatureTimerId, {
+        callback,
+        time: signatureClock + durationMs
+      });
+      return signatureTimerId;
+    },
+    clearTimeout: timerId => signatureTimers.delete(timerId)
+  },
+  Math
+};
+vm.createContext(signatureSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "initHiddenGreenSignature_"),
+  signatureSandbox
+);
+signatureSandbox.initHiddenGreenSignature_();
+
+dispatchSignaturePointer("pointerdown");
+advanceSignatureClock(250);
+dispatchSignaturePointer("pointerup");
+advanceSignatureClock(3000);
+assert(
+  !signatureRoot.classList.contains("green-signature-active"),
+  "A short press must not activate the owner signature"
+);
+
+dispatchSignaturePointer("pointerdown");
+dispatchSignaturePointer("pointermove", { clientX: 30 });
+advanceSignatureClock(3000);
+assert(
+  !signatureRoot.classList.contains("green-signature-active"),
+  "Significant movement must cancel the owner signature"
+);
+
+dispatchSignaturePointer("pointerdown");
+advanceSignatureClock(3000);
+assert(
+  signatureRoot.classList.contains("green-signature-active") &&
+    signatureHost.classList.contains("green-signature-host-active") &&
+    signatureCopyAttributes["aria-hidden"] === "false",
+  "A continuous three-second press must activate the owner signature"
+);
+
+dispatchSignaturePointer("pointerdown", { pointerId: 2 });
+advanceSignatureClock(4999);
+assert(
+  signatureRoot.classList.contains("green-signature-active"),
+  "The active signature must ignore duplicate activation attempts"
+);
+advanceSignatureClock(1);
+assert(
+  !signatureRoot.classList.contains("green-signature-active") &&
+    !signatureHost.classList.contains("green-signature-host-active"),
+  "The original logo must begin returning after five seconds"
+);
+advanceSignatureClock(700);
+assert.strictEqual(
+  signatureTimers.size,
+  0,
+  "The owner signature must leave no active timers after returning"
+);
+
+dispatchSignaturePointer("pointerdown", { pointerId: 3 });
+advanceSignatureClock(3000);
+assert(
+  signatureRoot.classList.contains("green-signature-active"),
+  "The owner signature must work again after it has closed"
+);
 assert(
   !appSource.includes(obsoleteAuthRouterId) &&
     !emailUpdateSource.includes(obsoleteAuthRouterId),
