@@ -533,8 +533,7 @@ vm.runInContext(
     extractCompleteFunction(appSource, "renderAdminAttentionReportCard_"),
     extractCompleteFunction(appSource, "renderAdminAttention_"),
     extractCompleteFunction(appSource, "adminPersonMatchesQuery_"),
-    extractCompleteFunction(appSource, "renderAdminPersonContactSection_"),
-    extractCompleteFunction(appSource, "renderAdminPersonAccessSection_"),
+    extractCompleteFunction(appSource, "renderAdminPersonManagement_"),
     extractCompleteFunction(appSource, "renderAdminPeople_"),
     extractCompleteFunction(appSource, "renderAdminMoreActivityHtml_"),
     extractCompleteFunction(appSource, "renderAdminMoreManagersHtml_"),
@@ -553,8 +552,13 @@ assert.match(
 adminFocusSandbox.renderAdminPeople_();
 assert.match(
   adminFocusElements.adminList.innerHTML,
-  /ניהול האדם[\s\S]*?פרטי איש קשר[\s\S]*?כניסה והרשאות/,
-  "Each person card must combine contact details and access management"
+  /ניהול איש הקשר[\s\S]*?עריכת פרטים[\s\S]*?עזרה באיפוס סיסמה[\s\S]*?פעולות נוספות[\s\S]*?חסימת גישה[\s\S]*?מחיקת הרשאה[\s\S]*?הסרה מהאפליקציה/,
+  "Each contact must expose one ordered management flow"
+);
+assert.doesNotMatch(
+  adminFocusElements.adminList.innerHTML,
+  /פרטי איש קשר[\s\S]*?כניסה והרשאות/,
+  "Contact management must not be split into separate sections"
 );
 
 adminFocusSandbox.renderAdminMore_();
@@ -569,8 +573,7 @@ const focusedAdminRenderSource = [
   "renderAdminAttentionResetCard_",
   "renderAdminAttentionContactCard_",
   "renderAdminAttentionReportCard_",
-  "renderAdminPersonContactSection_",
-  "renderAdminPersonAccessSection_",
+  "renderAdminPersonManagement_",
   "renderAdminMoreManagersHtml_",
   "renderAdminMore_"
 ].map(name => extractCompleteFunction(appSource, name)).join("\n");
