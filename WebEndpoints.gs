@@ -452,9 +452,29 @@ function getPublicEmailAuthRoute_(email) {
   if (!allowedUser) return "ASK_PHONE";
   if (allowedUser.active !== true) return "BLOCKED";
 
-  return isAllowedEmailPhonePairActive_(normalizedEmail, allowedUser)
-    ? "PASSWORD"
-    : "ASK_PHONE";
+  if (!isAllowedEmailPhonePairActive_(normalizedEmail, allowedUser)) {
+    return "ASK_PHONE";
+  }
+
+  const passwordRecovery = getPasswordResetRequest_(normalizedEmail);
+  const recoveryExpiry = passwordRecovery && (
+    passwordRecovery.approvedUntil ||
+    passwordRecovery.requestExpiresAt
+  )
+    ? new Date(
+        passwordRecovery.approvedUntil ||
+        passwordRecovery.requestExpiresAt
+      )
+    : null;
+  const managerResetReady = Boolean(
+    passwordRecovery &&
+    passwordRecovery.status === "manager_ready" &&
+    recoveryExpiry &&
+    !Number.isNaN(recoveryExpiry.getTime()) &&
+    recoveryExpiry.getTime() > Date.now()
+  );
+
+  return managerResetReady ? "PASSWORD_RESET_READY" : "PASSWORD";
 }
 
 function getPublicPhoneAuthRoute_(phone) {
@@ -497,9 +517,13 @@ function getPublicAuthRoute_(kind, value, forceFresh) {
 
   if (normalizedKind === "email") {
     isAdminEmail = isActiveAdminEmail_(normalizedValue);
-    route = isAdminEmail
-      ? "PASSWORD"
-      : getPublicEmailAuthRoute_(normalizedValue);
+    route = getPublicEmailAuthRoute_(normalizedValue);
+    if (
+      isAdminEmail &&
+      ["ASK_PHONE", "BLOCKED"].includes(route)
+    ) {
+      route = "PASSWORD";
+    }
   } else if (normalizedKind === "phone") {
     route = getPublicPhoneAuthRoute_(normalizedValue);
   }
@@ -712,19 +736,19 @@ function savePasswordResetRequest_(email) {
     const nowDate = new Date();
     const existing = getPasswordResetRequest_(normalizedEmail);
     const existingExpiry = existing && (
-      existing.status === "approved"
+      ["approved", "manager_ready"].includes(existing.status)
         ? existing.approvedUntil
         : existing.requestExpiresAt
     )
       ? new Date(
-          existing.status === "approved"
+          ["approved", "manager_ready"].includes(existing.status)
             ? existing.approvedUntil
             : existing.requestExpiresAt
         )
       : null;
     const existingActive = Boolean(
       existing &&
-      ["pending", "approved"].includes(existing.status) &&
+      ["pending", "approved", "manager_ready"].includes(existing.status) &&
       existingExpiry &&
       !Number.isNaN(existingExpiry.getTime()) &&
       existingExpiry.getTime() > nowDate.getTime()
@@ -862,7 +886,9 @@ function createPasswordRecoveryStatusJsonp_(e) {
     ) {
       payload = { ok: true, status: "missing" };
     } else {
-      const statusExpiry = request.status === "approved"
+      const statusExpiry = ["approved", "manager_ready"].includes(
+        request.status
+      )
         ? request.approvedUntil
         : request.requestExpiresAt;
       const approvedUntil = statusExpiry
@@ -876,7 +902,11 @@ function createPasswordRecoveryStatusJsonp_(e) {
 
       payload = {
         ok: true,
-        status: expired && ["pending", "approved"].includes(request.status)
+        status: expired && [
+          "pending",
+          "approved",
+          "manager_ready"
+        ].includes(request.status)
           ? "expired"
           : request.status,
         approvedUntil: approvedUntil && !Number.isNaN(approvedUntil.getTime())
@@ -1320,6 +1350,317 @@ function updateFirebasePasswordAdmin_(localId, password) {
   }
 }
 
+function invalidatePublicEmailAuthRouteCache_(email) {
+  const normalizedEmail = normalizeEmail_(email);
+  if (!normalizedEmail) return;
+  CacheService.getScriptCache().remove(
+    getPublicAuthRouteCacheKey_("email", normalizedEmail)
+  );
+}
+
+function preparePasswordRecoveryFromWeb_(parameters) {
+  const admin = verifyFirebaseAdminIdToken_(
+    parameters && parameters.idToken
+  );
+  const email = normalizeEmail_(parameters && parameters.email);
+  const reason = cleanSheetValue_(
+    parameters && parameters.reason
+  ).slice(0, 300);
+
+  if (!email || !isValidEmail_(email)) {
+    throw new Error("כתובת המייל אינה תקינה.");
+  }
+  if (reason.length < 3) {
+    throw new Error("יש לציין בקצרה כיצד זהות המשתמש אומתה.");
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error("המערכת עסוקה באישור אחר. נסו שוב בעוד רגע.");
+  }
+
+  try {
+    const allowedUser = getAllowedUser_(email);
+    const eligible = Boolean(
+      allowedUser &&
+      allowedUser.active === true &&
+      isAllowedEmailPhonePairActive_(email, allowedUser)
+    );
+    if (!eligible) {
+      throw new Error(
+        "לא ניתן לאשר איפוס לחשבון שאינו פעיל ומקושר לטלפון."
+      );
+    }
+
+    // האישור מיועד רק לחשבון Firebase שכבר קיים.
+    getFirebaseUserByEmailAdmin_(email);
+
+    const now = new Date();
+    const existing = getPasswordResetRequest_(email);
+    const existingExpiry = existing && (
+      existing.approvedUntil ||
+      existing.requestExpiresAt
+    )
+      ? new Date(
+          existing.approvedUntil ||
+          existing.requestExpiresAt
+        )
+      : null;
+    const existingActive = Boolean(
+      existing &&
+      [
+        "pending",
+        "approved",
+        "manager_ready",
+        "consuming"
+      ].includes(existing.status) &&
+      (
+        existing.status === "consuming" ||
+        (
+          existingExpiry &&
+          !Number.isNaN(existingExpiry.getTime()) &&
+          existingExpiry.getTime() > now.getTime()
+        )
+      )
+    );
+
+    if (existingActive && existing.status === "manager_ready") {
+      return {
+        ok: true,
+        duplicate: true,
+        email,
+        approvedUntil: new Date(existing.approvedUntil).toISOString()
+      };
+    }
+    if (existingActive && existing.status === "pending") {
+      throw new Error(
+        "כבר קיימת בקשת איפוס של המשתמש. יש לאשר אותה בכרטיס הבקשה."
+      );
+    }
+    if (existingActive && existing.status === "approved") {
+      throw new Error(
+        "האיפוס כבר אושר וממתין לבחירת סיסמה חדשה."
+      );
+    }
+    if (existingActive && existing.status === "consuming") {
+      throw new Error("הסיסמה כבר מתעדכנת.");
+    }
+
+    const nowIso = now.toISOString();
+    const approvedUntil = getEndOfIsraelDay_(now);
+    const requestId = Utilities.getUuid().replace(/-/g, "");
+    patchAuthFlowDocument_(
+      PASSWORD_RECOVERY_REQUEST_COLLECTION,
+      email,
+      {
+        email: { stringValue: email },
+        requestId: { stringValue: requestId },
+        recoveryTokenHash: { stringValue: "" },
+        status: { stringValue: "manager_ready" },
+        requestedAt: { timestampValue: nowIso },
+        requestExpiresAt: {
+          timestampValue: approvedUntil.toISOString()
+        },
+        approvedAt: { timestampValue: nowIso },
+        approvedUntil: {
+          timestampValue: approvedUntil.toISOString()
+        },
+        preparedAt: { timestampValue: nowIso },
+        claimedAt: { nullValue: null },
+        handledAt: { timestampValue: nowIso },
+        handledBy: { stringValue: admin.email },
+        approvalReason: { stringValue: reason },
+        consumedAt: { nullValue: null },
+        consumingAt: { nullValue: null },
+        sentAt: { nullValue: null },
+        updatedAt: { timestampValue: nowIso }
+      }
+    );
+    try {
+      appendFirestoreActivity_({
+        action: "password_recovery_prepared",
+        targetEmail: email,
+        adminEmail: admin.email,
+        timestamp: nowIso
+      });
+    } catch (auditError) {
+      console.error("Password recovery preparation audit failed:", auditError);
+    }
+    invalidatePublicEmailAuthRouteCache_(email);
+
+    return {
+      ok: true,
+      duplicate: false,
+      email,
+      approvedUntil: approvedUntil.toISOString()
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function claimManagerPasswordRecovery_(email, phone) {
+  const normalizedEmail = normalizeEmail_(email);
+  const normalizedPhone = normalizeIsraeliPhone(phone);
+  if (
+    !normalizedEmail ||
+    !isValidEmail_(normalizedEmail) ||
+    !isValidNormalizedIsraeliPhone_(normalizedPhone)
+  ) {
+    throw new Error("פרטי הזיהוי אינם תקינים.");
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error("המערכת עסוקה באיפוס אחר. נסו שוב בעוד רגע.");
+  }
+
+  try {
+    const request = getPasswordResetRequest_(normalizedEmail);
+    const approvedUntil = request && request.approvedUntil
+      ? new Date(request.approvedUntil)
+      : null;
+    if (
+      !request ||
+      request.status !== "manager_ready" ||
+      !approvedUntil ||
+      Number.isNaN(approvedUntil.getTime()) ||
+      approvedUntil.getTime() <= Date.now()
+    ) {
+      throw new Error(
+        "לא נמצא אישור איפוס פעיל. יש לפנות למנהל."
+      );
+    }
+
+    const allowedUser = getAllowedUser_(normalizedEmail);
+    const registeredPhone = normalizeIsraeliPhone(
+      allowedUser && allowedUser.phone
+    );
+    if (
+      !allowedUser ||
+      allowedUser.active !== true ||
+      registeredPhone !== normalizedPhone ||
+      !isAllowedEmailPhonePairActive_(normalizedEmail, allowedUser)
+    ) {
+      throw new Error(
+        "מספר הטלפון אינו תואם להרשאה הפעילה."
+      );
+    }
+
+    const recoveryToken = createPasswordRecoverySecret_();
+    const claimedAt = new Date().toISOString();
+    patchAuthFlowDocument_(
+      PASSWORD_RECOVERY_REQUEST_COLLECTION,
+      normalizedEmail,
+      {
+        status: { stringValue: "approved" },
+        recoveryTokenHash: {
+          stringValue: hashPasswordRecoverySecret_(recoveryToken)
+        },
+        claimedAt: { timestampValue: claimedAt },
+        updatedAt: { timestampValue: claimedAt }
+      }
+    );
+    try {
+      appendFirestoreActivity_({
+        action: "password_recovery_claimed",
+        targetEmail: normalizedEmail,
+        timestamp: claimedAt
+      });
+    } catch (auditError) {
+      console.error("Password recovery claim audit failed:", auditError);
+    }
+    invalidatePublicEmailAuthRouteCache_(normalizedEmail);
+
+    return {
+      ok: true,
+      email: normalizedEmail,
+      requestId: request.requestId,
+      recoveryToken,
+      approvedUntil: approvedUntil.toISOString()
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function createManagerPasswordRecoveryClaimJsonp_(e) {
+  let callback = e && e.parameter
+    ? cleanSheetValue_(e.parameter.callback)
+    : "";
+  if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callback)) {
+    callback = "receiveManagerPasswordRecoveryClaim";
+  }
+
+  let payload;
+  try {
+    payload = claimManagerPasswordRecovery_(
+      e && e.parameter ? e.parameter.email : "",
+      e && e.parameter ? e.parameter.phone : ""
+    );
+  } catch (error) {
+    console.error("Manager-prepared password recovery claim failed:", error);
+    payload = {
+      ok: false,
+      message: error && error.message
+        ? String(error.message)
+        : "לא ניתן לפתוח את איפוס הסיסמה כרגע."
+    };
+  }
+
+  return ContentService
+    .createTextOutput(
+      callback + "(" + JSON.stringify(payload).replace(/</g, "\\u003c") + ");"
+    )
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function cancelPasswordRecoveryFromWeb_(parameters) {
+  const admin = verifyFirebaseAdminIdToken_(
+    parameters && parameters.idToken
+  );
+  const email = normalizeEmail_(parameters && parameters.email);
+  const requestId = cleanSheetValue_(
+    parameters && parameters.requestId
+  );
+  const request = getPasswordResetRequest_(email);
+
+  if (
+    !request ||
+    !requestId ||
+    request.requestId !== requestId ||
+    !["pending", "approved", "manager_ready"].includes(request.status)
+  ) {
+    throw new Error("אישור האיפוס כבר טופל או שאינו זמין.");
+  }
+
+  const nowIso = new Date().toISOString();
+  patchAuthFlowDocument_(
+    PASSWORD_RECOVERY_REQUEST_COLLECTION,
+    email,
+    {
+      status: { stringValue: "closed" },
+      recoveryTokenHash: { stringValue: "" },
+      handledAt: { timestampValue: nowIso },
+      handledBy: { stringValue: admin.email },
+      updatedAt: { timestampValue: nowIso }
+    }
+  );
+  try {
+    appendFirestoreActivity_({
+      action: "password_recovery_closed",
+      targetEmail: email,
+      adminEmail: admin.email,
+      timestamp: nowIso
+    });
+  } catch (auditError) {
+    console.error("Password recovery close audit failed:", auditError);
+  }
+  invalidatePublicEmailAuthRouteCache_(email);
+
+  return { ok: true, email };
+}
+
 function approvePasswordRecoveryFromWeb_(parameters) {
   const admin = verifyFirebaseAdminIdToken_(
     parameters && parameters.idToken
@@ -1585,10 +1926,14 @@ function createAuthManagementPostResponse_(e) {
   let payload;
 
   try {
-    if (action === "approvePasswordRecovery") {
+    if (action === "preparePasswordRecovery") {
+      payload = preparePasswordRecoveryFromWeb_(parameters);
+    } else if (action === "approvePasswordRecovery") {
       payload = approvePasswordRecoveryFromWeb_(parameters);
     } else if (action === "consumePasswordRecovery") {
       payload = consumePasswordRecoveryFromWeb_(parameters);
+    } else if (action === "cancelPasswordRecovery") {
+      payload = cancelPasswordRecoveryFromWeb_(parameters);
     } else {
       throw new Error("פעולת האימות אינה מוכרת.");
     }
@@ -2118,6 +2463,14 @@ function doGet(e) {
     cleanSheetValue_(e.parameter.action) === "passwordResetStatus"
   ) {
     return createPasswordRecoveryStatusJsonp_(e);
+  }
+
+  if (
+    e &&
+    e.parameter &&
+    cleanSheetValue_(e.parameter.action) === "claimManagerPasswordReset"
+  ) {
+    return createManagerPasswordRecoveryClaimJsonp_(e);
   }
 
   if (
