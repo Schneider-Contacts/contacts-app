@@ -17,6 +17,7 @@ const AUTH_ROUTER_URL =
 const REGISTRATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
 const AUTH_ROUTE_TIMEOUT_MS = 9000;
+const PASSWORD_HELP_TIMEOUT_MS = 30000;
 const AUTH_ROUTE_CACHE_MS = 2 * 60 * 1000;
 const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v1_";
 const SUPPORT_CONTACT_CACHE_KEY = "contacts_support_contact_v1";
@@ -1964,7 +1965,7 @@ function requestPasswordResetAssistance_(email) {
     const timer = setTimeout(() => {
       cleanup();
       reject(new Error("PASSWORD_HELP_TIMEOUT"));
-    }, AUTH_ROUTE_TIMEOUT_MS);
+    }, PASSWORD_HELP_TIMEOUT_MS);
 
     window[callbackName] = payload => {
       cleanup();
@@ -3904,7 +3905,8 @@ async function handleAuthenticatedUser(user, options = {}) {
       !isAdmin &&
       permission &&
       permission.active &&
-      permission.accessReviewRequired
+      permission.accessReviewRequired &&
+      !permissionHasTemporaryAccess_(permission)
     ) {
       try {
         const activation = await requestTemporaryAccessActivation_(user);
@@ -6686,9 +6688,17 @@ async function approveManualAccess_(email, temporary = false) {
   }
 
   const identity = [
-    contact && contact.name ? contact.name : "ללא שם",
+    contact && contact.name
+      ? contact.name
+      : user && user.name
+        ? user.name
+        : "ללא שם",
     normalizedEmail,
-    contact && contact.phone ? formatPhoneForDisplay(contact.phone) : "ללא טלפון"
+    contact && contact.phone
+      ? formatPhoneForDisplay(contact.phone)
+      : user && user.phone
+        ? formatPhoneForDisplay(user.phone)
+        : "ללא טלפון"
   ].join("\n");
 
   const reason = await requestAdminReason_({
@@ -6987,12 +6997,19 @@ async function approvePasswordRecoveryForUser_(email) {
   }
 
   const contact = findContactByEmail(normalizedEmail);
+  const user = getAllowedUserByEmail(normalizedEmail);
   const identity = [
-    contact && contact.name ? contact.name : "ללא שם תואם",
+    contact && contact.name
+      ? contact.name
+      : user && user.name
+        ? user.name
+        : "ללא שם תואם",
     normalizedEmail,
     contact && contact.phone
       ? formatPhoneForDisplay(contact.phone)
-      : "ללא טלפון תואם"
+      : user && user.phone
+        ? formatPhoneForDisplay(user.phone)
+        : "ללא טלפון תואם"
   ].join("\n");
   const reason = await requestAdminReason_({
     title: "אישור איפוס סיסמה עד 23:59",
