@@ -3013,6 +3013,7 @@ select {
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
+  -webkit-touch-callout: none;
   touch-action: manipulation;
 }
 
@@ -3023,6 +3024,16 @@ select {
   transform-style: preserve-3d;
   transition: transform 620ms cubic-bezier(0.22, 0.72, 0.26, 1);
   will-change: transform;
+}
+
+.green-signature-flipper,
+.green-signature-face,
+.green-signature-face img {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 .green-signature-face {
