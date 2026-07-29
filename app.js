@@ -8546,6 +8546,9 @@ async function deleteUserPermission(email) {
           item.email === normalizedEmail
         ) || null
       : null;
+    const verificationRequest = getVerificationRequestByEmail_(
+      normalizedEmail
+    );
     const batch = firebaseApi.writeBatch(db);
     const now = firebaseApi.serverTimestamp();
 
@@ -8566,6 +8569,30 @@ async function deleteUserPermission(email) {
           ALLOWED_PHONES_COLLECTION_NAME,
           phonePermission.docId
         )
+      );
+    }
+
+    if (
+      verificationRequest &&
+      ["pending", "temporary_active", "approved"].includes(
+        verificationRequest.status
+      )
+    ) {
+      batch.update(
+        firebaseApi.doc(
+          db,
+          "verificationRequests",
+          verificationRequest.docId
+        ),
+        {
+          status: verificationRequest.status === "pending"
+            ? "rejected"
+            : "revoked",
+          temporaryAccessUntil: null,
+          handledAt: now,
+          handledBy: currentAdminEmail,
+          updatedAt: now
+        }
       );
     }
 
