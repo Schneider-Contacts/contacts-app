@@ -167,10 +167,25 @@ assert.match(
   /getCountFromServer\(countQuery\)/,
   "Admin overview must use lightweight aggregate counts"
 );
-assert.match(
+assert.doesNotMatch(
   appSource,
   /function showAppForUser\(user\)[\s\S]*?if \(currentUserIsAdmin\) \{\s*openAdminPanel\(\);/,
-  "Administrators must open directly on the management screen"
+  "Administrators must open on the regular contacts screen"
+);
+assert.match(
+  indexSource,
+  /id="adminReasonModal"[\s\S]*?id="adminReasonInput"/,
+  "Manager approvals must use an accessible in-app reason dialog"
+);
+assert.match(
+  appSource,
+  /function requestAdminReason_\(/,
+  "Manager approval reason dialog helper must exist"
+);
+assert.doesNotMatch(
+  appSource,
+  /window\.prompt\(/,
+  "Manager approval flows must not rely on native prompt dialogs"
 );
 assert.match(
   appSource,
