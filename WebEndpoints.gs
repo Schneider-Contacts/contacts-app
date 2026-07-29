@@ -1206,7 +1206,7 @@ function createTemporaryAccessPostResponse_(e) {
   return HtmlService
     .createHtmlOutput(
       "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>" +
-      "<script>window.parent.postMessage(" +
+      "<script>window.top.postMessage(" +
       serialized +
       ",\"*\"" +
       ");</script></body></html>"
@@ -1608,7 +1608,7 @@ function createAuthManagementPostResponse_(e) {
   return HtmlService
     .createHtmlOutput(
       "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>" +
-      "<script>window.parent.postMessage(" +
+      "<script>window.top.postMessage(" +
       serialized +
       ",\"*\"" +
       ");</script></body></html>"
@@ -2022,7 +2022,7 @@ function createContactApprovalPostResponse_(e) {
   const serialized = JSON.stringify(payload).replace(/</g, "\\u003c");
   const html =
     "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>" +
-    "<script>window.parent.postMessage(" +
+    "<script>window.top.postMessage(" +
     serialized +
     ",\"*\"" +
     ");</script></body></html>";
