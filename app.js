@@ -9182,6 +9182,20 @@ function updateSearchUI() {
   const clearButton = document.getElementById("clearSearchBtn");
   if (clearButton) clearButton.classList.toggle("visible", Boolean(q));
   updateQuickFilterButtons();
+  updateMainSearchActionVisibility_();
+}
+
+function updateMainSearchActionVisibility_() {
+  const hideGeneralActions =
+    isSearchActive() || isQuickFilterActive();
+  [
+    "suggestContactBtn",
+    "importAllBtn",
+    "recentContactsBtn"
+  ].forEach(buttonId => {
+    const button = document.getElementById(buttonId);
+    if (button) button.hidden = hideGeneralActions;
+  });
 }
 
 function clearSearch() {

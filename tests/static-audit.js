@@ -180,6 +180,69 @@ const extractCompleteFunction = (source, functionName) => {
   throw new Error(`Could not extract complete function: ${functionName}`);
 };
 
+const mainSearchElements = {
+  searchInput: { value: "" },
+  suggestContactBtn: { hidden: false },
+  importAllBtn: { hidden: false },
+  recentContactsBtn: { hidden: false }
+};
+const mainSearchSandbox = {
+  activeQuickFilter: "",
+  document: {
+    getElementById: id => mainSearchElements[id] || null
+  },
+  normalizeSearchText: value =>
+    String(value || "").trim().toLowerCase()
+};
+vm.createContext(mainSearchSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "isSearchActive"),
+    extractCompleteFunction(appSource, "isQuickFilterActive"),
+    extractCompleteFunction(
+      appSource,
+      "updateMainSearchActionVisibility_"
+    )
+  ].join("\n"),
+  mainSearchSandbox
+);
+
+mainSearchSandbox.updateMainSearchActionVisibility_();
+assert(
+  !mainSearchElements.suggestContactBtn.hidden &&
+    !mainSearchElements.importAllBtn.hidden &&
+    !mainSearchElements.recentContactsBtn.hidden,
+  "General contact actions must remain visible on the idle screen"
+);
+
+mainSearchElements.searchInput.value = "05";
+mainSearchSandbox.updateMainSearchActionVisibility_();
+assert(
+  mainSearchElements.suggestContactBtn.hidden &&
+    mainSearchElements.importAllBtn.hidden &&
+    mainSearchElements.recentContactsBtn.hidden,
+  "General contact actions must hide during an active search"
+);
+
+mainSearchElements.searchInput.value = "";
+mainSearchSandbox.activeQuickFilter = "labs";
+mainSearchSandbox.updateMainSearchActionVisibility_();
+assert(
+  mainSearchElements.suggestContactBtn.hidden &&
+    mainSearchElements.importAllBtn.hidden &&
+    mainSearchElements.recentContactsBtn.hidden,
+  "General contact actions must hide for quick contact lists"
+);
+
+mainSearchSandbox.activeQuickFilter = "";
+mainSearchSandbox.updateMainSearchActionVisibility_();
+assert(
+  !mainSearchElements.suggestContactBtn.hidden &&
+    !mainSearchElements.importAllBtn.hidden &&
+    !mainSearchElements.recentContactsBtn.hidden,
+  "General contact actions must return after clearing search and filters"
+);
+
 const createClassList = () => {
   const values = new Set();
   return {
