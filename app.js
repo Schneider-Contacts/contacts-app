@@ -136,6 +136,7 @@ let adminLoadedSections = new Set();
 let adminSectionLoadPromises = new Map();
 let adminUsageHistoryLoaded = false;
 let adminUsageHistoryLoading = false;
+let adminReasonResolve = null;
 
 
 function getIsraelDateKey_(date = new Date()) {
@@ -3763,10 +3764,6 @@ function showAppForUser(user) {
   updateUserInfoForUser_(user);
   setLoginStatus("", "");
   show([]);
-
-  if (currentUserIsAdmin) {
-    openAdminPanel();
-  }
 }
 
 function isPermissionDeniedError(error) {
@@ -6593,6 +6590,74 @@ function formatAdminTimestamp_(value) {
   return new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
+function requestAdminReason_({
+  title,
+  intro,
+  identity,
+  defaultValue = "זוהה טלפונית"
+}) {
+  const modal = document.getElementById("adminReasonModal");
+  const titleElement = document.getElementById("adminReasonModalTitle");
+  const introElement = document.getElementById("adminReasonIntro");
+  const identityElement = document.getElementById("adminReasonIdentity");
+  const input = document.getElementById("adminReasonInput");
+  const status = document.getElementById("adminReasonStatus");
+
+  if (!modal || !titleElement || !introElement || !identityElement || !input || !status) {
+    return Promise.resolve(null);
+  }
+
+  if (adminReasonResolve) {
+    closeAdminReasonModal_(null);
+  }
+
+  titleElement.textContent = title || "אישור מנהל";
+  introElement.textContent = intro || "";
+  identityElement.textContent = identity || "";
+  input.value = defaultValue;
+  status.textContent = "";
+  status.className = "statusMessage adminSavingStatus";
+  modal.classList.add("visible");
+  modal.setAttribute("aria-hidden", "false");
+
+  return new Promise(resolve => {
+    adminReasonResolve = resolve;
+    window.setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+  });
+}
+
+function submitAdminReasonModal_() {
+  const input = document.getElementById("adminReasonInput");
+  const status = document.getElementById("adminReasonStatus");
+  const reason = String(input && input.value ? input.value : "").trim();
+
+  if (reason.length < 3) {
+    if (status) {
+      status.textContent = "יש לרשום דרך זיהוי קצרה לפני האישור.";
+      status.className = "statusMessage adminSavingStatus error";
+    }
+    if (input) input.focus();
+    return;
+  }
+
+  closeAdminReasonModal_(reason.slice(0, 300));
+}
+
+function closeAdminReasonModal_(value = null) {
+  const modal = document.getElementById("adminReasonModal");
+  if (modal) {
+    modal.classList.remove("visible");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  const resolve = adminReasonResolve;
+  adminReasonResolve = null;
+  if (resolve) resolve(value);
+}
+
 async function approveManualAccess_(email, temporary = false) {
   if (!currentUserIsAdmin) {
     alert("רק מנהל פעיל יכול לאשר גישה.");
@@ -6626,10 +6691,13 @@ async function approveManualAccess_(email, temporary = false) {
     contact && contact.phone ? formatPhoneForDisplay(contact.phone) : "ללא טלפון"
   ].join("\n");
 
-  const reason = window.prompt(
-    `${temporary ? "אישור זמני זה יאפשר כניסה עד 23:59 היום." : "אישור קבוע זה יאפשר כניסה גם ללא אימות מייל."}\nיש לוודא את זהות המשתמש מול הפרטים הבאים:\n\n${identity}\n\nרשמו בקצרה כיצד הזהות אומתה:`,
-    "זוהה טלפונית"
-  );
+  const reason = await requestAdminReason_({
+    title: temporary ? "אישור גישה עד 23:59" : "אישור גישה קבועה",
+    intro: temporary
+      ? "האישור יאפשר כניסה עד 23:59 היום. יש לוודא תחילה את זהות המשתמש."
+      : "האישור יאפשר כניסה גם ללא אימות מייל. יש לוודא תחילה את זהות המשתמש.",
+    identity
+  });
 
   if (reason === null) return;
   const cleanReason = String(reason || "").trim();
@@ -6926,13 +6994,11 @@ async function approvePasswordRecoveryForUser_(email) {
       ? formatPhoneForDisplay(contact.phone)
       : "ללא טלפון תואם"
   ].join("\n");
-  const reason = window.prompt(
-    "האישור יאפשר למשתמש לבחור סיסמה חדשה באותו מכשיר עד 23:59 היום.\n" +
-    "יש לאמת את זהותו מחוץ לאפליקציה, בלי לבקש או למסור סיסמה.\n\n" +
-    identity +
-    "\n\nרשמו בקצרה כיצד הזהות אומתה:",
-    "זוהה טלפונית"
-  );
+  const reason = await requestAdminReason_({
+    title: "אישור איפוס סיסמה עד 23:59",
+    intro: "האישור יאפשר למשתמש לבחור סיסמה חדשה באותו מכשיר עד 23:59 היום. יש לאמת את זהותו מחוץ לאפליקציה, בלי לבקש או למסור סיסמה.",
+    identity
+  });
   if (reason === null) return;
   const cleanReason = String(reason || "").trim();
   if (cleanReason.length < 3) {
