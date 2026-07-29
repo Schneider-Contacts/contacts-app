@@ -9700,126 +9700,125 @@ window.addEventListener("pagehide", () => {
 /* PROTECTED_EASTER_EGG_START */
 /* Permanent owner signature — do not remove or modify without explicit owner approval. */
 function initHiddenGreenSignature_() {
-  const root = document.querySelector("[data-green-signature-root]");
-  if (!root || root.dataset.greenSignatureInitialized === "true") return;
-
-  const host = root.closest(".appHeaderTop");
-  const copy = root.querySelector(".green-signature-copy");
-  if (!host || !copy) return;
-
+  const roots = document.querySelectorAll("[data-green-signature-root]");
   const tapResetDurationMs = 1600;
   const visibleDurationMs = 5000;
   const returnDurationMs = 700;
   const movementLimitPx = 12;
 
-  let tapResetTimer = null;
-  let restoreTimer = null;
-  let finishTimer = null;
-  let activePointerId = null;
-  let startX = 0;
-  let startY = 0;
-  let tapCount = 0;
-  let isActive = false;
+  roots.forEach(root => {
+    if (root.dataset.greenSignatureInitialized === "true") return;
 
-  root.dataset.greenSignatureInitialized = "true";
+    const copy = root.querySelector(".green-signature-copy");
+    const showsCopy =
+      root.dataset.greenSignatureCopy === "true" && Boolean(copy);
+    let tapResetTimer = null;
+    let restoreTimer = null;
+    let finishTimer = null;
+    let activePointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let tapCount = 0;
+    let isActive = false;
 
-  const clearTimer_ = timer => {
-    if (timer !== null) window.clearTimeout(timer);
-  };
+    root.dataset.greenSignatureInitialized = "true";
 
-  const resetTapSequence_ = () => {
-    clearTimer_(tapResetTimer);
-    tapResetTimer = null;
-    tapCount = 0;
-    activePointerId = null;
-  };
+    const clearTimer_ = timer => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
 
-  const finishReturn_ = () => {
-    clearTimer_(finishTimer);
-    finishTimer = null;
-    root.classList.remove("green-signature-returning");
-    copy.setAttribute("aria-hidden", "true");
-    isActive = false;
-  };
+    const resetTapSequence_ = () => {
+      clearTimer_(tapResetTimer);
+      tapResetTimer = null;
+      tapCount = 0;
+      activePointerId = null;
+    };
 
-  const restoreOriginalLogo_ = () => {
-    clearTimer_(restoreTimer);
-    restoreTimer = null;
-    root.classList.remove("green-signature-active");
-    root.classList.add("green-signature-returning");
-    host.classList.remove("green-signature-host-active");
-    finishTimer = window.setTimeout(finishReturn_, returnDurationMs);
-  };
+    const finishReturn_ = () => {
+      clearTimer_(finishTimer);
+      finishTimer = null;
+      root.classList.remove("green-signature-returning");
+      if (showsCopy) copy.setAttribute("aria-hidden", "true");
+      isActive = false;
+    };
 
-  const activateSignature_ = () => {
-    resetTapSequence_();
-    if (isActive) return;
+    const restoreOriginalLogo_ = () => {
+      clearTimer_(restoreTimer);
+      restoreTimer = null;
+      root.classList.remove("green-signature-active");
+      root.classList.add("green-signature-returning");
+      finishTimer = window.setTimeout(finishReturn_, returnDurationMs);
+    };
 
-    isActive = true;
-    copy.setAttribute("aria-hidden", "false");
-    host.classList.add("green-signature-host-active");
-    root.classList.add("green-signature-active");
-    restoreTimer = window.setTimeout(
-      restoreOriginalLogo_,
-      visibleDurationMs
-    );
-  };
+    const activateSignature_ = () => {
+      resetTapSequence_();
+      if (isActive) return;
 
-  const registerTap_ = () => {
-    tapCount += 1;
-    clearTimer_(tapResetTimer);
+      isActive = true;
+      if (showsCopy) copy.setAttribute("aria-hidden", "false");
+      root.classList.add("green-signature-active");
+      restoreTimer = window.setTimeout(
+        restoreOriginalLogo_,
+        visibleDurationMs
+      );
+    };
 
-    if (tapCount >= 3) {
-      activateSignature_();
-      return;
-    }
+    const registerTap_ = () => {
+      tapCount += 1;
+      clearTimer_(tapResetTimer);
 
-    tapResetTimer = window.setTimeout(
-      resetTapSequence_,
-      tapResetDurationMs
-    );
-  };
+      if (tapCount >= 3) {
+        activateSignature_();
+        return;
+      }
 
-  root.addEventListener("pointerdown", event => {
-    if (
-      isActive ||
-      activePointerId !== null ||
-      event.isPrimary === false ||
-      (event.pointerType === "mouse" && event.button !== 0)
-    ) {
-      return;
-    }
+      tapResetTimer = window.setTimeout(
+        resetTapSequence_,
+        tapResetDurationMs
+      );
+    };
 
-    activePointerId = event.pointerId;
-    startX = event.clientX;
-    startY = event.clientY;
-    if (event.cancelable) event.preventDefault();
-  });
+    root.addEventListener("pointerdown", event => {
+      if (
+        isActive ||
+        activePointerId !== null ||
+        event.isPrimary === false ||
+        (event.pointerType === "mouse" && event.button !== 0)
+      ) {
+        return;
+      }
 
-  root.addEventListener("pointermove", event => {
-    if (event.pointerId !== activePointerId) return;
-
-    const moved = Math.hypot(event.clientX - startX, event.clientY - startY);
-    if (moved > movementLimitPx) resetTapSequence_();
-  });
-
-  root.addEventListener("pointerup", event => {
-    if (event.pointerId !== activePointerId) return;
-    activePointerId = null;
-    registerTap_();
-  });
-
-  ["pointerleave", "pointercancel"].forEach(eventName => {
-    root.addEventListener(eventName, event => {
-      if (event.pointerId === activePointerId) resetTapSequence_();
+      activePointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      if (event.cancelable) event.preventDefault();
     });
-  });
 
-  root.addEventListener("contextmenu", event => {
-    event.preventDefault();
-  });
+    root.addEventListener("pointermove", event => {
+      if (event.pointerId !== activePointerId) return;
 
-  root.addEventListener("dragstart", event => event.preventDefault());
+      const moved = Math.hypot(event.clientX - startX, event.clientY - startY);
+      if (moved > movementLimitPx) resetTapSequence_();
+    });
+
+    root.addEventListener("pointerup", event => {
+      if (event.pointerId !== activePointerId) return;
+      activePointerId = null;
+      registerTap_();
+    });
+
+    ["pointerleave", "pointercancel"].forEach(eventName => {
+      root.addEventListener(eventName, event => {
+        if (event.pointerId === activePointerId) resetTapSequence_();
+      });
+    });
+
+    root.addEventListener("contextmenu", event => {
+      event.preventDefault();
+    });
+
+    root.addEventListener("dragstart", event => event.preventDefault());
+  });
 }
 /* PROTECTED_EASTER_EGG_END */
 
