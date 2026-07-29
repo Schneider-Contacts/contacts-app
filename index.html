@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260728-auth-recovery3">
+<link rel="stylesheet" href="styles.css?v=20260729-auth-e2e1">
 
 
 
@@ -652,8 +652,32 @@
   </div>
 </div>
 
+<div id="adminReasonModal" class="adminModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="adminReasonModalTitle">
+  <form class="adminModalCard" onsubmit="submitAdminReasonModal_(); return false;">
+    <div class="adminModalHeader">
+      <h3 id="adminReasonModalTitle" class="adminModalTitle">אישור מנהל</h3>
+      <button type="button" class="adminModalClose" onclick="closeAdminReasonModal_(null)" aria-label="סגירה">×</button>
+    </div>
 
-<script src="app.js?v=20260728-auth-recovery3"></script>
+    <p id="adminReasonIntro" class="adminReasonIntro"></p>
+    <div id="adminReasonIdentity" class="adminReasonIdentity"></div>
+
+    <div class="adminFormField full">
+      <label for="adminReasonInput">כיצד זהות המשתמש אומתה?</label>
+      <input id="adminReasonInput" type="text" maxlength="300" autocomplete="off">
+    </div>
+
+    <div id="adminReasonStatus" class="statusMessage adminSavingStatus"></div>
+
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="closeAdminReasonModal_(null)">ביטול</button>
+      <button type="submit" class="adminActionBtn primary">אישור הפעולה</button>
+    </div>
+  </form>
+</div>
+
+
+<script src="app.js?v=20260729-auth-e2e1"></script>
 
 </body>
 </html>
