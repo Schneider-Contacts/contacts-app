@@ -1039,44 +1039,37 @@ select {
 }
 
 .authSecondaryLinks {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 #login .authLinkBtn {
-  width: auto;
-  min-height: 0;
+  width: 100%;
+  min-height: 42px;
   margin: 0;
-  padding: 4px 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: 9px 40px 9px 12px;
+  border: 1px solid var(--green-200);
+  border-radius: 12px;
+  background: #ffffff;
   color: var(--green-700);
   box-shadow: none;
   font-size: 13px;
   font-weight: 800;
+  text-align: right;
 }
 
 #login .authLinkBtn:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 #login #passwordResetBtn {
-  width: 100%;
-  min-height: 42px;
-  padding: 9px 12px;
   border: 1px solid var(--green-200);
-  border-radius: 12px;
   background: var(--green-50);
   color: var(--green-700);
-  text-decoration: none;
 }
 #login #passwordResetBtn:hover {
   background: #eef9f3;
-  text-decoration: none;
 }
 
 #loginStatus {
@@ -2285,6 +2278,14 @@ select {
   margin: 0 0 13px;
 }
 
+.authChoicePrompt {
+  margin: 0 0 9px;
+  color: #17352d;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: right;
+}
+
 #login .authPathChoice button {
   min-height: 86px;
   margin: 0;
@@ -2351,27 +2352,50 @@ select {
   font-weight: 850;
   text-align: right;
 }
-.passwordHelpNote {
-  margin: 11px 0 0;
-  padding: 12px 13px;
-  border-radius: 13px;
-  background: #fff7df;
-  border: 1px solid #f2cf72;
-  color: #684b0d;
-  font-size: 13px;
-  line-height: 1.55;
-  font-weight: 800;
-  text-align: center;
+.authHelpHeading {
+  margin: 18px 0 10px;
+  color: #294f40;
+  font-size: 13.5px;
+  font-weight: 900;
+  text-align: right;
+}
+.authHelpStep {
+  position: relative;
+  border-radius: 14px;
+}
+.authHelpStepNumber {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 11px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #b9dccb;
+  color: var(--green-700);
+  font-size: 12px;
+  font-weight: 900;
+  pointer-events: none;
+}
+.authHelpStepNote {
+  margin: 5px 9px 0;
+  color: #60786e;
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: right;
+}
+.authHelpStep.manager .authHelpStepNumber {
+  border-color: #f0c869;
+  color: #7a5714;
 }
 #login #passwordResetHelpBtn {
-  width: 100%;
-  min-height: 42px;
-  padding: 9px 12px;
   border: 1px solid #f3d990;
-  border-radius: 12px;
   background: #fff8e8;
   color: #7a5714;
-  text-decoration: none;
 }
 .passwordResetHelpStatus {
   display: none;
@@ -2506,8 +2530,8 @@ select {
   display: none;
   width: 100%;
   min-height: 42px;
-  margin: 9px 0 0;
-  padding: 9px 12px;
+  margin: 10px 0 0;
+  padding: 9px 40px 9px 12px;
   border: 1px solid #86d7ad;
   border-radius: 12px;
   background: #ffffff;
@@ -2515,12 +2539,16 @@ select {
   box-shadow: none;
   text-decoration: none;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   font-size: 13px;
   font-weight: 800;
+  text-align: right;
 }
 #login .managerWhatsappLink.visible {
   display: flex;
+}
+#login .authHelpStep.whatsapp:has(.managerWhatsappLink:not(.visible)) {
+  display: none;
 }
 #login .verificationActions button { margin: 0; }
 #login .verificationSecondary {
