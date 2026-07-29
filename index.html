@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260729-green-signature-triple-tap">
+<link rel="stylesheet" href="styles.css?v=20260729-green-signature-dual-logo">
 
 
 
@@ -268,7 +268,7 @@
         <h2>ספר אנשי קשר</h2>
       </div>
       <!-- PROTECTED_EASTER_EGG_START -->
-      <div class="appHeaderLogoBox green-signature-root" data-green-signature-root>
+      <div class="appHeaderLogoBox green-signature-root green-signature-header" data-green-signature-root data-green-signature-copy="false">
         <div class="green-signature-flipper">
           <div class="green-signature-face green-signature-front">
             <img class="appHeaderLogo" src="app-logo.png?v=20260722-v16" alt="App logo" draggable="false">
@@ -276,11 +276,6 @@
           <div class="green-signature-face green-signature-back" aria-hidden="true">
             <img class="green-signature-symbol" src="maccabi-haifa-symbol.svg?v=20260729-green-signature" alt="סמל מכבי חיפה" draggable="false">
           </div>
-        </div>
-        <div class="green-signature-copy" aria-hidden="true">
-          <strong class="green-signature-title">Since 1913</strong>
-          <span class="green-signature-subtitle">Built with green intent.</span>
-          <span class="green-signature-owner">G 💚</span>
         </div>
       </div>
       <!-- PROTECTED_EASTER_EGG_END -->
@@ -331,7 +326,23 @@
   <button type="button" id="recentContactsBtn" class="recentContactsBtn" onclick="openRecentContactsModal()">🆕 הורדת אנשי קשר שנוספו לאחרונה</button>
 </div>
 
-  <img id="logo" src="app-logo.png?v=20260722-v16" alt="לוגו ספר אנשי קשר">
+  <!-- PROTECTED_EASTER_EGG_START -->
+  <div id="logo" class="green-signature-root green-signature-large" data-green-signature-root data-green-signature-copy="true">
+    <div class="green-signature-flipper">
+      <div class="green-signature-face green-signature-front">
+        <img class="green-signature-large-logo" src="app-logo.png?v=20260722-v16" alt="לוגו ספר אנשי קשר" draggable="false">
+      </div>
+      <div class="green-signature-face green-signature-back" aria-hidden="true">
+        <img class="green-signature-symbol" src="maccabi-haifa-symbol.svg?v=20260729-green-signature" alt="סמל מכבי חיפה" draggable="false">
+      </div>
+    </div>
+    <div class="green-signature-copy" aria-hidden="true">
+      <strong class="green-signature-title">Since 1913</strong>
+      <span class="green-signature-subtitle">Built with green intent.</span>
+      <span class="green-signature-owner">G 💚</span>
+    </div>
+  </div>
+  <!-- PROTECTED_EASTER_EGG_END -->
 
   <div id="bulkActions" class="bulkActions">
     <div class="bulkActionsInfo" id="bulkActionsInfo">נבחרו 0 אנשי קשר</div>
@@ -703,7 +714,7 @@
 </div>
 
 
-<script src="app.js?v=20260729-green-signature-triple-tap"></script>
+<script src="app.js?v=20260729-green-signature-dual-logo"></script>
 
 </body>
 </html>
