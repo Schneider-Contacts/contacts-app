@@ -6605,104 +6605,131 @@ function adminPersonMatchesQuery_(person, query) {
   return searchable.includes(query);
 }
 
-function renderAdminPersonContactSection_(contact) {
-  if (!contact) {
-    return `
-      <section class="adminPersonSection">
-        <div class="adminPersonSectionTitle">פרטי איש קשר</div>
-        <p class="adminFocusHelp">לא נמצאה רשומת איש קשר תואמת.</p>
-      </section>
-    `;
-  }
-
-  return `
-    <section class="adminPersonSection">
-      <div class="adminPersonSectionHeader">
-        <div class="adminPersonSectionTitle">פרטי איש קשר</div>
-        <span class="adminMiniStatus ${contact.deleted ? "blocked" : ""}">${contact.deleted ? "הוסר" : "מופיע באפליקציה"}</span>
-      </div>
-      <div class="adminCardDetailsList">
-        ${contact.role ? `<b>תפקיד:</b> ${escapeHtml(contact.role)}<br>` : ""}
-        ${contact.dept ? `<b>מחלקה:</b> ${escapeHtml(contact.dept)}<br>` : ""}
-        ${contact.hospital ? `<b>בית חולים:</b> ${escapeHtml(contact.hospital)}<br>` : ""}
-        ${contact.email ? `<b>מייל:</b> ${escapeHtml(contact.email)}` : ""}
-      </div>
-      <div class="adminCardActions">
-        ${contact.deleted
-          ? `<button type="button" class="adminActionBtn primary" onclick="restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לאפליקציה</button>`
-          : `<button type="button" class="adminActionBtn secondary" onclick="openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>
-             <details class="adminActionMenu">
-               <summary>פעולות נוספות</summary>
-               <div class="adminActionMenuBody">
-                 <button type="button" class="adminActionBtn danger" onclick="removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>
-               </div>
-             </details>`}
-      </div>
-    </section>
-  `;
-}
-
-function renderAdminPersonAccessSection_(user) {
-  if (!user) {
-    return `
-      <section class="adminPersonSection">
-        <div class="adminPersonSectionTitle">כניסה והרשאות</div>
-        <p class="adminFocusHelp">אין לאדם הזה הרשאת כניסה פעילה.</p>
-      </section>
-    `;
-  }
-
-  const accessState = getUserAccessState_(user);
-  const request = getVerificationRequestByEmail_(user.email);
-  const passwordRecovery = getActivePasswordRecoveryForUser_(user.email);
-  const isSelf = normalizeEmail(user.email) === currentAdminEmail;
-  const hasPendingRequest =
+function renderAdminPersonManagement_(contact, user) {
+  const accessState = user ? getUserAccessState_(user) : null;
+  const request = user
+    ? getVerificationRequestByEmail_(user.email)
+    : null;
+  const passwordRecovery = user
+    ? getActivePasswordRecoveryForUser_(user.email)
+    : null;
+  const isSelf = Boolean(
+    user && normalizeEmail(user.email) === currentAdminEmail
+  );
+  const hasPendingRequest = Boolean(
     request &&
     ["pending", "temporary_active"].includes(request.status) &&
-    ["pending", "temporary", "expired"].includes(accessState.key);
+    accessState &&
+    ["pending", "temporary", "expired"].includes(accessState.key)
+  );
 
-  let resetAction = "";
-  let cancelResetAction = "";
-  if (!isSelf && user.active) {
-    if (!passwordRecovery) {
-      resetAction = `<button type="button" class="adminActionBtn secondary" onclick="preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">עזרה באיפוס סיסמה</button>`;
-    } else if (passwordRecovery.status === "pending") {
-      resetAction = `<button type="button" class="adminActionBtn secondary" onclick="setAdminTab('attention')">מעבר לבקשת האיפוס</button>`;
-    } else if (passwordRecovery.status === "consuming") {
-      resetAction = '<button type="button" class="adminActionBtn secondary" disabled>הסיסמה מתעדכנת כעת</button>';
+  const primaryActions = [];
+  const additionalActions = [];
+
+  if (contact) {
+    if (contact.deleted) {
+      primaryActions.push(
+        `<button type="button" class="adminActionBtn primary" onclick="restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לאפליקציה</button>`
+      );
     } else {
-      resetAction = '<button type="button" class="adminActionBtn secondary" disabled>איפוס מאושר עד 23:59</button>';
-      cancelResetAction = `<button type="button" class="adminActionBtn warning" onclick="cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>`;
+      primaryActions.push(
+        `<button type="button" class="adminActionBtn secondary" onclick="openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>`
+      );
+      additionalActions.push(
+        `<button type="button" class="adminActionBtn danger" onclick="removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>`
+      );
     }
   }
 
+  let cancelResetAction = "";
+  if (user && !isSelf && user.active) {
+    if (!passwordRecovery) {
+      primaryActions.push(
+        `<button type="button" class="adminActionBtn secondary" onclick="preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">עזרה באיפוס סיסמה</button>`
+      );
+    } else if (passwordRecovery.status === "pending") {
+      primaryActions.push(
+        '<button type="button" class="adminActionBtn secondary" onclick="setAdminTab(\'attention\')">מעבר לבקשת האיפוס</button>'
+      );
+    } else if (passwordRecovery.status === "consuming") {
+      primaryActions.push(
+        '<button type="button" class="adminActionBtn secondary" disabled>הסיסמה מתעדכנת כעת</button>'
+      );
+    } else {
+      primaryActions.push(
+        '<button type="button" class="adminActionBtn secondary" disabled>איפוס מאושר עד 23:59</button>'
+      );
+      cancelResetAction =
+        `<button type="button" class="adminActionBtn warning" onclick="cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>`;
+    }
+  }
+
+  if (hasPendingRequest) {
+    primaryActions.push(
+      '<button type="button" class="adminActionBtn primary" onclick="setAdminTab(\'attention\')">מעבר לבקשה שממתינה</button>'
+    );
+  }
+
+  if (user) {
+    if (isSelf) {
+      primaryActions.push(
+        '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
+      );
+    } else {
+      additionalActions.unshift(
+        `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>`,
+        `<button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>`
+      );
+      if (user.manualApproved) {
+        additionalActions.push(
+          `<button type="button" class="adminActionBtn warning" onclick="revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`
+        );
+      }
+      if (cancelResetAction) {
+        additionalActions.push(cancelResetAction);
+      }
+    }
+  }
+
+  const contactDetails = contact
+    ? [
+        contact.role
+          ? `<b>תפקיד:</b> ${escapeHtml(contact.role)}`
+          : "",
+        contact.dept
+          ? `<b>מחלקה:</b> ${escapeHtml(contact.dept)}`
+          : "",
+        contact.hospital
+          ? `<b>בית חולים:</b> ${escapeHtml(contact.hospital)}`
+          : "",
+        contact.email
+          ? `<b>מייל:</b> ${escapeHtml(contact.email)}`
+          : ""
+      ].filter(Boolean).join("<br>")
+    : "";
+
   return `
-    <section class="adminPersonSection">
-      <div class="adminPersonSectionHeader">
-        <div class="adminPersonSectionTitle">כניסה והרשאות</div>
-        <span class="adminMiniStatus ${escapeHtml(accessState.badgeClass)}">${escapeHtml(accessState.label)}</span>
-      </div>
-      ${accessState.note ? `<p class="adminFocusHelp">${escapeHtml(accessState.note)}</p>` : ""}
-      <div class="adminCardActions">
-        ${hasPendingRequest
-          ? `<button type="button" class="adminActionBtn primary" onclick="setAdminTab('attention')">מעבר לבקשה שממתינה</button>`
+    <div class="adminPersonManagement">
+      ${contactDetails
+        ? `<div class="adminCardDetailsList">${contactDetails}</div>`
+        : '<p class="adminFocusHelp">לא נמצאה רשומת איש קשר תואמת.</p>'}
+      ${accessState && accessState.note
+        ? `<p class="adminFocusHelp">${escapeHtml(accessState.note)}</p>`
+        : !user
+          ? '<p class="adminFocusHelp">אין לאיש הקשר הרשאת כניסה פעילה.</p>'
           : ""}
-        ${resetAction}
-        ${isSelf
-          ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
-          : `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>
-             <details class="adminActionMenu">
-               <summary>פעולות מתקדמות</summary>
+      <div class="adminCardActions">
+        ${primaryActions.join("")}
+        ${additionalActions.length
+          ? `<details class="adminActionMenu">
+               <summary>פעולות נוספות</summary>
                <div class="adminActionMenuBody">
-                 ${user.manualApproved
-                   ? `<button type="button" class="adminActionBtn warning" onclick="revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`
-                   : ""}
-                 ${cancelResetAction}
-                 <button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>
+                 ${additionalActions.join("")}
                </div>
-             </details>`}
+             </details>`
+          : ""}
       </div>
-    </section>
+    </div>
   `;
 }
 
@@ -6784,11 +6811,8 @@ function renderAdminPeople_() {
           </div>
         </div>
         <details class="adminFocusAction">
-          <summary>ניהול האדם</summary>
-          <div class="adminPersonSections">
-            ${renderAdminPersonContactSection_(contact)}
-            ${renderAdminPersonAccessSection_(user)}
-          </div>
+          <summary>ניהול איש הקשר</summary>
+          ${renderAdminPersonManagement_(contact, user)}
         </details>
       </article>
     `;
