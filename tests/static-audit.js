@@ -150,6 +150,16 @@ assert.strictEqual(
   1,
   "The hidden signature must target exactly one in-app logo"
 );
+assert.strictEqual(
+  (indexSource.match(/draggable="false"/g) || []).length,
+  2,
+  "Both hidden-signature images must disable native image dragging"
+);
+assert.match(
+  stylesSource,
+  /\.green-signature-face img[\s\S]*?-webkit-touch-callout:\s*none/,
+  "The hidden signature must disable the native image callout"
+);
 assert(
   fs.existsSync(path.join(root, "maccabi-haifa-symbol.svg")),
   "The local Maccabi Haifa symbol must exist"
@@ -229,10 +239,15 @@ const dispatchSignaturePointer = (eventName, overrides = {}) => {
     isPrimary: true,
     clientX: 10,
     clientY: 10,
-    preventDefault() {},
+    defaultPrevented: false,
+    cancelable: true,
+    preventDefault() {
+      this.defaultPrevented = true;
+    },
     ...overrides
   };
   (signatureListeners.get(eventName) || []).forEach(listener => listener(event));
+  return event;
 };
 
 const signatureSandbox = {
@@ -260,33 +275,37 @@ vm.runInContext(
 );
 signatureSandbox.initHiddenGreenSignature_();
 
-dispatchSignaturePointer("pointerdown");
-advanceSignatureClock(250);
+const firstShortPress = dispatchSignaturePointer("pointerdown");
 dispatchSignaturePointer("pointerup");
-advanceSignatureClock(3000);
+advanceSignatureClock(1700);
 assert(
-  !signatureRoot.classList.contains("green-signature-active"),
-  "A short press must not activate the owner signature"
+  firstShortPress.defaultPrevented &&
+    !signatureRoot.classList.contains("green-signature-active"),
+  "One tap must suppress native behavior without activating the signature"
 );
 
 dispatchSignaturePointer("pointerdown");
 dispatchSignaturePointer("pointermove", { clientX: 30 });
-advanceSignatureClock(3000);
+advanceSignatureClock(1700);
 assert(
   !signatureRoot.classList.contains("green-signature-active"),
   "Significant movement must cancel the owner signature"
 );
 
-dispatchSignaturePointer("pointerdown");
-advanceSignatureClock(3000);
+for (let tapIndex = 0; tapIndex < 3; tapIndex += 1) {
+  dispatchSignaturePointer("pointerdown");
+  dispatchSignaturePointer("pointerup");
+  if (tapIndex < 2) advanceSignatureClock(200);
+}
 assert(
   signatureRoot.classList.contains("green-signature-active") &&
     signatureHost.classList.contains("green-signature-host-active") &&
     signatureCopyAttributes["aria-hidden"] === "false",
-  "A continuous three-second press must activate the owner signature"
+  "Three quick taps must activate the owner signature"
 );
 
 dispatchSignaturePointer("pointerdown", { pointerId: 2 });
+dispatchSignaturePointer("pointerup", { pointerId: 2 });
 advanceSignatureClock(4999);
 assert(
   signatureRoot.classList.contains("green-signature-active"),
@@ -306,7 +325,11 @@ assert.strictEqual(
 );
 
 dispatchSignaturePointer("pointerdown", { pointerId: 3 });
-advanceSignatureClock(3000);
+dispatchSignaturePointer("pointerup", { pointerId: 3 });
+dispatchSignaturePointer("pointerdown", { pointerId: 4 });
+dispatchSignaturePointer("pointerup", { pointerId: 4 });
+dispatchSignaturePointer("pointerdown", { pointerId: 5 });
+dispatchSignaturePointer("pointerup", { pointerId: 5 });
 assert(
   signatureRoot.classList.contains("green-signature-active"),
   "The owner signature must work again after it has closed"
