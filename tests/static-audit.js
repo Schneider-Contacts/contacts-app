@@ -189,6 +189,21 @@ assert.doesNotMatch(
 );
 assert.match(
   appSource,
+  /permission\.accessReviewRequired\s*&&\s*!permissionHasTemporaryAccess_\(permission\)/,
+  "A manager-approved temporary session must not wait for redundant server activation"
+);
+assert.match(
+  appSource,
+  /const PASSWORD_HELP_TIMEOUT_MS = 30000;/,
+  "Manager password recovery requests must allow for an Apps Script cold start"
+);
+assert.match(
+  appSource,
+  /PASSWORD_HELP_TIMEOUT_MS\);/,
+  "Password recovery assistance must use its longer timeout"
+);
+assert.match(
+  appSource,
   /setPersistence\(\s*auth,\s*firebaseApi\.browserLocalPersistence\s*\)/,
   "Firebase sessions must persist across browser restarts"
 );
