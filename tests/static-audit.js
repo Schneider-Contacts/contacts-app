@@ -147,13 +147,13 @@ assert.match(
 );
 assert.strictEqual(
   (indexSource.match(/data-green-signature-root/g) || []).length,
-  1,
-  "The hidden signature must target exactly one in-app logo"
+  2,
+  "The hidden signature must target both in-app logos"
 );
 assert.strictEqual(
   (indexSource.match(/draggable="false"/g) || []).length,
-  2,
-  "Both hidden-signature images must disable native image dragging"
+  4,
+  "All hidden-signature images must disable native image dragging"
 );
 assert.match(
   stylesSource,
@@ -189,27 +189,35 @@ const createClassList = () => {
   };
 };
 
-const signatureListeners = new Map();
-const signatureRoot = {
-  dataset: {},
-  classList: createClassList(),
-  addEventListener: (eventName, listener) => {
-    const listeners = signatureListeners.get(eventName) || [];
-    listeners.push(listener);
-    signatureListeners.set(eventName, listeners);
-  }
+const createSignatureRoot = showsCopy => {
+  const listeners = new Map();
+  const copyAttributes = {};
+  const copy = showsCopy
+    ? {
+        setAttribute: (name, value) => {
+          copyAttributes[name] = value;
+        }
+      }
+    : null;
+  const root = {
+    dataset: {
+      greenSignatureCopy: showsCopy ? "true" : "false"
+    },
+    classList: createClassList(),
+    addEventListener: (eventName, listener) => {
+      const eventListeners = listeners.get(eventName) || [];
+      eventListeners.push(listener);
+      listeners.set(eventName, eventListeners);
+    },
+    querySelector: selector =>
+      selector === ".green-signature-copy" ? copy : null
+  };
+
+  return { root, listeners, copyAttributes };
 };
-const signatureHost = { classList: createClassList() };
-const signatureCopyAttributes = {};
-const signatureCopy = {
-  setAttribute: (name, value) => {
-    signatureCopyAttributes[name] = value;
-  }
-};
-signatureRoot.closest = selector =>
-  selector === ".appHeaderTop" ? signatureHost : null;
-signatureRoot.querySelector = selector =>
-  selector === ".green-signature-copy" ? signatureCopy : null;
+
+const headerSignature = createSignatureRoot(false);
+const largeSignature = createSignatureRoot(true);
 
 let signatureClock = 0;
 let signatureTimerId = 0;
@@ -231,7 +239,7 @@ const advanceSignatureClock = durationMs => {
 
   signatureClock = targetTime;
 };
-const dispatchSignaturePointer = (eventName, overrides = {}) => {
+const dispatchSignaturePointer = (signature, eventName, overrides = {}) => {
   const event = {
     pointerId: 1,
     pointerType: "touch",
@@ -246,14 +254,16 @@ const dispatchSignaturePointer = (eventName, overrides = {}) => {
     },
     ...overrides
   };
-  (signatureListeners.get(eventName) || []).forEach(listener => listener(event));
+  (signature.listeners.get(eventName) || []).forEach(listener => listener(event));
   return event;
 };
 
 const signatureSandbox = {
   document: {
-    querySelector: selector =>
-      selector === "[data-green-signature-root]" ? signatureRoot : null
+    querySelectorAll: selector =>
+      selector === "[data-green-signature-root]"
+        ? [headerSignature.root, largeSignature.root]
+        : []
   },
   window: {
     setTimeout: (callback, durationMs) => {
@@ -275,46 +285,53 @@ vm.runInContext(
 );
 signatureSandbox.initHiddenGreenSignature_();
 
-const firstShortPress = dispatchSignaturePointer("pointerdown");
-dispatchSignaturePointer("pointerup");
+assert(
+  headerSignature.root.dataset.greenSignatureInitialized === "true" &&
+    largeSignature.root.dataset.greenSignatureInitialized === "true",
+  "Both in-app logos must initialize"
+);
+
+const firstShortPress = dispatchSignaturePointer(
+  largeSignature,
+  "pointerdown"
+);
+dispatchSignaturePointer(largeSignature, "pointerup");
 advanceSignatureClock(1700);
 assert(
   firstShortPress.defaultPrevented &&
-    !signatureRoot.classList.contains("green-signature-active"),
+    !largeSignature.root.classList.contains("green-signature-active"),
   "One tap must suppress native behavior without activating the signature"
 );
 
-dispatchSignaturePointer("pointerdown");
-dispatchSignaturePointer("pointermove", { clientX: 30 });
+dispatchSignaturePointer(largeSignature, "pointerdown");
+dispatchSignaturePointer(largeSignature, "pointermove", { clientX: 30 });
 advanceSignatureClock(1700);
 assert(
-  !signatureRoot.classList.contains("green-signature-active"),
+  !largeSignature.root.classList.contains("green-signature-active"),
   "Significant movement must cancel the owner signature"
 );
 
 for (let tapIndex = 0; tapIndex < 3; tapIndex += 1) {
-  dispatchSignaturePointer("pointerdown");
-  dispatchSignaturePointer("pointerup");
+  dispatchSignaturePointer(largeSignature, "pointerdown");
+  dispatchSignaturePointer(largeSignature, "pointerup");
   if (tapIndex < 2) advanceSignatureClock(200);
 }
 assert(
-  signatureRoot.classList.contains("green-signature-active") &&
-    signatureHost.classList.contains("green-signature-host-active") &&
-    signatureCopyAttributes["aria-hidden"] === "false",
-  "Three quick taps must activate the owner signature"
+  largeSignature.root.classList.contains("green-signature-active") &&
+    largeSignature.copyAttributes["aria-hidden"] === "false",
+  "Three quick taps on the large logo must activate the signature and text"
 );
 
-dispatchSignaturePointer("pointerdown", { pointerId: 2 });
-dispatchSignaturePointer("pointerup", { pointerId: 2 });
+dispatchSignaturePointer(largeSignature, "pointerdown", { pointerId: 2 });
+dispatchSignaturePointer(largeSignature, "pointerup", { pointerId: 2 });
 advanceSignatureClock(4999);
 assert(
-  signatureRoot.classList.contains("green-signature-active"),
+  largeSignature.root.classList.contains("green-signature-active"),
   "The active signature must ignore duplicate activation attempts"
 );
 advanceSignatureClock(1);
 assert(
-  !signatureRoot.classList.contains("green-signature-active") &&
-    !signatureHost.classList.contains("green-signature-host-active"),
+  !largeSignature.root.classList.contains("green-signature-active"),
   "The original logo must begin returning after five seconds"
 );
 advanceSignatureClock(700);
@@ -324,15 +341,26 @@ assert.strictEqual(
   "The owner signature must leave no active timers after returning"
 );
 
-dispatchSignaturePointer("pointerdown", { pointerId: 3 });
-dispatchSignaturePointer("pointerup", { pointerId: 3 });
-dispatchSignaturePointer("pointerdown", { pointerId: 4 });
-dispatchSignaturePointer("pointerup", { pointerId: 4 });
-dispatchSignaturePointer("pointerdown", { pointerId: 5 });
-dispatchSignaturePointer("pointerup", { pointerId: 5 });
+dispatchSignaturePointer(largeSignature, "pointerdown", { pointerId: 3 });
+dispatchSignaturePointer(largeSignature, "pointerup", { pointerId: 3 });
+dispatchSignaturePointer(largeSignature, "pointerdown", { pointerId: 4 });
+dispatchSignaturePointer(largeSignature, "pointerup", { pointerId: 4 });
+dispatchSignaturePointer(largeSignature, "pointerdown", { pointerId: 5 });
+dispatchSignaturePointer(largeSignature, "pointerup", { pointerId: 5 });
 assert(
-  signatureRoot.classList.contains("green-signature-active"),
+  largeSignature.root.classList.contains("green-signature-active"),
   "The owner signature must work again after it has closed"
+);
+
+advanceSignatureClock(5700);
+for (let tapIndex = 0; tapIndex < 3; tapIndex += 1) {
+  dispatchSignaturePointer(headerSignature, "pointerdown");
+  dispatchSignaturePointer(headerSignature, "pointerup");
+}
+assert(
+  headerSignature.root.classList.contains("green-signature-active") &&
+    Object.keys(headerSignature.copyAttributes).length === 0,
+  "The header logo must change its symbol without showing signature text"
 );
 assert(
   !appSource.includes(obsoleteAuthRouterId) &&
