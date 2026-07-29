@@ -308,6 +308,11 @@ assert.match(
 );
 assert.match(
   webEndpointsSource,
+  /function doPost\(e\)[\s\S]*?action === "preparePasswordRecovery"[\s\S]*?action === "cancelPasswordRecovery"[\s\S]*?createAuthManagementPostResponse_\(e\)/,
+  "Every manager password-recovery action must reach the authenticated POST router"
+);
+assert.match(
+  webEndpointsSource,
   /function claimManagerPasswordRecovery_[\s\S]*?registeredPhone !== normalizedPhone[\s\S]*?recoveryTokenHash/,
   "A manager-prepared reset must verify the registered phone before releasing a one-time secret"
 );
