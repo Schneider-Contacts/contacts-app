@@ -96,7 +96,7 @@ let phonePermissionListenerUnsubscribe = null;
 let permissionExpiryTimer = null;
 let passwordRecoveryStatusTimer = null;
 let activePasswordRecovery = null;
-let adminActiveTab = "general";
+let adminActiveTab = "attention";
 let adminActiveFilter = "all";
 let adminContacts = [];
 let adminRemovedContacts = [];
@@ -104,9 +104,7 @@ let adminAllowedUsers = [];
 let adminAllowedPhones = [];
 let adminManagers = [];
 let adminActivity = [];
-let adminUsageDaily = [];
 let adminDailyActiveUsers = [];
-let adminDailyContactUsers = [];
 let adminPasswordResetRequests = [];
 let adminReports = [];
 let adminContactAddRequests = [];
@@ -136,8 +134,7 @@ const ADMIN_PENDING_SUMMARY_CACHE_MS = 2 * 60 * 1000;
 let adminVisibleItemCount = ADMIN_LIST_PAGE_SIZE;
 let adminLoadedSections = new Set();
 let adminSectionLoadPromises = new Map();
-let adminUsageHistoryLoaded = false;
-let adminUsageHistoryLoading = false;
+let adminDataPartLoadPromises = new Map();
 let adminReasonResolve = null;
 
 
@@ -4550,11 +4547,11 @@ function openAdminPanel() {
   document.getElementById("app").style.display = "none";
   document.getElementById("adminPanel").style.display = "block";
   document.getElementById("adminSearchInput").value = "";
-  adminActiveTab = "general";
+  adminActiveTab = "attention";
   adminActiveFilter = "all";
   resetAdminVisibleItems_();
   updateAdminTabs();
-  loadAdminData({ section: "general", force: false });
+  loadAdminData({ section: "attention", force: false });
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -4568,14 +4565,9 @@ function closeAdminPanel() {
 }
 
 function setAdminTab(tabName) {
-  const requestedTab = ["general", "contacts", "users", "activity", "reports", "managers"].includes(tabName)
+  const requestedTab = ["attention", "people", "more"].includes(tabName)
     ? tabName
-    : "general";
-
-  if (requestedTab === "managers" && !currentUserIsSuperAdmin) {
-    alert("רק מנהל־על יכול לנהל מנהלים.");
-    return;
-  }
+    : "attention";
 
   adminActiveTab = requestedTab;
   adminActiveFilter = "all";
@@ -4670,8 +4662,13 @@ async function loadAdminPendingSummary_(options = {}) {
 }
 
 function getAdminPendingCounts_() {
-  const usersLoaded = adminLoadedSections.has("users");
-  const reportsLoaded = adminLoadedSections.has("reports");
+  const usersLoaded =
+    adminLoadedSections.has("users") ||
+    adminLoadedSections.has("attention") ||
+    adminLoadedSections.has("people");
+  const reportsLoaded =
+    adminLoadedSections.has("reports") ||
+    adminLoadedSections.has("attention");
   const verificationRequests = usersLoaded
     ? adminVerificationRequests.filter(request =>
         ["pending", "temporary_active"].includes(request.status)
@@ -4718,15 +4715,14 @@ function getAdminPendingCounts_() {
 
 function updateAdminPendingBadges_() {
   const counts = getAdminPendingCounts_();
-  [
-    ["adminUsersPendingBadge", counts.users],
-    ["adminReportsPendingBadge", counts.reports]
-  ].forEach(([elementId, count]) => {
-    const badge = document.getElementById(elementId);
-    if (!badge) return;
-    badge.hidden = count < 1;
-    badge.textContent = count > 99 ? "99+" : String(count);
-  });
+  const attentionBadge = document.getElementById(
+    "adminAttentionPendingBadge"
+  );
+  if (attentionBadge) {
+    attentionBadge.hidden = counts.total < 1;
+    attentionBadge.textContent =
+      counts.total > 99 ? "99+" : String(counts.total);
+  }
 
   const mainBadge = document.getElementById("adminOpenPendingBadge");
   if (mainBadge) {
@@ -4738,31 +4734,19 @@ function updateAdminPendingBadges_() {
 }
 
 function updateAdminTabs() {
-  const generalTab = document.getElementById("adminGeneralTab");
-  const contactsTab = document.getElementById("adminContactsTab");
-  const usersTab = document.getElementById("adminUsersTab");
-  const activityTab = document.getElementById("adminActivityTab");
-  const reportsTab = document.getElementById("adminReportsTab");
-  const managersTab = document.getElementById("adminManagersTab");
+  const attentionTab = document.getElementById("adminAttentionTab");
+  const peopleTab = document.getElementById("adminPeopleTab");
+  const moreTab = document.getElementById("adminMoreTab");
   const adminToolbar = document.getElementById("adminToolbar");
-  const contactFilters = document.getElementById("adminContactFilters");
-  const userFilters = document.getElementById("adminUserFilters");
-  const activityFilters = document.getElementById("adminActivityFilters");
-  const reportFilters = document.getElementById("adminReportFilters");
-  const managerFilters = document.getElementById("adminManagerFilters");
-  const addManagerButton = document.getElementById("adminAddManagerBtn");
-
-  if (adminActiveTab === "managers" && !currentUserIsSuperAdmin) {
-    adminActiveTab = "general";
-  }
+  const attentionFilters = document.getElementById(
+    "adminAttentionFilters"
+  );
+  const peopleFilters = document.getElementById("adminPeopleFilters");
 
   [
-    [generalTab, "general"],
-    [contactsTab, "contacts"],
-    [usersTab, "users"],
-    [reportsTab, "reports"],
-    [activityTab, "activity"],
-    [managersTab, "managers"]
+    [attentionTab, "attention"],
+    [peopleTab, "people"],
+    [moreTab, "more"]
   ].forEach(([button, tabName]) => {
     if (!button) return;
     const isActive = adminActiveTab === tabName;
@@ -4770,42 +4754,27 @@ function updateAdminTabs() {
     button.setAttribute("aria-selected", String(isActive));
   });
 
-  if (managersTab) {
-    managersTab.classList.toggle("visible", currentUserIsSuperAdmin);
-
-    const tabsContainer = managersTab.closest(".adminTabs");
-    if (tabsContainer) {
-      tabsContainer.classList.toggle("hasManagers", currentUserIsSuperAdmin);
-    }
-  }
-
   if (adminToolbar) {
-    adminToolbar.style.display = adminActiveTab === "general" ? "none" : "block";
+    adminToolbar.style.display =
+      adminActiveTab === "more" ? "none" : "block";
   }
 
-  if (contactFilters) contactFilters.style.display = adminActiveTab === "contacts" ? "flex" : "none";
-  if (userFilters) userFilters.style.display = adminActiveTab === "users" ? "flex" : "none";
-  if (activityFilters) activityFilters.style.display = adminActiveTab === "activity" ? "flex" : "none";
-  if (reportFilters) reportFilters.style.display = adminActiveTab === "reports" ? "flex" : "none";
-  if (managerFilters) managerFilters.style.display = adminActiveTab === "managers" ? "flex" : "none";
+  if (attentionFilters) {
+    attentionFilters.style.display =
+      adminActiveTab === "attention" ? "flex" : "none";
+  }
+  if (peopleFilters) {
+    peopleFilters.style.display =
+      adminActiveTab === "people" ? "flex" : "none";
+  }
 
   const searchInput = document.getElementById("adminSearchInput");
   if (searchInput) {
     const placeholders = {
-      contacts: "חיפוש איש קשר לפי שם, מייל או טלפון",
-      users: "חיפוש הרשאה לפי שם, מייל או טלפון",
-      reports: "חיפוש בקשה או דיווח",
-      activity: "חיפוש בפעילות האחרונה",
-      managers: "חיפוש מנהל"
+      attention: "חיפוש בקשה לפי שם, מייל או טלפון",
+      people: "חיפוש אדם לפי שם, מייל או טלפון"
     };
     searchInput.placeholder = placeholders[adminActiveTab] || "חיפוש";
-  }
-
-  if (addManagerButton) {
-    addManagerButton.classList.toggle(
-      "visible",
-      currentUserIsSuperAdmin && adminActiveTab === "managers"
-    );
   }
 
   updateAdminPendingBadges_();
@@ -4840,17 +4809,11 @@ function handleAdminSearchInput_() {
 }
 
 function updateAdminFilterButtons() {
-  if (adminActiveTab === "general") return;
+  if (adminActiveTab === "more") return;
 
-  const containerId = adminActiveTab === "contacts"
-    ? "adminContactFilters"
-    : adminActiveTab === "users"
-      ? "adminUserFilters"
-      : adminActiveTab === "activity"
-        ? "adminActivityFilters"
-        : adminActiveTab === "reports"
-          ? "adminReportFilters"
-          : "adminManagerFilters";
+  const containerId = adminActiveTab === "attention"
+    ? "adminAttentionFilters"
+    : "adminPeopleFilters";
 
   document
     .querySelectorAll(`#${containerId} .adminFilterBtn`)
@@ -4869,17 +4832,14 @@ function resetAdminVisibleItems_() {
 function resetAdminDataCache_() {
   adminLoadedSections = new Set();
   adminSectionLoadPromises = new Map();
-  adminUsageHistoryLoaded = false;
-  adminUsageHistoryLoading = false;
+  adminDataPartLoadPromises = new Map();
   adminDataLoading = false;
   adminRemovedContacts = [];
   adminAllowedUsers = [];
   adminAllowedPhones = [];
   adminManagers = [];
   adminActivity = [];
-  adminUsageDaily = [];
   adminDailyActiveUsers = [];
-  adminDailyContactUsers = [];
   adminPasswordResetRequests = [];
   adminReports = [];
   adminContactAddRequests = [];
@@ -4897,12 +4857,9 @@ function syncAdminContactsFromDirectory_() {
 
 function renderAdminLoading_(section) {
   const labels = {
-    general: "טוען את נתוני היום...",
-    contacts: "טוען את רשימת אנשי הקשר...",
-    users: "טוען הרשאות כניסה...",
-    activity: "טוען פעילות אחרונה...",
-    reports: "טוען בקשות ודיווחים...",
-    managers: "טוען מנהלים..."
+    attention: "טוען את הפריטים שממתינים לטיפול...",
+    people: "טוען אנשי קשר והרשאות כניסה...",
+    more: "טוען פעילות ונתוני מערכת..."
   };
   const summary = document.getElementById("adminSummary");
   if (summary) summary.textContent = "";
@@ -4912,15 +4869,12 @@ function renderAdminLoading_(section) {
 
 async function loadAdminGeneralData_() {
   const todayKey = getIsraelDateKey_();
-  adminUsageHistoryLoaded = false;
-  const [activeUsers, contactUsers] = await Promise.all([
+  const [activeUsers] = await Promise.all([
     loadDailyActiveUserCounts_([todayKey]),
-    loadDailyContactUserCounts_([todayKey]),
     loadAdminPendingSummary_({ force: true })
   ]);
 
   adminDailyActiveUsers = activeUsers;
-  adminDailyContactUsers = contactUsers;
 }
 
 async function loadAdminContactsData_() {
@@ -5228,15 +5182,71 @@ async function loadAdminManagersData_() {
   adminManagers = mapAdminManagersSnapshot_(managersSnapshot);
 }
 
+async function loadAdminDataPart_(section, loader) {
+  if (adminLoadedSections.has(section)) return;
+  if (adminDataPartLoadPromises.has(section)) {
+    await adminDataPartLoadPromises.get(section);
+    return;
+  }
+
+  const loadPromise = (async () => {
+    await loader();
+    adminLoadedSections.add(section);
+  })();
+  adminDataPartLoadPromises.set(section, loadPromise);
+
+  try {
+    await loadPromise;
+  } finally {
+    adminDataPartLoadPromises.delete(section);
+  }
+}
+
+async function loadAdminAttentionData_() {
+  await Promise.all([
+    loadAdminDataPart_("users", loadAdminUsersData_),
+    loadAdminDataPart_("reports", loadAdminReportsData_)
+  ]);
+}
+
+async function loadAdminPeopleData_() {
+  await Promise.all([
+    loadAdminDataPart_("contacts", loadAdminContactsData_),
+    loadAdminDataPart_("users", loadAdminUsersData_)
+  ]);
+}
+
+async function loadAdminMoreData_() {
+  const loaders = [
+    loadAdminDataPart_("general", loadAdminGeneralData_),
+    loadAdminDataPart_("activity", loadAdminActivityData_)
+  ];
+
+  if (currentUserIsSuperAdmin) {
+    loaders.push(
+      loadAdminDataPart_("managers", loadAdminManagersData_)
+    );
+  }
+
+  await Promise.all(loaders);
+}
+
+function getAdminCompositeParts_(section) {
+  return {
+    attention: ["users", "reports"],
+    people: ["contacts", "users"],
+    more: currentUserIsSuperAdmin
+      ? ["general", "activity", "managers"]
+      : ["general", "activity"]
+  }[section] || [];
+}
+
 function getAdminSectionLoader_(section) {
   return {
-    general: loadAdminGeneralData_,
-    contacts: loadAdminContactsData_,
-    users: loadAdminUsersData_,
-    activity: loadAdminActivityData_,
-    reports: loadAdminReportsData_,
-    managers: loadAdminManagersData_
-  }[section] || loadAdminGeneralData_;
+    attention: loadAdminAttentionData_,
+    people: loadAdminPeopleData_,
+    more: loadAdminMoreData_
+  }[section] || loadAdminAttentionData_;
 }
 
 async function loadAdminData(options = null) {
@@ -5250,12 +5260,15 @@ async function loadAdminData(options = null) {
 
   if (!explicitOptions) {
     adminLoadedSections = new Set();
-    adminUsageHistoryLoaded = false;
+    adminDataPartLoadPromises = new Map();
     force = true;
   }
 
   if (force) {
     adminLoadedSections.delete(section);
+    getAdminCompositeParts_(section).forEach(part => {
+      adminLoadedSections.delete(part);
+    });
   }
 
   if (adminLoadedSections.has(section)) {
@@ -5304,38 +5317,6 @@ async function loadAdminData(options = null) {
   } finally {
     adminSectionLoadPromises.delete(section);
     adminDataLoading = adminSectionLoadPromises.size > 0;
-  }
-}
-
-async function loadAdminUsageHistory_() {
-  if (
-    adminUsageHistoryLoaded ||
-    adminUsageHistoryLoading ||
-    !currentUserIsAdmin
-  ) {
-    return;
-  }
-
-  adminUsageHistoryLoading = true;
-  renderAdminGeneral();
-
-  try {
-    const dateKeys = getRecentIsraelDateKeys_(14);
-    const [activeUsers, contactUsers] = await Promise.all([
-      loadDailyActiveUserCounts_(dateKeys),
-      loadDailyContactUserCounts_(dateKeys)
-    ]);
-    adminDailyActiveUsers = activeUsers;
-    adminDailyContactUsers = contactUsers;
-    adminUsageHistoryLoaded = true;
-  } catch (error) {
-    console.error("Admin usage history load failed", error);
-    setAdminStatus("טעינת היסטוריית השימוש נכשלה.", "error");
-  } finally {
-    adminUsageHistoryLoading = false;
-    if (adminActiveTab === "general") {
-      renderAdminGeneral();
-    }
   }
 }
 
@@ -5716,7 +5697,7 @@ async function setContactReportStatus_(reportId, status) {
       report.status = nextStatus;
       report.resolvedBy = nextStatus === "resolved" ? currentAdminEmail : "";
     }
-    renderAdminReports();
+    renderAdminList();
   } catch (error) {
     console.error("Report status update failed", error);
     setAdminStatus("לא הצלחנו לעדכן את מצב הדיווח.", "error");
@@ -6293,139 +6274,626 @@ function renderAdminReports() {
     reportsHtml + renderAdminLoadMore_(items.length, visibleItems.length);
 }
 
-function renderAdminGeneral() {
-  const pendingCounts = getAdminPendingCounts_();
-  const pendingDetails = [
-    pendingCounts.verificationRequests
-      ? `${pendingCounts.verificationRequests} בקשות אישור כניסה`
-      : "",
-    pendingCounts.passwordResetRequests
-      ? `${pendingCounts.passwordResetRequests} בקשות איפוס סיסמה`
-      : "",
-    pendingCounts.contactRequests
-      ? `${pendingCounts.contactRequests} בקשות איש קשר`
-      : "",
-    pendingCounts.contactReports
-      ? `${pendingCounts.contactReports} דיווחים פתוחים`
-      : ""
-  ].filter(Boolean);
+function getAdminAttentionItems_() {
+  const accessItems = adminAllowedUsers
+    .map(user => {
+      const accessState = getUserAccessState_(user);
+      const request = getVerificationRequestByEmail_(user.email);
+      if (
+        !["pending", "temporary", "expired"].includes(accessState.key) ||
+        !request ||
+        !["pending", "temporary_active"].includes(request.status)
+      ) {
+        return null;
+      }
+
+      return {
+        kind: "access",
+        timestamp: getAdminTimestampMillis_(
+          request.requestedAt || request.updatedAt
+        ),
+        data: { user, request, accessState }
+      };
+    })
+    .filter(Boolean);
+
+  const resetItems = getPendingPasswordResetRequests_().map(request => ({
+    kind: "reset",
+    timestamp: getAdminTimestampMillis_(request.requestedAt),
+    data: request
+  }));
+  const contactItems = adminContactAddRequests
+    .filter(request => request.status === "pending")
+    .map(request => ({
+      kind: "contact",
+      timestamp: getContactAddRequestTimestamp_(request),
+      data: request
+    }));
+  const reportItems = adminReports
+    .filter(report => report.status === "open")
+    .map(report => ({
+      kind: "report",
+      timestamp: getReportTimestamp_(report),
+      data: report
+    }));
+
+  return [
+    ...accessItems,
+    ...resetItems,
+    ...contactItems,
+    ...reportItems
+  ].sort((a, b) => b.timestamp - a.timestamp);
+}
+
+function adminAttentionItemMatchesQuery_(item, query) {
+  if (!query) return true;
+
+  if (item.kind === "access") {
+    return adminUserMatchesQuery(item.data.user, query);
+  }
+  if (item.kind === "contact") {
+    return adminContactAddRequestMatchesQuery_(item.data, query);
+  }
+  if (item.kind === "report") {
+    return adminReportMatchesQuery_(item.data, query);
+  }
+
+  const request = item.data;
+  const contact = findContactByEmail(request.email);
+  const searchable = normalizeSearchText([
+    request.email,
+    request.requestId,
+    contact ? contact.name : "",
+    contact ? contact.phone : ""
+  ].filter(Boolean).join(" "));
+  return searchable.includes(query);
+}
+
+function renderAdminAttentionAccessCard_(item) {
+  const { user, request, accessState } = item.data;
+  const contact = findContactByEmail(user.email);
+  const phone = contact && contact.phone ? contact.phone : user.phone;
+  const isTemporary = accessState.key === "temporary";
+  const allowTemporary = accessState.key === "pending";
+
+  return `
+    <article class="adminCard adminFocusCard">
+      <div class="adminCardTop">
+        <div>
+          <div class="adminCardName">${escapeHtml(contact && contact.name ? contact.name : user.email)}</div>
+          <div class="adminCardMeta">
+            בקשת אישור כניסה<br>
+            ${escapeHtml(user.email)}
+            ${phone ? "<br>" + escapeHtml(formatPhoneForDisplay(phone)) : ""}
+          </div>
+        </div>
+        <span class="adminStatusBadge pending">${isTemporary ? "עד 23:59" : "ממתין"}</span>
+      </div>
+      <details class="adminFocusAction">
+        <summary>טיפול בבקשה</summary>
+        <div class="adminFocusActionBody">
+          <div class="accessStateLine ${escapeHtml(accessState.key)}">
+            ${escapeHtml(accessState.label)}
+            ${accessState.note ? `<span class="accessStateNote">${escapeHtml(accessState.note)}</span>` : ""}
+          </div>
+          <div class="adminCardActions">
+            ${allowTemporary
+              ? `<button type="button" class="adminActionBtn secondary" onclick="approveManualAccess_('${escapeJsString(user.email)}', true)">אישור עד 23:59</button>`
+              : ""}
+            <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false)">אישור קבוע</button>
+            <button type="button" class="adminActionBtn warning" onclick="${isTemporary ? "revokeManualAccess_" : "rejectManualAccess_"}('${escapeJsString(user.email)}')">${isTemporary ? "ביטול מיידי" : "דחיית הבקשה"}</button>
+          </div>
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderAdminAttentionResetCard_(item) {
+  const request = item.data;
+  const contact = findContactByEmail(request.email);
+  const isApproved = request.status === "approved";
+
+  return `
+    <article class="adminCard adminFocusCard">
+      <div class="adminCardTop">
+        <div>
+          <div class="adminCardName">${escapeHtml(contact && contact.name ? contact.name : request.email)}</div>
+          <div class="adminCardMeta">
+            בקשת עזרה באיפוס סיסמה<br>
+            ${escapeHtml(request.email)}<br>
+            התקבלה: ${escapeHtml(formatAdminTimestamp_(request.requestedAt))}
+          </div>
+        </div>
+        <span class="adminStatusBadge pending">${isApproved ? "אושר עד 23:59" : "ממתין"}</span>
+      </div>
+      <details class="adminFocusAction">
+        <summary>טיפול באיפוס הסיסמה</summary>
+        <div class="adminFocusActionBody">
+          <p class="adminFocusHelp">בחרו את מסלול העזרה המתאים למשתמש.</p>
+          <div class="adminCardActions">
+            ${isApproved
+              ? ""
+              : `<button type="button" class="adminActionBtn primary" onclick="approvePasswordRecoveryForUser_('${escapeJsString(request.email)}')">אישור איפוס באפליקציה עד 23:59</button>
+                 <button type="button" class="adminActionBtn secondary" onclick="sendPasswordResetForUser_('${escapeJsString(request.email)}')">שליחת קישור במייל</button>`}
+            <button type="button" class="adminActionBtn warning" onclick="closePasswordResetRequest_('${escapeJsString(request.email)}')">${isApproved ? "ביטול האישור" : "סגירה ללא אישור"}</button>
+          </div>
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderAdminAttentionContactCard_(item) {
+  const request = item.data;
+  const displayName =
+    getContactAddRequestName_(request) ||
+    formatPhoneForDisplay(request.phone) ||
+    request.email ||
+    "איש קשר ללא שם";
+  const isSelfUpdate = request.requestType === "self_update";
+  const grantsFormAccess = request.grantAccessOnApproval === true;
+  const requestLabel = isSelfUpdate
+    ? "בקשת עדכון פרטים אישיים"
+    : grantsFormAccess
+      ? "בקשת הצטרפות ואישור גישה"
+      : "בקשת הוספת איש קשר";
+
+  return `
+    <article class="adminCard adminFocusCard">
+      <div class="adminCardTop">
+        <div>
+          <div class="adminCardName">${escapeHtml(displayName)}</div>
+          <div class="adminCardMeta">
+            ${requestLabel}<br>
+            ${escapeHtml(formatContactAddRequestTimestamp_(request))}
+          </div>
+        </div>
+        <span class="adminStatusBadge pending">ממתין</span>
+      </div>
+      <details class="adminFocusAction">
+        <summary>בדיקת הבקשה</summary>
+        <div class="adminFocusActionBody">
+          <div class="adminCardDetailsList">
+            ${request.role ? `<b>תפקיד:</b> ${escapeHtml(request.role)}<br>` : ""}
+            ${request.department ? `<b>מחלקה:</b> ${escapeHtml(request.department)}<br>` : ""}
+            ${request.phone ? `<b>טלפון:</b> ${escapeHtml(formatPhoneForDisplay(request.phone))}<br>` : ""}
+            ${request.email ? `<b>מייל:</b> ${escapeHtml(request.email)}` : ""}
+          </div>
+          <div class="adminCardActions">
+            <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
+            <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
+            <button type="button" class="adminActionBtn warning" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחיית הבקשה</button>
+          </div>
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderAdminAttentionReportCard_(item) {
+  const report = item.data;
+  const title =
+    report.contactName ||
+    formatPhoneForDisplay(report.contactPhone) ||
+    "איש קשר";
+
+  return `
+    <article class="adminCard adminFocusCard">
+      <div class="adminCardTop">
+        <div>
+          <div class="adminCardName">${escapeHtml(title)}</div>
+          <div class="adminCardMeta">
+            ${escapeHtml(getReportTypeLabel_(report.issueType))}<br>
+            דווח על ידי: ${escapeHtml(report.reporterEmail || "לא ידוע")}<br>
+            ${escapeHtml(formatReportTimestamp_(report))}
+          </div>
+        </div>
+        <span class="adminStatusBadge pending">פתוח</span>
+      </div>
+      <details class="adminFocusAction">
+        <summary>טיפול בדיווח</summary>
+        <div class="adminFocusActionBody">
+          <div class="adminCardDetailsList">${escapeHtml(report.details) || "לא נמסרו פרטים נוספים."}</div>
+          <div class="adminCardActions">
+            <button type="button" class="adminActionBtn primary" onclick="setContactReportStatus_('${escapeJsString(report.docId)}', 'resolved')">סימון כטופל</button>
+          </div>
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderAdminAttention_() {
+  const query = getAdminSearchQuery();
+  const items = getAdminAttentionItems_()
+    .filter(item => {
+      if (
+        adminActiveFilter === "access" &&
+        !["access", "reset"].includes(item.kind)
+      ) {
+        return false;
+      }
+      if (
+        adminActiveFilter === "contacts" &&
+        !["contact", "report"].includes(item.kind)
+      ) {
+        return false;
+      }
+      return adminAttentionItemMatchesQuery_(item, query);
+    });
+  const visibleItems = getVisibleAdminItems_(items);
+
+  document.getElementById("adminSummary").textContent =
+    items.length === 1
+      ? "פריט אחד ממתין לטיפול"
+      : `${items.length} פריטים ממתינים לטיפול`;
+
+  if (!items.length) {
+    document.getElementById("adminList").innerHTML = `
+      <div class="adminFocusEmpty">
+        <span aria-hidden="true">✓</span>
+        <strong>אין כרגע פריטים שממתינים לטיפול</strong>
+        <small>בקשות חדשות יופיעו כאן באופן מרוכז.</small>
+      </div>
+    `;
+    return;
+  }
+
+  const html = visibleItems.map(item => {
+    if (item.kind === "access") {
+      return renderAdminAttentionAccessCard_(item);
+    }
+    if (item.kind === "reset") {
+      return renderAdminAttentionResetCard_(item);
+    }
+    if (item.kind === "contact") {
+      return renderAdminAttentionContactCard_(item);
+    }
+    return renderAdminAttentionReportCard_(item);
+  }).join("");
+
+  document.getElementById("adminList").innerHTML =
+    html + renderAdminLoadMore_(items.length, visibleItems.length);
+}
+
+function getAdminPeople_() {
+  const userByEmail = new Map();
+  const userByPhone = new Map();
+  const matchedUserEmails = new Set();
+
+  adminAllowedUsers.forEach(user => {
+    if (user.email) userByEmail.set(normalizeEmail(user.email), user);
+    if (user.phone) userByPhone.set(normalizePhone(user.phone), user);
+  });
+
+  const people = [...adminContacts, ...adminRemovedContacts].map(contact => {
+    const email = normalizeEmail(contact.email || "");
+    const phone = normalizePhone(contact.phone || "");
+    const user =
+      (email && userByEmail.get(email)) ||
+      (phone && userByPhone.get(phone)) ||
+      null;
+    if (user && user.email) matchedUserEmails.add(user.email);
+    return { contact, user };
+  });
+
+  adminAllowedUsers.forEach(user => {
+    if (!matchedUserEmails.has(user.email)) {
+      people.push({ contact: null, user });
+    }
+  });
+
+  return people;
+}
+
+function adminPersonMatchesQuery_(person, query) {
+  if (!query) return true;
+  const { contact, user } = person;
+  const accessState = user ? getUserAccessState_(user) : null;
+  const searchable = normalizeSearchText([
+    contact ? contact.name : "",
+    contact ? contact.role : "",
+    contact ? contact.dept : "",
+    contact ? contact.hospital : "",
+    contact ? contact.phone : "",
+    contact ? contact.email : "",
+    user ? user.email : "",
+    user ? user.phone : "",
+    accessState ? accessState.label : ""
+  ].filter(Boolean).join(" "));
+  return searchable.includes(query);
+}
+
+function renderAdminPersonContactSection_(contact) {
+  if (!contact) {
+    return `
+      <section class="adminPersonSection">
+        <div class="adminPersonSectionTitle">פרטי איש קשר</div>
+        <p class="adminFocusHelp">לא נמצאה רשומת איש קשר תואמת.</p>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="adminPersonSection">
+      <div class="adminPersonSectionHeader">
+        <div class="adminPersonSectionTitle">פרטי איש קשר</div>
+        <span class="adminMiniStatus ${contact.deleted ? "blocked" : ""}">${contact.deleted ? "הוסר" : "מופיע באפליקציה"}</span>
+      </div>
+      <div class="adminCardDetailsList">
+        ${contact.role ? `<b>תפקיד:</b> ${escapeHtml(contact.role)}<br>` : ""}
+        ${contact.dept ? `<b>מחלקה:</b> ${escapeHtml(contact.dept)}<br>` : ""}
+        ${contact.hospital ? `<b>בית חולים:</b> ${escapeHtml(contact.hospital)}<br>` : ""}
+        ${contact.email ? `<b>מייל:</b> ${escapeHtml(contact.email)}` : ""}
+      </div>
+      <div class="adminCardActions">
+        ${contact.deleted
+          ? `<button type="button" class="adminActionBtn primary" onclick="restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לאפליקציה</button>`
+          : `<button type="button" class="adminActionBtn secondary" onclick="openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>
+             <details class="adminActionMenu">
+               <summary>פעולות נוספות</summary>
+               <div class="adminActionMenuBody">
+                 <button type="button" class="adminActionBtn danger" onclick="removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>
+               </div>
+             </details>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminPersonAccessSection_(user) {
+  if (!user) {
+    return `
+      <section class="adminPersonSection">
+        <div class="adminPersonSectionTitle">כניסה והרשאות</div>
+        <p class="adminFocusHelp">אין לאדם הזה הרשאת כניסה פעילה.</p>
+      </section>
+    `;
+  }
+
+  const accessState = getUserAccessState_(user);
+  const request = getVerificationRequestByEmail_(user.email);
+  const passwordRecovery = getActivePasswordRecoveryForUser_(user.email);
+  const isSelf = normalizeEmail(user.email) === currentAdminEmail;
+  const hasPendingRequest =
+    request &&
+    ["pending", "temporary_active"].includes(request.status) &&
+    ["pending", "temporary", "expired"].includes(accessState.key);
+
+  let resetAction = "";
+  let cancelResetAction = "";
+  if (!isSelf && user.active) {
+    if (!passwordRecovery) {
+      resetAction = `<button type="button" class="adminActionBtn secondary" onclick="preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">עזרה באיפוס סיסמה</button>`;
+    } else if (passwordRecovery.status === "pending") {
+      resetAction = `<button type="button" class="adminActionBtn secondary" onclick="setAdminTab('attention')">מעבר לבקשת האיפוס</button>`;
+    } else if (passwordRecovery.status === "consuming") {
+      resetAction = '<button type="button" class="adminActionBtn secondary" disabled>הסיסמה מתעדכנת כעת</button>';
+    } else {
+      resetAction = '<button type="button" class="adminActionBtn secondary" disabled>איפוס מאושר עד 23:59</button>';
+      cancelResetAction = `<button type="button" class="adminActionBtn warning" onclick="cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>`;
+    }
+  }
+
+  return `
+    <section class="adminPersonSection">
+      <div class="adminPersonSectionHeader">
+        <div class="adminPersonSectionTitle">כניסה והרשאות</div>
+        <span class="adminMiniStatus ${escapeHtml(accessState.badgeClass)}">${escapeHtml(accessState.label)}</span>
+      </div>
+      ${accessState.note ? `<p class="adminFocusHelp">${escapeHtml(accessState.note)}</p>` : ""}
+      <div class="adminCardActions">
+        ${hasPendingRequest
+          ? `<button type="button" class="adminActionBtn primary" onclick="setAdminTab('attention')">מעבר לבקשה שממתינה</button>`
+          : ""}
+        ${resetAction}
+        ${isSelf
+          ? '<button type="button" class="adminActionBtn secondary" disabled>חשבון המנהל הנוכחי</button>'
+          : `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>
+             <details class="adminActionMenu">
+               <summary>פעולות מתקדמות</summary>
+               <div class="adminActionMenuBody">
+                 ${user.manualApproved
+                   ? `<button type="button" class="adminActionBtn warning" onclick="revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`
+                   : ""}
+                 ${cancelResetAction}
+                 <button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>
+               </div>
+             </details>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminPeople_() {
+  const query = getAdminSearchQuery();
+  const people = getAdminPeople_()
+    .filter(person => {
+      if (
+        adminActiveFilter === "access" &&
+        (!person.user || !person.user.active)
+      ) {
+        return false;
+      }
+      if (
+        adminActiveFilter === "restricted" &&
+        !(
+          (person.contact && person.contact.deleted) ||
+          (person.user && !person.user.active)
+        )
+      ) {
+        return false;
+      }
+      return adminPersonMatchesQuery_(person, query);
+    })
+    .sort((a, b) => {
+      const aLabel =
+        (a.contact && a.contact.name) ||
+        (a.user && a.user.email) ||
+        "";
+      const bLabel =
+        (b.contact && b.contact.name) ||
+        (b.user && b.user.email) ||
+        "";
+      return aLabel.localeCompare(bLabel, "he");
+    });
+  const visiblePeople = getVisibleAdminItems_(people);
+
+  document.getElementById("adminSummary").textContent =
+    `${people.length === 1 ? "נמצא אדם אחד" : `נמצאו ${people.length} אנשים`}` +
+    (visiblePeople.length < people.length
+      ? ` · מוצגים ${visiblePeople.length}`
+      : "");
+
+  if (!people.length) {
+    document.getElementById("adminList").innerHTML =
+      '<div class="adminEmpty">לא נמצאו אנשים התואמים לחיפוש.</div>';
+    return;
+  }
+
+  const html = visiblePeople.map(({ contact, user }) => {
+    const displayName =
+      (contact && contact.name) ||
+      (user && getAccountDisplayName_(user.email, user.email)) ||
+      formatPhoneForDisplay(contact && contact.phone) ||
+      "ללא שם";
+    const email =
+      (user && user.email) ||
+      (contact && contact.email) ||
+      "";
+    const phone =
+      (contact && contact.phone) ||
+      (user && user.phone) ||
+      "";
+    const accessState = user ? getUserAccessState_(user) : null;
+
+    return `
+      <article class="adminCard adminPersonCard ${(contact && contact.deleted) || (user && !user.active) ? "blocked" : ""}">
+        <div class="adminCardTop">
+          <div>
+            <div class="adminCardName">${escapeHtml(displayName)}</div>
+            <div class="adminCardMeta">
+              ${email ? escapeHtml(email) : ""}
+              ${phone ? "<br>" + escapeHtml(formatPhoneForDisplay(phone)) : ""}
+            </div>
+          </div>
+          <div class="adminPersonBadges">
+            ${contact ? `<span class="adminMiniStatus ${contact.deleted ? "blocked" : ""}">${contact.deleted ? "איש קשר הוסר" : "איש קשר"}</span>` : ""}
+            <span class="adminMiniStatus ${accessState ? escapeHtml(accessState.badgeClass) : ""}">${accessState ? escapeHtml(accessState.label) : "ללא כניסה"}</span>
+          </div>
+        </div>
+        <details class="adminFocusAction">
+          <summary>ניהול האדם</summary>
+          <div class="adminPersonSections">
+            ${renderAdminPersonContactSection_(contact)}
+            ${renderAdminPersonAccessSection_(user)}
+          </div>
+        </details>
+      </article>
+    `;
+  }).join("");
+
+  document.getElementById("adminList").innerHTML =
+    html + renderAdminLoadMore_(people.length, visiblePeople.length);
+}
+
+function renderAdminMoreActivityHtml_() {
+  if (!adminActivity.length) {
+    return '<div class="adminEmpty">עדיין לא נרשמה פעילות.</div>';
+  }
+
+  return adminActivity.slice(0, 10).map(activity => {
+    const category = getActivityCategory(activity.action);
+    const target =
+      activity.displayName ||
+      activity.targetEmail ||
+      activity.targetPhone ||
+      activity.targetId ||
+      "ללא יעד";
+    return `
+      <div class="adminMoreRow">
+        <div>
+          <strong>${escapeHtml(getActivityTitle(activity))}</strong>
+          <span>${escapeHtml(target)}</span>
+        </div>
+        <time>${escapeHtml(formatActivityTimestamp(activity))}</time>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderAdminMoreManagersHtml_() {
+  if (!currentUserIsSuperAdmin) return "";
+
+  const managers = [...adminManagers].sort((a, b) => {
+    if (a.role !== b.role) return a.role === "super_admin" ? -1 : 1;
+    return a.email.localeCompare(b.email);
+  });
+
+  return `
+    <details class="adminMoreSection">
+      <summary>
+        <span>מנהלים</span>
+        <small>${escapeHtml(String(managers.length))} מנהלים</small>
+      </summary>
+      <div class="adminMoreSectionBody">
+        <button type="button" class="adminActionBtn primary adminMoreAddManager" onclick="openAddManagerModal()">＋ הוספת מנהל</button>
+        ${managers.map(manager => {
+          const contact = findContactByEmail(manager.email);
+          const isSuperAdmin = manager.role === "super_admin";
+          return `
+            <div class="adminMoreManager">
+              <div>
+                <strong>${escapeHtml(getAccountDisplayName_(manager.email, contact && contact.name ? contact.name : manager.email))}</strong>
+                <span>${escapeHtml(manager.email)} · ${isSuperAdmin ? "מנהל־על" : "מנהל רגיל"}</span>
+              </div>
+              ${isSuperAdmin
+                ? '<span class="adminMiniStatus">קבוע</span>'
+                : `<details class="adminActionMenu">
+                     <summary>פעולות</summary>
+                     <div class="adminActionMenuBody">
+                       <button type="button" class="adminActionBtn danger" onclick="removeManager('${escapeJsString(manager.email)}')">הסרת מנהל</button>
+                     </div>
+                   </details>`}
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </details>
+  `;
+}
+
+function renderAdminMore_() {
   const todayKey = getIsraelDateKey_();
   const activeUsersByDate = new Map(
     adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
   );
-  const contactUsersByDate = new Map(
-    adminDailyContactUsers.map(item => [item.date, item.contactUserCount])
-  );
-
   const todayActiveUsers = activeUsersByDate.get(todayKey) || 0;
-  const todayContactUsers = contactUsersByDate.get(todayKey) || 0;
-  const engagementPercent = todayActiveUsers > 0
-    ? Math.round((todayContactUsers / todayActiveUsers) * 100)
-    : 0;
-
-  const historyHtml = adminUsageHistoryLoaded
-    ? `
-      <div class="adminUsageRow header">
-        <div>תאריך</div>
-        <div class="adminUsageNumber">פעילים</div>
-        <div class="adminUsageNumber">השתמשו בפרטי קשר</div>
-      </div>
-      ${getRecentIsraelDateKeys_(14).map(date => `
-        <div class="adminUsageRow">
-          <div class="adminUsageDate">${escapeHtml(formatUsageDate_(date))}</div>
-          <div class="adminUsageNumber">${escapeHtml(String(activeUsersByDate.get(date) || 0))}</div>
-          <div class="adminUsageNumber">${escapeHtml(String(contactUsersByDate.get(date) || 0))}</div>
-        </div>
-      `).join("")}
-      <p class="adminUsageNote">
-        משתמש נספר פעם אחת ביום לאחר פעולה שימושית על איש קשר. מילות חיפוש וזהות איש הקשר אינן נשמרות.
-      </p>
-    `
-    : `
-      <div class="adminUsagePlaceholder">
-        ההיסטוריה אינה נטענת אוטומטית, כדי לשמור על מסך מהיר ועל מספר קריאות נמוך.
-        <br>
-        <button type="button" class="adminInlineBtn" onclick="loadAdminUsageHistory_()" ${adminUsageHistoryLoading ? "disabled" : ""}>
-          ${adminUsageHistoryLoading ? "טוען היסטוריה..." : "הצגת 14 הימים האחרונים"}
-        </button>
-      </div>
-    `;
-
+  document.getElementById("adminSummary").textContent = "";
   document.getElementById("adminList").innerHTML = `
-    <div class="adminOverview">
-      <section class="adminAttentionBanner ${pendingCounts.total ? "hasItems" : "clear"}" aria-live="polite">
-        <span class="adminAttentionIcon" aria-hidden="true">${pendingCounts.total ? "🔔" : "✓"}</span>
-        <div class="adminAttentionContent">
-          <strong class="adminAttentionTitle">
-            ${pendingCounts.total
-              ? `יש ${escapeHtml(String(pendingCounts.total))} פריטים שממתינים לטיפול`
-              : pendingCounts.loaded
-                ? "אין כרגע בקשות שממתינות לטיפול"
-                : "בודק אם יש בקשות שממתינות לטיפול"}
-          </strong>
-          <span class="adminAttentionText">
-            ${pendingDetails.length
-              ? escapeHtml(pendingDetails.join(" · "))
-              : pendingCounts.loaded
-                ? "כל הבקשות והדיווחים הקיימים טופלו."
-                : "הנתונים יופיעו כאן מיד לאחר הבדיקה."}
-          </span>
-          ${pendingCounts.total ? `
-            <div class="adminAttentionActions">
-              ${pendingCounts.users
-                ? `<button type="button" onclick="setAdminTab('users')">הרשאות ואיפוס (${escapeHtml(String(pendingCounts.users))})</button>`
-                : ""}
-              ${pendingCounts.reports
-                ? `<button type="button" onclick="setAdminTab('reports')">בקשות ודיווחים (${escapeHtml(String(pendingCounts.reports))})</button>`
-                : ""}
-            </div>` : ""}
+    <div class="adminMorePage">
+      <section class="adminDailyUseCard" aria-label="שימוש היום">
+        <span class="adminDailyUseValue">${escapeHtml(String(todayActiveUsers))}</span>
+        <div>
+          <strong>אנשים השתמשו באפליקציה היום</strong>
+          <small>כל משתמש נספר פעם אחת בלבד.</small>
         </div>
       </section>
 
-      <div class="adminQuickGrid">
-        <button type="button" class="adminQuickAction" onclick="setAdminTab('contacts')">
-          <span class="adminQuickIcon" aria-hidden="true">👤</span>
-          <span class="adminQuickTitle">אנשי קשר</span>
-          <span class="adminQuickNote">חיפוש, עריכה והסרה מהספר</span>
-        </button>
-        <button type="button" class="adminQuickAction" onclick="setAdminTab('users')">
-          <span class="adminQuickIcon" aria-hidden="true">🔑</span>
-          <span class="adminQuickTitle">הרשאות כניסה</span>
-          <span class="adminQuickNote">אימות, חסימה ובקשות סיסמה</span>
-          ${pendingCounts.users ? `<span class="adminQuickBadge">${escapeHtml(String(pendingCounts.users))} לטיפול</span>` : ""}
-        </button>
-        <button type="button" class="adminQuickAction" onclick="setAdminTab('reports')">
-          <span class="adminQuickIcon" aria-hidden="true">📥</span>
-          <span class="adminQuickTitle">בקשות ודיווחים</span>
-          <span class="adminQuickNote">פריטים שממתינים לטיפול מנהל</span>
-          ${pendingCounts.reports ? `<span class="adminQuickBadge">${escapeHtml(String(pendingCounts.reports))} לטיפול</span>` : ""}
-        </button>
-        <button type="button" class="adminQuickAction" onclick="setAdminTab('activity')">
-          <span class="adminQuickIcon" aria-hidden="true">🕘</span>
-          <span class="adminQuickTitle">פעילות אחרונה</span>
-          <span class="adminQuickNote">שינויים שבוצעו במערכת</span>
-        </button>
-      </div>
+      <details class="adminMoreSection" open>
+        <summary>
+          <span>פעילות אחרונה</span>
+          <small>${escapeHtml(String(Math.min(10, adminActivity.length)))} פעולות</small>
+        </summary>
+        <div class="adminMoreSectionBody">
+          ${renderAdminMoreActivityHtml_()}
+        </div>
+      </details>
 
-      <div class="adminOverviewCards">
-        <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(String(todayActiveUsers))}</span>
-          <span class="adminMetricLabel">משתמשים פעילים היום</span>
-        </div>
-        <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(String(todayContactUsers))}</span>
-          <span class="adminMetricLabel">אנשים שהשתמשו בפרטי איש קשר</span>
-        </div>
-        <div class="adminMetricCard">
-          <span class="adminMetricValue">${escapeHtml(String(engagementPercent))}%</span>
-          <span class="adminMetricLabel">מהפעילים השתמשו באיש קשר</span>
-        </div>
-      </div>
+      ${renderAdminMoreManagersHtml_()}
 
-      <div class="adminUsagePanel">
-        <h3 class="adminUsageTitle">נתוני שימוש</h3>
-        ${historyHtml}
-      </div>
+      <button type="button" id="adminRefreshBtn" class="adminRefreshBtn adminMoreRefresh" onclick="refreshAdminPage()">↻ רענון נתוני העמוד</button>
     </div>
   `;
 }
@@ -6468,18 +6936,12 @@ function renderAdminList() {
 
   updateAdminFilterButtons();
 
-  if (adminActiveTab === "general") {
-    renderAdminGeneral();
-  } else if (adminActiveTab === "users") {
-    renderAdminUsers();
-  } else if (adminActiveTab === "activity") {
-    renderAdminActivity();
-  } else if (adminActiveTab === "reports") {
-    renderAdminReports();
-  } else if (adminActiveTab === "managers") {
-    renderAdminManagers();
+  if (adminActiveTab === "people") {
+    renderAdminPeople_();
+  } else if (adminActiveTab === "more") {
+    renderAdminMore_();
   } else {
-    renderAdminContacts();
+    renderAdminAttention_();
   }
 }
 
@@ -6596,13 +7058,13 @@ function openAdminPermissionForEmail_(email) {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return;
 
-  setAdminTab("users");
+  setAdminTab("people");
   const searchInput = document.getElementById("adminSearchInput");
   if (searchInput) {
     searchInput.value = normalizedEmail;
   }
   resetAdminVisibleItems_();
-  if (adminLoadedSections.has("users")) {
+  if (adminLoadedSections.has("people")) {
     renderAdminList();
   }
 }
