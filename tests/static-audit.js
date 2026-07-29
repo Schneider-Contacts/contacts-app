@@ -195,6 +195,11 @@ assert.match(
   /function requestAdminReason_\(/,
   "Manager approval reason dialog helper must exist"
 );
+assert.match(
+  appSource,
+  /function deleteUserPermission\(email\)[\s\S]*?verificationRequests[\s\S]*?status:[\s\S]*?"rejected"[\s\S]*?"revoked"/,
+  "Deleting a permission must close its active verification request"
+);
 assert.doesNotMatch(
   appSource,
   /window\.prompt\(/,
