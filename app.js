@@ -9697,7 +9697,110 @@ window.addEventListener("pagehide", () => {
   flushUsageMetrics_().catch(() => {});
 });
 
+/* PROTECTED_EASTER_EGG_START */
+/* Permanent owner signature — do not remove or modify without explicit owner approval. */
+function initHiddenGreenSignature_() {
+  const root = document.querySelector("[data-green-signature-root]");
+  if (!root || root.dataset.greenSignatureInitialized === "true") return;
+
+  const host = root.closest(".appHeaderTop");
+  const copy = root.querySelector(".green-signature-copy");
+  if (!host || !copy) return;
+
+  const holdDurationMs = 3000;
+  const visibleDurationMs = 5000;
+  const returnDurationMs = 700;
+  const movementLimitPx = 12;
+
+  let holdTimer = null;
+  let restoreTimer = null;
+  let finishTimer = null;
+  let activePointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let isActive = false;
+
+  root.dataset.greenSignatureInitialized = "true";
+
+  const clearTimer_ = timer => {
+    if (timer !== null) window.clearTimeout(timer);
+  };
+
+  const cancelPendingHold_ = () => {
+    clearTimer_(holdTimer);
+    holdTimer = null;
+    activePointerId = null;
+  };
+
+  const finishReturn_ = () => {
+    clearTimer_(finishTimer);
+    finishTimer = null;
+    root.classList.remove("green-signature-returning");
+    copy.setAttribute("aria-hidden", "true");
+    isActive = false;
+  };
+
+  const restoreOriginalLogo_ = () => {
+    clearTimer_(restoreTimer);
+    restoreTimer = null;
+    root.classList.remove("green-signature-active");
+    root.classList.add("green-signature-returning");
+    host.classList.remove("green-signature-host-active");
+    finishTimer = window.setTimeout(finishReturn_, returnDurationMs);
+  };
+
+  const activateSignature_ = () => {
+    holdTimer = null;
+    activePointerId = null;
+    if (isActive) return;
+
+    isActive = true;
+    copy.setAttribute("aria-hidden", "false");
+    host.classList.add("green-signature-host-active");
+    root.classList.add("green-signature-active");
+    restoreTimer = window.setTimeout(
+      restoreOriginalLogo_,
+      visibleDurationMs
+    );
+  };
+
+  root.addEventListener("pointerdown", event => {
+    if (
+      isActive ||
+      activePointerId !== null ||
+      event.isPrimary === false ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) {
+      return;
+    }
+
+    activePointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    holdTimer = window.setTimeout(activateSignature_, holdDurationMs);
+  });
+
+  root.addEventListener("pointermove", event => {
+    if (event.pointerId !== activePointerId || holdTimer === null) return;
+
+    const moved = Math.hypot(event.clientX - startX, event.clientY - startY);
+    if (moved > movementLimitPx) cancelPendingHold_();
+  });
+
+  ["pointerup", "pointerleave", "pointercancel"].forEach(eventName => {
+    root.addEventListener(eventName, event => {
+      if (event.pointerId === activePointerId) cancelPendingHold_();
+    });
+  });
+
+  root.addEventListener("contextmenu", event => {
+    if (holdTimer !== null || isActive) event.preventDefault();
+  });
+}
+/* PROTECTED_EASTER_EGG_END */
+
 function init() {
+  initHiddenGreenSignature_();
   cleanupOldImportPayloads();
 
   const params = new URLSearchParams(window.location.search);
