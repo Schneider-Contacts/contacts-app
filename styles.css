@@ -1725,6 +1725,26 @@ select {
   margin-top: 11px;
 }
 
+.adminReasonIntro {
+  margin: 0 0 12px;
+  color: #526c62;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.adminReasonIdentity {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #dcebe4;
+  border-radius: 14px;
+  background: #f7fbf9;
+  color: #27483d;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
 @media (max-width: 600px) {
   #adminPanel {
     max-width: none;
