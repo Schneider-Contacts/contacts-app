@@ -60,10 +60,19 @@ const authRouteSandbox = {
   isValidEmail_: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
   getAllowedUser_: email => {
     if (email === "active@example.com") return { active: true };
+    if (email === "reset-ready@example.com") return { active: true };
     if (email === "blocked@example.com") return { active: false };
     return null;
   },
-  isAllowedEmailPhonePairActive_: email => email === "active@example.com",
+  isAllowedEmailPhonePairActive_: email =>
+    ["active@example.com", "reset-ready@example.com"].includes(email),
+  getPasswordResetRequest_: email =>
+    email === "reset-ready@example.com"
+      ? {
+          status: "manager_ready",
+          approvedUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+        }
+      : null,
   isValidNormalizedIsraeliPhone_: phone => /^\+9725\d{8}$/.test(phone),
   findEmailUpdateMatches_: phone =>
     phone === "+972541234567" ? [{ phone }] : []
@@ -80,6 +89,10 @@ vm.runInContext(
 assert.strictEqual(
   authRouteSandbox.getPublicEmailAuthRoute_("active@example.com"),
   "PASSWORD"
+);
+assert.strictEqual(
+  authRouteSandbox.getPublicEmailAuthRoute_("reset-ready@example.com"),
+  "PASSWORD_RESET_READY"
 );
 assert.strictEqual(
   authRouteSandbox.getPublicEmailAuthRoute_("new@example.com"),
@@ -282,6 +295,36 @@ assert.match(
   appSource,
   /function approvePasswordRecoveryForUser_\(email\)/,
   "Regular admin UI must provide password recovery approval"
+);
+assert.match(
+  appSource,
+  /function preparePasswordRecoveryForUser_\(email\)[\s\S]*?"preparePasswordRecovery"/,
+  "Every active permission must support manager-prepared password recovery"
+);
+assert.match(
+  webEndpointsSource,
+  /function preparePasswordRecoveryFromWeb_[\s\S]*?status:\s*\{\s*stringValue:\s*"manager_ready"\s*\}/,
+  "Manager-prepared recovery must persist an expiring ready state"
+);
+assert.match(
+  webEndpointsSource,
+  /function claimManagerPasswordRecovery_[\s\S]*?registeredPhone !== normalizedPhone[\s\S]*?recoveryTokenHash/,
+  "A manager-prepared reset must verify the registered phone before releasing a one-time secret"
+);
+assert.match(
+  appSource,
+  /route === "PASSWORD_RESET_READY"[\s\S]*?showAuthPhoneStep_\(email,\s*"password_reset"\)/,
+  "The next login after manager approval must open the password-reset identity step"
+);
+assert.match(
+  indexSource,
+  /authChoicePrompt">נא לבחור את האפשרות המתאימה:/,
+  "The account-path choice must have an explicit instruction"
+);
+assert.match(
+  indexSource,
+  /authHelpStep regular[\s\S]*?passwordResetBtn[\s\S]*?authHelpStep manager[\s\S]*?passwordResetHelpBtn[\s\S]*?authHelpStep whatsapp/,
+  "Password help actions must appear in chronological order"
 );
 assert.match(
   webEndpointsSource,
