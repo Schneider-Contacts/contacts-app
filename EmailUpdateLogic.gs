@@ -72,6 +72,19 @@ function upsertAllowedUserForEmailReplacement_(
 
   const now = new Date().toISOString();
   const isNewGrant = !existingUser;
+  const shouldEnsureAccessReview = Boolean(
+    isNewGrant ||
+    (
+      existingUser &&
+      existingUser.accessReviewRequired === true &&
+      ["", ACCESS_REVIEW_STATUS_PENDING].includes(
+        cleanSheetValue_(existingUser.accessReviewStatus)
+      )
+    )
+  );
+  const existingAccessReview = shouldEnsureAccessReview
+    ? getAuthFlowDocument_("verificationRequests", normalizedEmail)
+    : null;
   const userUpdateFields = [
     "active",
     "email",
@@ -180,14 +193,61 @@ function upsertAllowedUserForEmailReplacement_(
         ? { updateTime: existingPhonePermission.updateTime }
         : { exists: false }
   };
+  const accessReviewWrite = shouldEnsureAccessReview
+    ? {
+        update: {
+          name: getFirestoreDocumentName_(
+            "verificationRequests",
+            normalizedEmail
+          ),
+          fields: {
+            email: { stringValue: normalizedEmail },
+            requestType: { stringValue: "access_review" },
+            status: { stringValue: ACCESS_REVIEW_STATUS_PENDING },
+            requestedAt: { timestampValue: now },
+            updatedAt: { timestampValue: now },
+            temporaryAccessUntil: { nullValue: null },
+            automaticReason: {
+              stringValue: "self-service-email-update"
+            },
+            handledAt: { nullValue: null },
+            handledBy: { stringValue: "" }
+          }
+        },
+        updateMask: {
+          fieldPaths: [
+            "email",
+            "requestType",
+            "status",
+            "requestedAt",
+            "updatedAt",
+            "temporaryAccessUntil",
+            "automaticReason",
+            "handledAt",
+            "handledBy"
+          ]
+        },
+        currentDocument:
+          existingAccessReview && existingAccessReview.updateTime
+            ? { updateTime: existingAccessReview.updateTime }
+            : { exists: false }
+      }
+    : null;
 
   try {
-    commitFirestoreWrites_([userWrite, phoneWrite]);
+    commitFirestoreWrites_([
+      userWrite,
+      phoneWrite,
+      ...(accessReviewWrite ? [accessReviewWrite] : [])
+    ]);
   } catch (error) {
     // אם התקבלה שגיאת רשת לאחר commit מוצלח, קריאה חוזרת מונעת
     // הצגת כשל שגוי או כתיבה כפולה.
     const savedUser = getAllowedUser_(normalizedEmail);
     const savedPhone = getAllowedPhonePermission_(normalizedPhone);
+    const savedAccessReview = shouldEnsureAccessReview
+      ? getAuthFlowDocument_("verificationRequests", normalizedEmail)
+      : null;
     const pairIsConsistent = Boolean(
       savedUser &&
       savedUser.active === true &&
@@ -197,8 +257,16 @@ function upsertAllowedUserForEmailReplacement_(
       savedPhone.active === true &&
       normalizeEmail_(savedPhone.email) === normalizedEmail
     );
+    const reviewIsConsistent = Boolean(
+      !shouldEnsureAccessReview ||
+      (
+        savedAccessReview &&
+        savedAccessReview.data &&
+        savedAccessReview.data.status === ACCESS_REVIEW_STATUS_PENDING
+      )
+    );
 
-    if (!pairIsConsistent) {
+    if (!pairIsConsistent || !reviewIsConsistent) {
       throw error;
     }
   }
