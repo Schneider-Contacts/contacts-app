@@ -143,6 +143,11 @@ assert.match(
 );
 assert.match(
   appSource,
+  /async function approveManualAccess_\([\s\S]*?if \(!request\.synthetic\) \{[\s\S]*?verificationRequests/,
+  "Approving a synthetic legacy review must not attempt a forbidden request create"
+);
+assert.match(
+  appSource,
   /access_auto_granted: "הרשאת כניסה נוצרה וממתינה לבדיקה"/,
   "Pending permissions must not be described as approved"
 );
