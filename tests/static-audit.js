@@ -25,6 +25,7 @@ const appsScriptSource = appsScriptFiles
   .join("\n");
 const directorySyncSource = read("DirectorySync.gs");
 const webEndpointsSource = read("WebEndpoints.gs");
+const emailUpdateLogicSource = read("EmailUpdateLogic.gs");
 const reportsAutomationSource = read("ReportsAutomation.gs");
 const codeSource = read("Code.gs");
 const rulesSource = read("firestore.rules");
@@ -113,6 +114,37 @@ assert.strictEqual(
 assert.strictEqual(
   authRouteSandbox.getPublicPhoneAuthRoute_("123"),
   "INVALID_PHONE"
+);
+
+assert.match(
+  appSource,
+  /function requestPublicAuthRouteWithRetry_\([\s\S]*?maxWaitRetries = 3[\s\S]*?!== "WAIT"[\s\S]*?setTimeout\(resolve, 1200 \+ attempt \* 800\)/,
+  "Transient WAIT auth routes must retry automatically"
+);
+assert.match(
+  appSource,
+  /continueFromEmailStep\([\s\S]*?requestPublicAuthRouteWithRetry_\([\s\S]*?"email"/,
+  "Email routing must use the retrying auth helper"
+);
+assert.match(
+  appSource,
+  /continueFromPhoneStep\([\s\S]*?requestPublicAuthRouteWithRetry_\([\s\S]*?"phone"/,
+  "Phone routing must use the retrying auth helper"
+);
+assert.match(
+  emailUpdateLogicSource,
+  /getAuthFlowDocument_\("verificationRequests", normalizedEmail\)[\s\S]*?requestType: \{ stringValue: "access_review" \}[\s\S]*?status: \{ stringValue: ACCESS_REVIEW_STATUS_PENDING \}[\s\S]*?commitFirestoreWrites_\(\[[\s\S]*?accessReviewWrite/,
+  "New email permissions must atomically create a manager review request"
+);
+assert.match(
+  appSource,
+  /function getEffectiveVerificationRequestForUser_\([\s\S]*?synthetic: true/,
+  "Admin UI must recover legacy pending users without a review document"
+);
+assert.match(
+  appSource,
+  /access_auto_granted: "הרשאת כניסה נוצרה וממתינה לבדיקה"/,
+  "Pending permissions must not be described as approved"
 );
 
 assert.match(
@@ -445,7 +477,15 @@ assert(
 const adminFocusSandbox = {
   adminAllowedUsers: [
     { email: "one@example.com", phone: "+972501111111", active: true },
-    { email: "orphan@example.com", phone: "+972502222222", active: false }
+    { email: "orphan@example.com", phone: "+972502222222", active: false },
+    {
+      email: "missing-request@example.com",
+      phone: "+972504444444",
+      active: true,
+      accessReviewRequired: true,
+      accessReviewStatus: "pending",
+      updatedAt: 45
+    }
   ],
   adminContacts: [
     {
@@ -491,6 +531,10 @@ const adminFocusSandbox = {
 vm.createContext(adminFocusSandbox);
 vm.runInContext(
   [
+    extractCompleteFunction(
+      appSource,
+      "getEffectiveVerificationRequestForUser_"
+    ),
     extractCompleteFunction(appSource, "getAdminAttentionItems_"),
     extractCompleteFunction(appSource, "getAdminPeople_")
   ].join("\n"),
@@ -500,7 +544,7 @@ vm.runInContext(
 const focusedPeople = adminFocusSandbox.getAdminPeople_();
 assert.strictEqual(
   focusedPeople.length,
-  3,
+  4,
   "The people view must merge matching contacts and access records"
 );
 assert(
@@ -516,8 +560,17 @@ assert(
 const attentionItems = adminFocusSandbox.getAdminAttentionItems_();
 assert.deepStrictEqual(
   Array.from(attentionItems, item => item.kind),
-  ["access", "reset", "contact", "report"],
+  ["access", "access", "reset", "contact", "report"],
   "The attention queue must consolidate and sort every pending request type"
+);
+assert(
+  attentionItems.some(
+    item =>
+      item.kind === "access" &&
+      item.data.request.synthetic === true &&
+      item.data.user.email === "missing-request@example.com"
+  ),
+  "Legacy pending users without a request document must remain actionable"
 );
 
 const moreRendererSource = extractCompleteFunction(
