@@ -1728,6 +1728,34 @@ function requestPublicAuthRoute_(kind, value, options = {}) {
   });
 }
 
+async function requestPublicAuthRouteWithRetry_(kind, value, options = {}) {
+  const maxWaitRetries = 3;
+
+  for (let attempt = 0; attempt <= maxWaitRetries; attempt += 1) {
+    const result = await requestPublicAuthRoute_(
+      kind,
+      value,
+      attempt === 0
+        ? options
+        : { ...options, forceFresh: false }
+    );
+
+    if (String(result && result.route || "") !== "WAIT") {
+      return result;
+    }
+
+    if (attempt === maxWaitRetries) {
+      throw new Error("AUTH_ROUTE_BUSY");
+    }
+
+    await new Promise(resolve => {
+      setTimeout(resolve, 1200 + attempt * 800);
+    });
+  }
+
+  throw new Error("AUTH_ROUTE_BUSY");
+}
+
 function getCachedSupportContact_() {
   try {
     const raw = sessionStorage.getItem(SUPPORT_CONTACT_CACHE_KEY);
@@ -2448,7 +2476,11 @@ async function continueFromEmailStep(options = {}) {
   setLoginStatus("בודק את מסלול הכניסה המתאים...", "loading");
 
   try {
-    const result = await requestPublicAuthRoute_("email", email, options);
+    const result = await requestPublicAuthRouteWithRetry_(
+      "email",
+      email,
+      options
+    );
     const route = String(result.route || "SYSTEM_ERROR");
     authRouteIsAdmin = result.admin === true;
 
@@ -2571,7 +2603,11 @@ async function continueFromPhoneStep() {
       return;
     }
 
-    const result = await requestPublicAuthRoute_("phone", phone, { forceFresh: true });
+    const result = await requestPublicAuthRouteWithRetry_(
+      "phone",
+      phone,
+      { forceFresh: true }
+    );
     const route = String(result.route || "SYSTEM_ERROR");
 
     if (route === "UPDATE_EMAIL") {
@@ -4670,9 +4706,15 @@ function getAdminPendingCounts_() {
     adminLoadedSections.has("reports") ||
     adminLoadedSections.has("attention");
   const verificationRequests = usersLoaded
-    ? adminVerificationRequests.filter(request =>
-        ["pending", "temporary_active"].includes(request.status)
-      ).length
+    ? adminAllowedUsers.filter(user => {
+        const request = getEffectiveVerificationRequestForUser_(user);
+        const accessState = getUserAccessState_(user);
+        return Boolean(
+          request &&
+          ["pending", "temporary_active"].includes(request.status) &&
+          ["pending", "temporary", "expired"].includes(accessState.key)
+        );
+      }).length
     : adminPendingSummary.verificationRequests;
   const passwordResetRequests = usersLoaded
     ? adminPasswordResetRequests.filter(request =>
@@ -5472,7 +5514,8 @@ function getActivityTitle(activity) {
     manager_remove: "מנהל הוסר",
     manager_enable: "מנהל הופעל",
     manager_disable: "מנהל הושבת",
-    access_auto_granted: "גישה אושרה אוטומטית",
+    access_auto_granted: "הרשאת כניסה נוצרה וממתינה לבדיקה",
+    temporary_access_automatic: "גישה זמנית אושרה אוטומטית עד 23:59",
     manual_approval_grant: "גישה אושרה ידנית",
     manual_approval_reject: "בקשת אישור נדחתה",
     manual_approval_revoke: "אישור ידני בוטל"
@@ -6278,7 +6321,7 @@ function getAdminAttentionItems_() {
   const accessItems = adminAllowedUsers
     .map(user => {
       const accessState = getUserAccessState_(user);
-      const request = getVerificationRequestByEmail_(user.email);
+      const request = getEffectiveVerificationRequestForUser_(user);
       if (
         !["pending", "temporary", "expired"].includes(accessState.key) ||
         !request ||
@@ -7100,8 +7143,36 @@ function getVerificationRequestByEmail_(email) {
   ) || null;
 }
 
-function getUserAccessState_(user) {
+function getEffectiveVerificationRequestForUser_(user) {
   const request = getVerificationRequestByEmail_(user && user.email);
+  if (request) return request;
+
+  if (
+    !user ||
+    user.accessReviewRequired !== true ||
+    !["", "pending", "temporary_active"].includes(
+      String(user.accessReviewStatus || "")
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    docId: normalizeEmail(user.email),
+    email: normalizeEmail(user.email),
+    status: user.accessReviewStatus === "temporary_active"
+      ? "temporary_active"
+      : "pending",
+    requestType: "access_review",
+    requestedAt: user.accessGrantedAt || user.updatedAt || null,
+    updatedAt: user.updatedAt || null,
+    temporaryAccessUntil: user.temporaryAccessUntil || null,
+    synthetic: true
+  };
+}
+
+function getUserAccessState_(user) {
+  const request = getEffectiveVerificationRequestForUser_(user);
   const isAdminAccount = normalizeEmail(user && user.email) === currentAdminEmail ||
     adminManagers.some(manager =>
       manager.active && normalizeEmail(manager.email) === normalizeEmail(user && user.email)
@@ -7322,7 +7393,7 @@ async function approveManualAccess_(email, temporary = false) {
   const normalizedEmail = normalizeEmail(email);
   const user = getAllowedUserByEmail(normalizedEmail);
   const contact = findContactByEmail(normalizedEmail);
-  const request = getVerificationRequestByEmail_(normalizedEmail);
+  const request = getEffectiveVerificationRequestForUser_(user);
   if (
     !user ||
     !user.active ||
@@ -8016,7 +8087,7 @@ function renderAdminUsers() {
     const contact = findContactByEmail(user.email);
     const isSelf = normalizeEmail(user.email) === currentAdminEmail;
     const accessState = getUserAccessState_(user);
-    const request = getVerificationRequestByEmail_(user.email);
+    const request = getEffectiveVerificationRequestForUser_(user);
     const passwordRecovery =
       getActivePasswordRecoveryForUser_(user.email);
     const isNewToday = isUserNewToday_(user);
