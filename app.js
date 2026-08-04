@@ -7477,17 +7477,19 @@ async function approveManualAccess_(email, temporary = false) {
           },
       { merge: true }
     );
-    batch.set(
-      firebaseApi.doc(db, "verificationRequests", normalizedEmail),
-      {
-        status: temporary ? "temporary_active" : "approved",
-        temporaryAccessUntil: temporary ? temporaryUntil : null,
-        handledAt: now,
-        handledBy: currentAdminEmail,
-        updatedAt: now
-      },
-      { merge: true }
-    );
+    if (!request.synthetic) {
+      batch.set(
+        firebaseApi.doc(db, "verificationRequests", normalizedEmail),
+        {
+          status: temporary ? "temporary_active" : "approved",
+          temporaryAccessUntil: temporary ? temporaryUntil : null,
+          handledAt: now,
+          handledBy: currentAdminEmail,
+          updatedAt: now
+        },
+        { merge: true }
+      );
+    }
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
       action: temporary
         ? "temporary_access_manager_grant"
@@ -7515,6 +7517,8 @@ async function approveManualAccess_(email, temporary = false) {
 async function rejectManualAccess_(email) {
   if (!currentUserIsAdmin) return;
   const normalizedEmail = normalizeEmail(email);
+  const user = getAllowedUserByEmail(normalizedEmail);
+  const request = getEffectiveVerificationRequestForUser_(user);
   if (!confirm(`לדחות את בקשת האישור של ${normalizedEmail}?`)) return;
 
   setAdminStatus("דוחה את הבקשה...", "loading");
@@ -7534,16 +7538,18 @@ async function rejectManualAccess_(email) {
       },
       { merge: true }
     );
-    batch.set(
-      firebaseApi.doc(db, "verificationRequests", normalizedEmail),
-      {
-        status: "rejected",
-        handledAt: now,
-        handledBy: currentAdminEmail,
-        updatedAt: now
-      },
-      { merge: true }
-    );
+    if (request && !request.synthetic) {
+      batch.set(
+        firebaseApi.doc(db, "verificationRequests", normalizedEmail),
+        {
+          status: "rejected",
+          handledAt: now,
+          handledBy: currentAdminEmail,
+          updatedAt: now
+        },
+        { merge: true }
+      );
+    }
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
       action: "manual_approval_reject",
       targetEmail: normalizedEmail,
