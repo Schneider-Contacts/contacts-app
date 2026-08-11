@@ -1292,6 +1292,12 @@ function setAuthMode(mode) {
   const description = document.getElementById("authModeDescription");
   const button = document.getElementById("loginButton");
   const passwordInput = document.getElementById("passwordInput");
+  const passwordInputShell = passwordInput
+    ? passwordInput.closest(".authInputShell")
+    : null;
+  const passwordToggle = passwordInputShell
+    ? passwordInputShell.querySelector(".passwordToggle")
+    : null;
   const confirmGroup = document.getElementById("confirmPasswordGroup");
   const confirmInput = document.getElementById("confirmPasswordInput");
   const passwordResetButton = document.getElementById("passwordResetBtn");
@@ -1300,6 +1306,23 @@ function setAuthMode(mode) {
     "existingAccountPathBtn"
   );
   const newPathButton = document.getElementById("newAccountPathBtn");
+  const passwordPathSelected = authPurpose !== "guided";
+
+  if (passwordInput) {
+    passwordInput.disabled = !passwordPathSelected;
+    passwordInput.setAttribute(
+      "aria-disabled",
+      String(!passwordPathSelected)
+    );
+    if (!passwordPathSelected) passwordInput.value = "";
+  }
+  if (passwordToggle) passwordToggle.disabled = !passwordPathSelected;
+  if (passwordInputShell) {
+    passwordInputShell.classList.toggle(
+      "authInputShellDisabled",
+      !passwordPathSelected
+    );
+  }
 
   if (existingPathButton) {
     existingPathButton.classList.toggle(
@@ -1628,8 +1651,10 @@ function showAuthPasswordStep_(email, mode = "login") {
   updateAuthProgress_("password");
   setLoginStatus("", "");
   setTimeout(() => {
-    const password = document.getElementById("passwordInput");
-    if (password) password.focus();
+    const focusTarget = authMode === "guided"
+      ? document.getElementById("existingAccountPathBtn")
+      : document.getElementById("passwordInput");
+    if (focusTarget) focusTarget.focus();
   }, 0);
   return true;
 }
@@ -3350,6 +3375,18 @@ async function handlePrimaryAuthAction() {
     authStage === "password_recovery_claim"
   ) {
     await continueFromPhoneStep();
+    return;
+  }
+
+  if (authStage === "password" && authMode === "guided") {
+    setLoginStatus(
+      "בחרו תחילה אם כבר נכנסתם בעבר או שזו הכניסה הראשונה שלכם.",
+      "error"
+    );
+    const firstChoice = document.getElementById(
+      "existingAccountPathBtn"
+    );
+    if (firstChoice) firstChoice.focus();
     return;
   }
 

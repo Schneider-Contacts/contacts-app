@@ -132,6 +132,16 @@ assert.match(
   "Phone routing must use the retrying auth helper"
 );
 assert.match(
+  appSource,
+  /passwordPathSelected = authPurpose !== "guided"[\s\S]*?passwordInput\.disabled = !passwordPathSelected[\s\S]*?passwordToggle\.disabled = !passwordPathSelected/,
+  "Password entry must remain disabled until an authentication path is selected"
+);
+assert.match(
+  appSource,
+  /authStage === "password" && authMode === "guided"[\s\S]*?בחרו תחילה אם כבר נכנסתם בעבר/,
+  "Password submission must reject an unselected authentication path"
+);
+assert.match(
   emailUpdateLogicSource,
   /getAuthFlowDocument_\("verificationRequests", normalizedEmail\)[\s\S]*?requestType: \{ stringValue: "access_review" \}[\s\S]*?status: \{ stringValue: ACCESS_REVIEW_STATUS_PENDING \}[\s\S]*?commitFirestoreWrites_\(\[[\s\S]*?accessReviewWrite/,
   "New email permissions must atomically create a manager review request"
@@ -216,6 +226,114 @@ const extractCompleteFunction = (source, functionName) => {
 
   throw new Error(`Could not extract complete function: ${functionName}`);
 };
+
+const createTestClassList = () => {
+  const values = new Set();
+  return {
+    toggle(name, force) {
+      if (force) values.add(name);
+      else values.delete(name);
+    },
+    contains(name) {
+      return values.has(name);
+    }
+  };
+};
+const authPasswordToggle = {
+  disabled: false,
+  textContent: "הצג",
+  setAttribute() {}
+};
+const authConfirmToggle = {
+  disabled: false,
+  textContent: "הצג",
+  setAttribute() {}
+};
+const authPasswordShell = {
+  classList: createTestClassList(),
+  querySelector: selector =>
+    selector === ".passwordToggle" ? authPasswordToggle : null
+};
+const authPasswordElements = {
+  loginTitle: { textContent: "" },
+  authModeDescription: { textContent: "" },
+  loginButton: { textContent: "", disabled: false },
+  passwordInput: {
+    autocomplete: "",
+    disabled: false,
+    focused: false,
+    type: "password",
+    value: "temporary",
+    closest: () => authPasswordShell,
+    focus() { this.focused = true; },
+    setAttribute(name, value) { this[name] = value; }
+  },
+  confirmPasswordGroup: { style: { display: "" } },
+  confirmPasswordInput: {
+    autocomplete: "",
+    type: "password",
+    value: "",
+    setAttribute() {}
+  },
+  passwordResetBtn: { style: { display: "" } },
+  authModeNote: { style: { display: "" }, textContent: "" },
+  existingAccountPathBtn: {
+    classList: createTestClassList(),
+    focused: false,
+    focus() { this.focused = true; }
+  },
+  newAccountPathBtn: { classList: createTestClassList() }
+};
+const authPasswordSandbox = {
+  authPurpose: "login",
+  authMode: "login",
+  document: {
+    getElementById: id => authPasswordElements[id] || null,
+    querySelectorAll: selector =>
+      selector === ".passwordToggle"
+        ? [authPasswordToggle, authConfirmToggle]
+        : []
+  },
+  setLoginStatus() {},
+  setLoginButtonDisabled(disabled) {
+    authPasswordElements.loginButton.disabled = disabled;
+  }
+};
+vm.createContext(authPasswordSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "setAuthMode"),
+    extractCompleteFunction(appSource, "selectAuthPasswordPath_")
+  ].join("\n"),
+  authPasswordSandbox
+);
+
+authPasswordSandbox.setAuthMode("guided");
+assert(authPasswordElements.passwordInput.disabled);
+assert(authPasswordToggle.disabled);
+assert(authPasswordElements.loginButton.disabled);
+assert(
+  authPasswordShell.classList.contains("authInputShellDisabled")
+);
+
+authPasswordSandbox.selectAuthPasswordPath_("login");
+assert(!authPasswordElements.passwordInput.disabled);
+assert(!authPasswordToggle.disabled);
+assert(!authPasswordElements.loginButton.disabled);
+assert(!authPasswordShell.classList.contains("authInputShellDisabled"));
+assert(authPasswordElements.passwordInput.focused);
+
+authPasswordSandbox.setAuthMode("guided");
+authPasswordSandbox.selectAuthPasswordPath_("register");
+assert(!authPasswordElements.passwordInput.disabled);
+assert.strictEqual(
+  authPasswordElements.confirmPasswordGroup.style.display,
+  "block"
+);
+assert.strictEqual(
+  authPasswordElements.loginButton.textContent,
+  "יצירת חשבון"
+);
 
 const mainSearchElements = {
   searchInput: { value: "" },

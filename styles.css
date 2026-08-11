@@ -973,6 +973,18 @@ select {
   background: #fcfffd;
 }
 
+#login .authInputShell.authInputShellDisabled {
+  border-color: #dfe9e4;
+  background: #f2f6f4;
+  box-shadow: none;
+  opacity: 0.68;
+}
+
+#login .authInputShell.authInputShellDisabled input,
+#login .authInputShell.authInputShellDisabled button {
+  cursor: not-allowed;
+}
+
 .authFieldIcon {
   position: absolute;
   right: 14px;
