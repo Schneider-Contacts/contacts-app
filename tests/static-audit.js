@@ -116,6 +116,70 @@ assert.strictEqual(
   "INVALID_PHONE"
 );
 
+let capturedAuthFetchRequests = [];
+const authPrefetchPayloads = [
+  { decoded: { active: true }, updateTime: "admin-time" },
+  {
+    decoded: {
+      email: "ACTIVE@EXAMPLE.COM",
+      active: true,
+      phone: "054-123-4567",
+      phoneKey: "972541234567"
+    },
+    updateTime: "user-time"
+  },
+  {
+    decoded: {
+      status: "manager_ready",
+      approvedUntil: "2099-01-01T21:59:59.999Z"
+    },
+    updateTime: "reset-time"
+  }
+];
+const authPrefetchSandbox = {
+  FIREBASE_PROJECT_ID: "test-project",
+  PASSWORD_RECOVERY_REQUEST_COLLECTION: "passwordResetRequests",
+  normalizeEmail_: authRouteSandbox.normalizeEmail_,
+  normalizeIsraeliPhone: authRouteSandbox.normalizeIsraeliPhone,
+  isValidEmail_: authRouteSandbox.isValidEmail_,
+  cleanSheetValue_: value => String(value || "").trim(),
+  firestoreDocumentToJs_: document => document.decoded || {},
+  ScriptApp: { getOAuthToken: () => "test-token" },
+  UrlFetchApp: {
+    fetchAll(requests) {
+      capturedAuthFetchRequests = requests;
+      return authPrefetchPayloads.map(payload => ({
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify(payload)
+      }));
+    }
+  }
+};
+vm.createContext(authPrefetchSandbox);
+vm.runInContext(
+  extractAppsScriptFunction(webEndpointsSource, "getPublicEmailAuthState_"),
+  authPrefetchSandbox
+);
+const prefetchedAuthState =
+  authPrefetchSandbox.getPublicEmailAuthState_("ACTIVE@EXAMPLE.COM");
+assert.strictEqual(capturedAuthFetchRequests.length, 3);
+assert(capturedAuthFetchRequests.every(request => request.method === "get"));
+assert.strictEqual(prefetchedAuthState.isAdminEmail, true);
+assert.strictEqual(prefetchedAuthState.allowedUser.email, "active@example.com");
+assert.strictEqual(prefetchedAuthState.allowedUser.phone, "+972541234567");
+assert.strictEqual(prefetchedAuthState.passwordRecovery.status, "manager_ready");
+assert.strictEqual(
+  authRouteSandbox.getPublicEmailAuthRoute_(
+    "reset-ready@example.com",
+    {
+      prefetched: true,
+      allowedUser: { active: true },
+      passwordRecovery: prefetchedAuthState.passwordRecovery
+    }
+  ),
+  "PASSWORD_RESET_READY"
+);
+
 assert.match(
   appSource,
   /function requestPublicAuthRouteWithRetry_\([\s\S]*?maxWaitRetries = 3[\s\S]*?!== "WAIT"[\s\S]*?setTimeout\(resolve, 1200 \+ attempt \* 800\)/,
@@ -123,8 +187,23 @@ assert.match(
 );
 assert.match(
   appSource,
-  /continueFromEmailStep\([\s\S]*?requestPublicAuthRouteWithRetry_\([\s\S]*?"email"/,
+  /function getEmailAuthRoutePromise_\([\s\S]*?requestPublicAuthRouteWithRetry_\(\s*"email"/,
   "Email routing must use the retrying auth helper"
+);
+assert.match(
+  appSource,
+  /async function continueFromEmailStep\([\s\S]*?showAuthPasswordStep_\(email, "guided"\)[\s\S]*?getEmailAuthRoutePromise_\(email, options\)/,
+  "Existing users must reach the password choice before the server route finishes"
+);
+assert.match(
+  appSource,
+  /async function selectAuthPasswordPath_\(mode\)[\s\S]*?mode !== "register"[\s\S]*?setAuthMode\("login"\)[\s\S]*?return;[\s\S]*?getEmailAuthRoutePromise_\(email\)/,
+  "The existing-account path must bypass Apps Script while first login still checks it"
+);
+assert.match(
+  appSource,
+  /const AUTH_ROUTE_TIMEOUT_MS = 20 \* 1000;[\s\S]*?const AUTH_ROUTE_SLOW_NOTICE_MS = 7 \* 1000;/,
+  "Authentication routing must allow slow Apps Script starts and show an earlier notice"
 );
 assert.match(
   appSource,
@@ -301,10 +380,7 @@ const authPasswordSandbox = {
 };
 vm.createContext(authPasswordSandbox);
 vm.runInContext(
-  [
-    extractCompleteFunction(appSource, "setAuthMode"),
-    extractCompleteFunction(appSource, "selectAuthPasswordPath_")
-  ].join("\n"),
+  extractCompleteFunction(appSource, "setAuthMode"),
   authPasswordSandbox
 );
 
@@ -316,15 +392,14 @@ assert(
   authPasswordShell.classList.contains("authInputShellDisabled")
 );
 
-authPasswordSandbox.selectAuthPasswordPath_("login");
+authPasswordSandbox.setAuthMode("login");
 assert(!authPasswordElements.passwordInput.disabled);
 assert(!authPasswordToggle.disabled);
 assert(!authPasswordElements.loginButton.disabled);
 assert(!authPasswordShell.classList.contains("authInputShellDisabled"));
-assert(authPasswordElements.passwordInput.focused);
 
 authPasswordSandbox.setAuthMode("guided");
-authPasswordSandbox.selectAuthPasswordPath_("register");
+authPasswordSandbox.setAuthMode("register");
 assert(!authPasswordElements.passwordInput.disabled);
 assert.strictEqual(
   authPasswordElements.confirmPasswordGroup.style.display,
@@ -1086,6 +1161,27 @@ requiredAppsScriptEntrypoints.forEach(name => {
     `Missing Apps Script entrypoint: ${name}`
   );
 });
+
+assert.match(
+  webEndpointsSource,
+  /function getPublicEmailAuthState_\(email\)[\s\S]*?collection: "admins"[\s\S]*?collection: "allowedUsers"[\s\S]*?collection: PASSWORD_RECOVERY_REQUEST_COLLECTION[\s\S]*?UrlFetchApp\.fetchAll\(/,
+  "Independent email-auth Firestore reads must run in parallel"
+);
+assert.match(
+  codeSource,
+  /const PUBLIC_AUTH_ROUTE_CACHE_SECONDS = 10 \* 60;/,
+  "Stable authentication routes must be cached for ten minutes"
+);
+assert.match(
+  webEndpointsSource,
+  /action === "invalidateAuthRouteCache"[\s\S]*?createAuthRouteCacheInvalidationPostResponse_\(e\)/,
+  "Authenticated admin changes must be able to invalidate the public auth cache"
+);
+assert.match(
+  appSource,
+  /function invalidatePublicAuthRouteCacheFromAdmin_\(email\)[\s\S]*?getIdToken\(true\)[\s\S]*?"invalidateAuthRouteCache"[\s\S]*?"contacts-auth-cache-invalidation"/,
+  "The admin client must invalidate cached routes after permission changes"
+);
 
 assert.match(
   webEndpointsSource,

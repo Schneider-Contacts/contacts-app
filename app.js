@@ -16,7 +16,8 @@ const AUTH_ROUTER_URL =
   "https://script.google.com/macros/s/AKfycbwqwWDEUgxLRWIOEGX3TaK0tmdacrl-CG_kkdK01dlfAeGcDq3fXdHIjtSjQ2NwZvBK/exec";
 const REGISTRATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
-const AUTH_ROUTE_TIMEOUT_MS = 9000;
+const AUTH_ROUTE_TIMEOUT_MS = 20 * 1000;
+const AUTH_ROUTE_SLOW_NOTICE_MS = 7 * 1000;
 const PASSWORD_HELP_TIMEOUT_MS = 30000;
 const AUTH_ROUTE_CACHE_MS = 15 * 1000;
 const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v2_";
@@ -83,6 +84,9 @@ let authRouteRequestSequence = 0;
 let pendingAuthRedirectTimer = null;
 let managerSupportContactPromise = null;
 let activeManagerSupportName = "";
+let pendingEmailAuthRouteEmail = "";
+let pendingEmailAuthRoutePromise = null;
+let authPathSelectionInProgress = false;
 
 let currentUserIsAdmin = false;
 let currentUserIsSuperAdmin = false;
@@ -1349,7 +1353,7 @@ function setAuthMode(mode) {
   if (authPurpose === "guided") {
     if (title) title.textContent = "כניסה או יצירת חשבון";
     if (description) {
-      description.textContent = "המערכת תזהה אוטומטית אם מדובר בכניסה קיימת או ביצירת חשבון חדש.";
+      description.textContent = "בחרו אם כבר נכנסתם בעבר או שזו הכניסה הראשונה שלכם.";
     }
     if (button) button.textContent = "המשך";
     if (passwordInput) passwordInput.autocomplete = "current-password";
@@ -1399,11 +1403,162 @@ function setAuthMode(mode) {
   setLoginButtonDisabled(false);
 }
 
-function selectAuthPasswordPath_(mode) {
-  const normalizedMode = mode === "register" ? "register" : "login";
-  setAuthMode(normalizedMode);
-  const passwordInput = document.getElementById("passwordInput");
-  if (passwordInput) passwordInput.focus();
+function setAuthPathChoiceBusy_(busy) {
+  ["existingAccountPathBtn", "newAccountPathBtn"].forEach(buttonId => {
+    const button = document.getElementById(buttonId);
+    if (button) button.disabled = Boolean(busy);
+  });
+}
+
+function getEmailAuthRoutePromise_(email, options = {}) {
+  const normalizedEmail = normalizeEmail(email);
+  if (
+    pendingEmailAuthRoutePromise &&
+    pendingEmailAuthRouteEmail === normalizedEmail
+  ) {
+    return pendingEmailAuthRoutePromise;
+  }
+
+  pendingEmailAuthRouteEmail = normalizedEmail;
+  const routePromise = requestPublicAuthRouteWithRetry_(
+    "email",
+    normalizedEmail,
+    options
+  ).catch(error => {
+    if (pendingEmailAuthRoutePromise === routePromise) {
+      pendingEmailAuthRoutePromise = null;
+    }
+    throw error;
+  });
+  pendingEmailAuthRoutePromise = routePromise;
+  return routePromise;
+}
+
+function getCurrentAuthEmail_() {
+  const input = document.getElementById("emailInput");
+  return normalizeEmail(input ? input.value : "");
+}
+
+function handleBackgroundEmailAuthRoute_(email, result) {
+  const normalizedEmail = normalizeEmail(email);
+  if (
+    authStage !== "password" ||
+    getCurrentAuthEmail_() !== normalizedEmail ||
+    authPathSelectionInProgress
+  ) {
+    return;
+  }
+
+  const route = String(result && result.route || "SYSTEM_ERROR");
+  authRouteIsAdmin = Boolean(result && result.admin === true);
+
+  if (
+    route === "PASSWORD_RESET_READY" &&
+    authMode !== "register" &&
+    !authActionInProgress
+  ) {
+    showAuthPhoneStep_(normalizedEmail, "password_reset");
+    setLoginStatus(
+      "המנהל אישר איפוס סיסמה עד 23:59. לאחר התאמת מספר הטלפון תוכלו ליצור סיסמה חדשה.",
+      "success"
+    );
+    return;
+  }
+
+  if (authMode !== "guided") return;
+
+  if (route === "ASK_PHONE") {
+    authRouteIsAdmin = false;
+    showAuthPhoneStep_(normalizedEmail);
+    return;
+  }
+
+  if (route === "BLOCKED") {
+    showAuthEmailStep_({ preserveEmail: true, keepStatus: true });
+    setLoginStatus(
+      "הגישה לכתובת המייל הזו אינה פעילה. יש לפנות למנהל ספר אנשי הקשר.",
+      "error"
+    );
+  }
+}
+
+async function selectAuthPasswordPath_(mode) {
+  if (mode !== "register") {
+    setAuthMode("login");
+    const passwordInput = document.getElementById("passwordInput");
+    if (passwordInput) passwordInput.focus();
+    return;
+  }
+
+  const email = getCurrentAuthEmail_();
+  if (!isValidEmail(email)) {
+    showAuthEmailStep_({ preserveEmail: true, keepStatus: true });
+    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
+    return;
+  }
+
+  authPathSelectionInProgress = true;
+  setAuthPathChoiceBusy_(true);
+  setLoginStatus("בודק הרשאה לכניסה ראשונה...", "loading");
+  const slowNoticeTimer = setTimeout(() => {
+    if (authPathSelectionInProgress && authStage === "password") {
+      setLoginStatus(
+        "הבדיקה לוקחת מעט יותר מהרגיל. ממשיכים לבדוק...",
+        "loading"
+      );
+    }
+  }, AUTH_ROUTE_SLOW_NOTICE_MS);
+
+  try {
+    const result = await getEmailAuthRoutePromise_(email);
+    const route = String(result && result.route || "SYSTEM_ERROR");
+    authRouteIsAdmin = Boolean(result && result.admin === true);
+
+    if (route === "PASSWORD") {
+      setAuthMode("register");
+      const passwordInput = document.getElementById("passwordInput");
+      if (passwordInput) passwordInput.focus();
+      return;
+    }
+
+    if (route === "PASSWORD_RESET_READY") {
+      showAuthPhoneStep_(email, "password_reset");
+      setLoginStatus(
+        "המנהל אישר איפוס סיסמה עד 23:59. לאחר התאמת מספר הטלפון תוכלו ליצור סיסמה חדשה.",
+        "success"
+      );
+      return;
+    }
+
+    if (route === "ASK_PHONE") {
+      authRouteIsAdmin = false;
+      showAuthPhoneStep_(email);
+      return;
+    }
+
+    if (route === "BLOCKED") {
+      setLoginStatus(
+        "הגישה לכתובת המייל הזו אינה פעילה. יש לפנות למנהל ספר אנשי הקשר.",
+        "error"
+      );
+      return;
+    }
+
+    setLoginStatus(
+      "לא הצלחנו לבדוק כרגע את הכניסה הראשונה. נסו שוב בעוד רגע.",
+      "error"
+    );
+  } catch (error) {
+    console.error("First-login route lookup failed", error);
+    setLoginStatus(
+      "בדיקת הכניסה הראשונה נמשכה זמן רב מהרגיל. נסו שוב; אם כבר נכנסתם בעבר, בחרו במסלול הכניסה הקיים.",
+      "error"
+    );
+  } finally {
+    clearTimeout(slowNoticeTimer);
+    authPathSelectionInProgress = false;
+    setAuthPathChoiceBusy_(false);
+  }
 }
 
 function getSavedLoginEmail_() {
@@ -1554,6 +1709,10 @@ function showAuthEmailStep_(options = {}) {
   authPurpose = "login";
   authMode = "login";
   authRouteIsAdmin = false;
+  pendingEmailAuthRouteEmail = "";
+  pendingEmailAuthRoutePromise = null;
+  authPathSelectionInProgress = false;
+  setAuthPathChoiceBusy_(false);
   managerPasswordResetEmail = "";
   forceEmailEntry = options.forceEmailEntry === true;
   setVerificationPanelVisible_(false);
@@ -2022,6 +2181,27 @@ function submitAuthRouterForm_(action, fields, expectedSource) {
     window.addEventListener("message", onMessage);
     form.submit();
   });
+}
+
+async function invalidatePublicAuthRouteCacheFromAdmin_(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const currentUser = auth && auth.currentUser;
+  if (!normalizedEmail || !currentUser || !currentUserIsAdmin) return;
+
+  clearCachedAuthRoute_("email", normalizedEmail);
+
+  let idToken;
+  try {
+    idToken = await currentUser.getIdToken(true);
+  } catch (refreshError) {
+    idToken = await currentUser.getIdToken(false);
+  }
+
+  await submitAuthRouterForm_(
+    "invalidateAuthRouteCache",
+    { idToken, email: normalizedEmail },
+    "contacts-auth-cache-invalidation"
+  );
 }
 
 function requestPasswordResetAssistance_(email) {
@@ -2497,52 +2677,17 @@ async function continueFromEmailStep(options = {}) {
     return;
   }
 
-  setStepButtonBusy_("emailContinueBtn", true, "בודק...", "המשך");
-  setLoginStatus("בודק את מסלול הכניסה המתאים...", "loading");
+  rememberPendingAuthEmail_(email);
+  showAuthPasswordStep_(email, "guided");
 
-  try {
-    const result = await requestPublicAuthRouteWithRetry_(
-      "email",
-      email,
-      options
-    );
-    const route = String(result.route || "SYSTEM_ERROR");
-    authRouteIsAdmin = result.admin === true;
-
-    if (route === "PASSWORD") {
-      rememberPendingAuthEmail_(email);
-      showAuthPasswordStep_(email, "guided");
-      return;
-    }
-
-    if (route === "PASSWORD_RESET_READY") {
-      rememberPendingAuthEmail_(email);
-      showAuthPhoneStep_(email, "password_reset");
-      setLoginStatus(
-        "המנהל אישר איפוס סיסמה עד 23:59. לאחר התאמת מספר הטלפון תוכלו ליצור סיסמה חדשה.",
-        "success"
-      );
-      return;
-    }
-
-    if (route === "ASK_PHONE") {
-      authRouteIsAdmin = false;
-      showAuthPhoneStep_(email);
-      return;
-    }
-
-    if (route === "BLOCKED") {
-      setLoginStatus("הגישה לכתובת המייל הזו אינה פעילה. יש לפנות למנהל ספר אנשי הקשר.", "error");
-      return;
-    }
-
-    setLoginStatus("לא הצלחנו לבדוק את פרטי הכניסה כרגע. נסו שוב בעוד רגע.", "error");
-  } catch (error) {
-    console.error("Auth route lookup failed", error);
-    setLoginStatus("בדיקת פרטי הכניסה נכשלה זמנית. בדקו את החיבור ונסו שוב.", "error");
-  } finally {
-    setStepButtonBusy_("emailContinueBtn", false, "בודק...", "המשך");
-  }
+  // משתמש קיים יכול לבחור מיד במסלול הסיסמה. בדיקת Apps Script
+  // ממשיכה ברקע ומשמשת רק למסלולים שדורשים מידע מהשרת.
+  getEmailAuthRoutePromise_(email, options)
+    .then(result => handleBackgroundEmailAuthRoute_(email, result))
+    .catch(error => {
+      // כשל בבדיקה הרקע אינו חוסם כניסה לחשבון Firebase קיים.
+      console.warn("Background auth route lookup failed", error);
+    });
 }
 
 function isValidPhoneForRouting_(phone) {
@@ -2604,6 +2749,17 @@ async function continueFromPhoneStep() {
       : "מחפש את מספר הטלפון בספר אנשי הקשר...",
     "loading"
   );
+  const slowNoticeTimer = setTimeout(() => {
+    if (
+      authStage === "phone" ||
+      authStage === "password_recovery_claim"
+    ) {
+      setLoginStatus(
+        "הבדיקה לוקחת מעט יותר מהרגיל. ממשיכים לבדוק...",
+        "loading"
+      );
+    }
+  }, AUTH_ROUTE_SLOW_NOTICE_MS);
 
   try {
     if (isManagerPasswordReset) {
@@ -2673,6 +2829,7 @@ async function continueFromPhoneStep() {
       "error"
     );
   } finally {
+    clearTimeout(slowNoticeTimer);
     setStepButtonBusy_(
       "phoneContinueBtn",
       false,
@@ -7538,6 +7695,9 @@ async function approveManualAccess_(email, temporary = false) {
       timestamp: now
     });
     await batch.commit();
+    invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
+      console.warn("Auth route cache invalidation failed", error);
+    });
     await loadAdminData();
     setAdminStatus(
       temporary
@@ -7594,6 +7754,9 @@ async function rejectManualAccess_(email) {
       timestamp: now
     });
     await batch.commit();
+    invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
+      console.warn("Auth route cache invalidation failed", error);
+    });
     await loadAdminData();
     setAdminStatus("הבקשה נדחתה.", "success");
   } catch (error) {
@@ -7645,6 +7808,9 @@ async function revokeManualAccess_(email) {
       timestamp: now
     });
     await batch.commit();
+    invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
+      console.warn("Auth route cache invalidation failed", error);
+    });
     await loadAdminData();
     setAdminStatus("האישור הידני בוטל.", "success");
   } catch (error) {
@@ -9116,6 +9282,9 @@ async function toggleUserAccess(email, shouldActivate) {
     });
 
     await batch.commit();
+    invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
+      console.warn("Auth route cache invalidation failed", error);
+    });
     await loadAdminData();
     setAdminStatus(shouldActivate ? "הגישה הוחזרה." : "הגישה נחסמה.", "success");
   } catch (error) {
@@ -9207,6 +9376,9 @@ async function deleteUserPermission(email) {
     });
 
     await batch.commit();
+    invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
+      console.warn("Auth route cache invalidation failed", error);
+    });
     await loadAdminData();
     setAdminStatus("הרשאת המייל נמחקה. קישור טלפון תואם נמחק אם היה קיים.", "success");
   } catch (error) {

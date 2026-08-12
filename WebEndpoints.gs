@@ -441,14 +441,104 @@ function isActiveAdminEmail_(email) {
   );
 }
 
-function getPublicEmailAuthRoute_(email) {
+function getPublicEmailAuthState_(email) {
+  const normalizedEmail = normalizeEmail_(email);
+
+  if (!normalizedEmail || !isValidEmail_(normalizedEmail)) {
+    throw new Error("כתובת המייל אינה תקינה.");
+  }
+
+  const token = ScriptApp.getOAuthToken();
+  const documentId = encodeURIComponent(normalizedEmail);
+  const requests = [
+    { key: "admin", collection: "admins" },
+    { key: "allowedUser", collection: "allowedUsers" },
+    {
+      key: "passwordRecovery",
+      collection: PASSWORD_RECOVERY_REQUEST_COLLECTION
+    }
+  ];
+  const responses = UrlFetchApp.fetchAll(
+    requests.map(request => ({
+      url:
+        "https://firestore.googleapis.com/v1/projects/" +
+        FIREBASE_PROJECT_ID +
+        "/databases/(default)/documents/" +
+        request.collection +
+        "/" +
+        documentId,
+      method: "get",
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true
+    }))
+  );
+
+  const documents = {};
+  responses.forEach((response, index) => {
+    const responseCode = response.getResponseCode();
+    if (responseCode === 404) {
+      documents[requests[index].key] = null;
+      return;
+    }
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new Error(
+        "בדיקת מסלול הכניסה נכשלה. HTTP " + responseCode
+      );
+    }
+
+    const document = JSON.parse(response.getContentText() || "{}");
+    documents[requests[index].key] = {
+      data: firestoreDocumentToJs_(document),
+      updateTime: cleanSheetValue_(document.updateTime)
+    };
+  });
+
+  const allowedDocument = documents.allowedUser;
+  const allowedData = allowedDocument ? allowedDocument.data : null;
+  const recoveryDocument = documents.passwordRecovery;
+  const recoveryData = recoveryDocument ? recoveryDocument.data : null;
+
+  return {
+    prefetched: true,
+    isAdminEmail: Boolean(
+      documents.admin && documents.admin.data.active === true
+    ),
+    allowedUser: allowedData
+      ? {
+          ...allowedData,
+          email: normalizeEmail_(allowedData.email || normalizedEmail),
+          active: typeof allowedData.active === "boolean"
+            ? allowedData.active
+            : true,
+          phone: normalizeIsraeliPhone(allowedData.phone || ""),
+          phoneKey: cleanSheetValue_(allowedData.phoneKey || ""),
+          updateTime: allowedDocument.updateTime
+        }
+      : null,
+    passwordRecovery: recoveryData
+      ? {
+          ...recoveryData,
+          email: normalizeEmail_(recoveryData.email || normalizedEmail),
+          status: cleanSheetValue_(recoveryData.status || "pending"),
+          updateTime: recoveryDocument.updateTime
+        }
+      : null
+  };
+}
+
+function getPublicEmailAuthRoute_(email, prefetchedState) {
   const normalizedEmail = normalizeEmail_(email);
 
   if (!normalizedEmail || !isValidEmail_(normalizedEmail)) {
     return "INVALID_EMAIL";
   }
 
-  const allowedUser = getAllowedUser_(normalizedEmail);
+  const hasPrefetchedState = Boolean(
+    prefetchedState && prefetchedState.prefetched === true
+  );
+  const allowedUser = hasPrefetchedState
+    ? prefetchedState.allowedUser
+    : getAllowedUser_(normalizedEmail);
   if (!allowedUser) return "ASK_PHONE";
   if (allowedUser.active !== true) return "BLOCKED";
 
@@ -456,7 +546,9 @@ function getPublicEmailAuthRoute_(email) {
     return "ASK_PHONE";
   }
 
-  const passwordRecovery = getPasswordResetRequest_(normalizedEmail);
+  const passwordRecovery = hasPrefetchedState
+    ? prefetchedState.passwordRecovery
+    : getPasswordResetRequest_(normalizedEmail);
   const recoveryExpiry = passwordRecovery && (
     passwordRecovery.approvedUntil ||
     passwordRecovery.requestExpiresAt
@@ -516,8 +608,9 @@ function getPublicAuthRoute_(kind, value, forceFresh) {
   let isAdminEmail = false;
 
   if (normalizedKind === "email") {
-    isAdminEmail = isActiveAdminEmail_(normalizedValue);
-    route = getPublicEmailAuthRoute_(normalizedValue);
+    const emailState = getPublicEmailAuthState_(normalizedValue);
+    isAdminEmail = emailState.isAdminEmail;
+    route = getPublicEmailAuthRoute_(normalizedValue, emailState);
     if (
       isAdminEmail &&
       ["ASK_PHONE", "BLOCKED"].includes(route)
@@ -2377,6 +2470,56 @@ function createContactApprovalPostResponse_(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function invalidatePublicAuthRouteCacheFromWeb_(parameters) {
+  const admin = verifyFirebaseAdminIdToken_(
+    parameters && parameters.idToken
+  );
+  const email = normalizeEmail_(parameters && parameters.email);
+
+  if (!email || !isValidEmail_(email)) {
+    throw new Error("כתובת המייל אינה תקינה.");
+  }
+
+  clearPublicAuthRouteCache_("email", email);
+  return {
+    ok: true,
+    email,
+    adminEmail: admin.email
+  };
+}
+
+function createAuthRouteCacheInvalidationPostResponse_(e) {
+  const parameters = e && e.parameter ? e.parameter : {};
+  const nonce = cleanSheetValue_(parameters.nonce).slice(0, 160);
+  let payload;
+
+  try {
+    payload = invalidatePublicAuthRouteCacheFromWeb_(parameters);
+  } catch (error) {
+    console.error("Auth route cache invalidation failed:", error);
+    payload = {
+      ok: false,
+      message: error && error.message
+        ? String(error.message)
+        : "ניקוי מטמון הכניסה נכשל."
+    };
+  }
+
+  payload.source = "contacts-auth-cache-invalidation";
+  payload.nonce = nonce;
+  const serialized = JSON.stringify(payload).replace(/</g, "\\u003c");
+  const html =
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>" +
+    "<script>window.top.postMessage(" +
+    serialized +
+    ",\"*\"" +
+    ");</script></body></html>";
+
+  return HtmlService
+    .createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
 function doPost(e) {
   const action = e && e.parameter
     ? cleanSheetValue_(e.parameter.action)
@@ -2387,6 +2530,9 @@ function doPost(e) {
   }
   if (action === "activateTemporaryAccess") {
     return createTemporaryAccessPostResponse_(e);
+  }
+  if (action === "invalidateAuthRouteCache") {
+    return createAuthRouteCacheInvalidationPostResponse_(e);
   }
   if (
     action === "preparePasswordRecovery" ||
