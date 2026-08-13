@@ -249,8 +249,13 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function continueFromEmailStep\([\s\S]*?showAuthPasswordStep_\(email, "login", \{[\s\S]*?getEmailAuthRoutePromise_\(email, options\)/,
-  "Existing users must reach password entry before the server route finishes"
+  /async function continueFromEmailStep\([\s\S]*?canUseImmediatePasswordPath = options\.returning === true[\s\S]*?if \(canUseImmediatePasswordPath\) \{[\s\S]*?showAuthPasswordStep_\(email, "login"[\s\S]*?getEmailAuthRoutePromise_\(email, options\)/,
+  "Remembered existing users must retain the immediate password fast path"
+);
+assert.match(
+  appSource,
+  /async function continueFromEmailStep\([\s\S]*?showAuthRoutingStep_\(\);[\s\S]*?await getEmailAuthRoutePromise_\(email, options\)[\s\S]*?applyResolvedEmailAuthRoute_/,
+  "An identity unknown to the device must show the routing state while the router decides"
 );
 assert.match(
   appSource,
@@ -298,7 +303,7 @@ assert.match(
   "Phone routing must use the retrying auth helper"
 );
 const authRoutingMarkup = indexSource.match(
-  /<div id="authRoutingStep"[\s\S]*?<\/div>/
+  /<div id="authRoutingStep"[\s\S]*?(?=\n\s*<div id="authNoticeStep")/
 );
 assert(authRoutingMarkup, "The login must include a dedicated routing transition state");
 assert.match(
@@ -306,15 +311,25 @@ assert.match(
   /<img class="authRoutingLogo" src="app-logo\.png\?v=20260722-v16"/,
   "The routing transition must reuse the existing Contacts App logo"
 );
+assert.match(
+  authRoutingMarkup[0],
+  /class="authRoutingLabel">טעינה<[\s\S]*?class="authRoutingDots"[\s\S]*?<span><\/span><span><\/span><span><\/span>/,
+  "The routing transition must show only the compact loading label and three CSS dots"
+);
 assert.doesNotMatch(
   authRoutingMarkup[0],
-  /בודק|טוען|spinner|progress|\.\.\./i,
-  "The routing transition must contain no visible loading UI"
+  /בודק|מאמת|מחפש|שרת|Apps Script|spinner|progress/i,
+  "The routing transition must not expose technical routing explanations"
 );
 assert.match(
   stylesSource,
-  /#login\.authRoutingActive \.authBrand,[\s\S]*?#login\.authRoutingActive \.authProgress,[\s\S]*?#login \.authRoutingStep \{[\s\S]*?place-items: center;[\s\S]*?#login \.authRoutingLogo \{[\s\S]*?width: clamp\(/,
-  "The routing transition must be minimal, centered, and larger than normal branding"
+  /#login \.authRoutingStep \{[\s\S]*?min-height: 178px;[\s\S]*?#login \.authRoutingLogo \{[\s\S]*?width: 96px;[\s\S]*?#login \.authRoutingDots span \{[\s\S]*?animation: authRoutingDot 1\.2s/,
+  "The routing transition must be compact, centered, and use a subtle three-dot animation"
+);
+assert.match(
+  stylesSource,
+  /@media \(prefers-reduced-motion: reduce\)[\s\S]*?#login \.authRoutingDots span \{[\s\S]*?animation: none !important/,
+  "The routing dots must respect reduced-motion preferences"
 );
 assert.match(
   appSource,
@@ -701,46 +716,244 @@ assert.strictEqual(
 );
 assert.strictEqual(authRouteTransitionCalls.length, 0);
 
-const mainSearchElements = {
-  searchInput: { value: "" },
-  directoryToolsMenuBtn: { hidden: true }
-};
-const mainSearchSandbox = {
+const continueEmailCalls = [];
+const continueEmailSandbox = {
+  authEmailFlowToken: 0,
+  authStage: "email",
   document: {
-    getElementById: id => mainSearchElements[id] || null
+    getElementById: id => id === "emailInput"
+      ? { value: "person@example.com" }
+      : null
+  },
+  console,
+  normalizeEmail: value => String(value || "").trim().toLowerCase(),
+  isValidEmail: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+  setLoginStatus: (...args) => continueEmailCalls.push(["status", ...args]),
+  rememberPendingAuthEmail_: email =>
+    continueEmailCalls.push(["remember", email]),
+  invalidateEmailAuthFlow_() {
+    this.authEmailFlowToken += 1;
+  },
+  showAuthPasswordStep_: (...args) => {
+    continueEmailSandbox.authStage = "password";
+    continueEmailCalls.push(["password", ...args]);
+  },
+  showAuthRoutingStep_: () => {
+    continueEmailSandbox.authStage = "routing";
+    continueEmailCalls.push(["routing"]);
+  },
+  getEmailAuthRoutePromise_: async () => ({ route: "ASK_PHONE" }),
+  handleBackgroundEmailAuthRoute_: (...args) =>
+    continueEmailCalls.push(["background", ...args]),
+  applyResolvedEmailAuthRoute_: (...args) => {
+    continueEmailSandbox.authStage = "phone";
+    continueEmailCalls.push(["resolved", ...args]);
+    return true;
   }
 };
-vm.createContext(mainSearchSandbox);
+vm.createContext(continueEmailSandbox);
 vm.runInContext(
-  extractCompleteFunction(
-    appSource,
-    "updateMainSearchActionVisibility_"
-  ),
-  mainSearchSandbox
+  "async " + extractCompleteFunction(appSource, "continueFromEmailStep"),
+  continueEmailSandbox
 );
+const continueEmailTestPromise = (async () => {
+  await continueEmailSandbox.continueFromEmailStep({ returning: true });
+  await Promise.resolve();
+  assert.strictEqual(continueEmailCalls[1][0], "password");
+  assert.strictEqual(
+    continueEmailCalls.some(call => call[0] === "routing"),
+    false,
+    "A remembered user must not be delayed by the router loader"
+  );
 
-mainSearchSandbox.updateMainSearchActionVisibility_();
-assert(
-  !mainSearchElements.directoryToolsMenuBtn.hidden,
-  "The compact tools entry must remain available on the idle screen"
+  continueEmailCalls.length = 0;
+  continueEmailSandbox.authStage = "email";
+  await continueEmailSandbox.continueFromEmailStep({ returning: false });
+  assert.deepStrictEqual(
+    continueEmailCalls.map(call => call[0]).slice(0, 3),
+    ["remember", "routing", "resolved"],
+    "An identity unknown to the device must show the loader before router resolution"
+  );
+  assert.strictEqual(continueEmailSandbox.authStage, "phone");
+})();
+
+const homeDashboardSandbox = {
+  selectionMode: false,
+  activeQuickFilter: "all",
+  directoryBrowseActivated: false,
+  isSearchActive: () => false
+};
+vm.createContext(homeDashboardSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "shouldShowHomeDashboard_"),
+  homeDashboardSandbox
 );
+assert.strictEqual(homeDashboardSandbox.shouldShowHomeDashboard_(), true);
+homeDashboardSandbox.directoryBrowseActivated = true;
+assert.strictEqual(homeDashboardSandbox.shouldShowHomeDashboard_(), false);
+homeDashboardSandbox.directoryBrowseActivated = false;
+homeDashboardSandbox.activeQuickFilter = "vpn";
+assert.strictEqual(homeDashboardSandbox.shouldShowHomeDashboard_(), false);
 
-mainSearchElements.searchInput.value = "05";
-mainSearchSandbox.updateMainSearchActionVisibility_();
-assert(
-  !mainSearchElements.directoryToolsMenuBtn.hidden,
-  "Global contact tools must remain available without competing with search"
+assert.doesNotMatch(
+  indexSource,
+  /id="directoryToolsMenuBtn"|>כלים<\/span>/,
+  "The vague standalone tools entry must be removed"
 );
-
 assert.match(
   indexSource,
-  /id="directoryToolsMenu"[\s\S]*?id="suggestContactBtn"[\s\S]*?id="importAllBtn"[\s\S]*?id="recentContactsBtn"/,
-  "Add-contact, download-all, and recent-contact tools must remain in the compact tools menu"
+  /id="homeDashboard"[\s\S]*?כלים שימושיים[\s\S]*?id="suggestContactBtn"[\s\S]*?id="importAllBtn"[\s\S]*?id="recentContactsBtn"[\s\S]*?id="homeSelectionModeBtn"[\s\S]*?id="homeProfileBtn"[\s\S]*?id="homeAdminToolBtn"/,
+  "The home dashboard must expose every existing global tool with clear labels"
+);
+assert.match(
+  indexSource,
+  /id="suggestContactBtn"[\s\S]*?>הוספת איש קשר למאגר</,
+  "Adding a person to the directory must remain distinct from downloading an existing contact"
 );
 assert.match(
   indexSource,
   /id="accountMenu"[\s\S]*?id="myProfileBtn"[\s\S]*?id="adminOpenBtn"[\s\S]*?logout\(\)/,
   "Profile editing, admin access, and logout must remain in the account menu"
+);
+assert.match(
+  indexSource,
+  /id="monthlyInternsSection"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
+  "The home dashboard must contain a non-blocking current-month interns module"
+);
+assert.match(
+  codeSource,
+  /const MONTHLY_INTERNS_SHEET_PREFIX = "interns_";[\s\S]*?const MONTHLY_INTERNS_TIME_ZONE = "Asia\/Jerusalem";/,
+  "Monthly intern sheets must use the documented interns_YYYY_MM convention in Israel time"
+);
+assert.match(
+  directorySyncSource,
+  /function readCurrentMonthlyInternsSheet_\(\)[\s\S]*?columnIndex\("phone"\)[\s\S]*?columnIndex\("name"\)[\s\S]*?columnIndex\("role"\)[\s\S]*?columnIndex\("department"\)/,
+  "The monthly interns sync must require only phone and support the documented optional fallback columns"
+);
+assert.match(
+  directorySyncSource,
+  /function syncCurrentMonthlyInternsToFirestore_\([\s\S]*?kind: "monthly_interns"[\s\S]*?buildDirectoryDocumentPatchRequest_\([\s\S]*?source\.sheetName/,
+  "The monthly tab must be mirrored to the existing protected contactDirectory collection"
+);
+assert.match(
+  directorySyncSource,
+  /function processPendingDirectoryRebuildScheduled\(\)[\s\S]*?maybeSyncCurrentMonthlyInterns_\(\)/,
+  "The existing scheduled sync must refresh monthly interns without new infrastructure"
+);
+assert.match(
+  appSource,
+  /function showAppForUser\(user\)[\s\S]*?renderCurrentSearchResults\(\);[\s\S]*?loadCurrentMonthInterns_\(\)\.catch/,
+  "Interns loading must start only after the usable directory screen is rendered"
+);
+assert.match(
+  appSource,
+  /function renderMonthlyInterns_\([\s\S]*?עדיין לא הוזנה רשימת סטאז׳רים לחודש זה[\s\S]*?monthlyInternPhone[\s\S]*?data-monthly-intern-contact-id/,
+  "A missing month must stay quiet, every intern phone must be visible, and resolved contacts may reuse contact details"
+);
+const monthlyInternsServerSource = directorySyncSource.slice(
+  directorySyncSource.indexOf("function getCurrentMonthlyInternsDescriptor_"),
+  directorySyncSource.indexOf("function queueDirectoryRebuild_")
+);
+assert.doesNotMatch(
+  monthlyInternsServerSource,
+  /allowedUsers|allowedPhones|createUser|Firebase Authentication/,
+  "Monthly interns are display-only and must never create login access"
+);
+assert.match(
+  rulesSource,
+  /match \/contactDirectory\/\{docId\} \{[\s\S]*?allow read: if isAllowed\(\) \|\| isAdmin\(\);/,
+  "Monthly interns must inherit the existing authenticated directory read rule"
+);
+
+const monthlyDescriptorSandbox = {
+  MONTHLY_INTERNS_DOCUMENT_PREFIX: "interns_",
+  MONTHLY_INTERNS_TIME_ZONE: "Asia/Jerusalem"
+};
+vm.createContext(monthlyDescriptorSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "getCurrentMonthlyInternsDescriptor_"),
+  monthlyDescriptorSandbox
+);
+const augustDescriptor = monthlyDescriptorSandbox.getCurrentMonthlyInternsDescriptor_(
+  new Date("2026-08-13T09:00:00.000Z")
+);
+assert.strictEqual(augustDescriptor.key, "interns_2026_08");
+assert.strictEqual(augustDescriptor.label, "אוגוסט 2026");
+
+let monthlySheetFixture = null;
+const monthlySheetSandbox = {
+  MONTHLY_INTERNS_SHEET_PREFIX: "interns_",
+  MONTHLY_INTERNS_TIME_ZONE: "Asia/Jerusalem",
+  Utilities: {
+    formatDate: () => "2026_08"
+  },
+  SpreadsheetApp: {
+    getActiveSpreadsheet: () => ({
+      getSheetByName: () => monthlySheetFixture
+    })
+  },
+  cleanSheetValue_: value => String(value || "").trim(),
+  normalizeIsraeliPhone: value => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("0")) digits = `972${digits.slice(1)}`;
+    else if (!digits.startsWith("972")) digits = `972${digits}`;
+    return `+${digits}`;
+  }
+};
+vm.createContext(monthlySheetSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(directorySyncSource, "getCurrentMonthlyInternsDescriptor_"),
+    extractCompleteFunction(directorySyncSource, "readCurrentMonthlyInternsSheet_")
+  ].join("\n"),
+  monthlySheetSandbox
+);
+assert.strictEqual(
+  monthlySheetSandbox.readCurrentMonthlyInternsSheet_().sourceSheetPresent,
+  false,
+  "A missing current-month tab must be treated as a normal empty state"
+);
+monthlySheetFixture = {
+  getLastRow: () => 4,
+  getLastColumn: () => 4,
+  getRange: () => ({
+    getDisplayValues: () => [
+      ["phone", "name", "role", "department"],
+      ["0501234567", "נועה כהן", "סטאז׳רית", "ילדים א׳"],
+      ["0547654321", "דניאל לוי", "סטאז׳ר", "מיון"],
+      ["0501234567", "נועה כהן", "סטאז׳רית", "ילדים ב׳"]
+    ]
+  })
+};
+const monthlySheetResult =
+  monthlySheetSandbox.readCurrentMonthlyInternsSheet_();
+assert.strictEqual(monthlySheetResult.sheetName, "interns_2026_08");
+assert.strictEqual(monthlySheetResult.entries.length, 2);
+assert.strictEqual(monthlySheetResult.entries[0].phone, "+972501234567");
+assert.strictEqual(
+  monthlySheetResult.entries[0].department,
+  "ילדים ב׳",
+  "Duplicate intern rows must resolve deterministically by normalized phone"
+);
+
+const monthlyContactSandbox = {
+  contacts: [{ id: 4, phone: "+972501234567" }],
+  normalizePhone: value => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.startsWith("0")) digits = `972${digits.slice(1)}`;
+    return digits;
+  }
+};
+vm.createContext(monthlyContactSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "getMonthlyInternContact_"),
+  monthlyContactSandbox
+);
+assert.strictEqual(
+  monthlyContactSandbox.getMonthlyInternContact_({ phone: "050-123-4567" }).id,
+  4,
+  "An intern linked by normalized phone must reuse the existing directory contact"
 );
 
 const directorySearchSandbox = {};
@@ -889,8 +1102,120 @@ assert.strictEqual(
 );
 assert.match(
   appSource,
-  /function clearActiveDirectoryFilter_\(\)[\s\S]*?activeQuickFilter = "all";[\s\S]*?renderCurrentSearchResults\(\)/,
+  /function clearActiveDirectoryFilter_\(\)[\s\S]*?activeQuickFilter = "all";[\s\S]*?directoryBrowseActivated = true;[\s\S]*?renderCurrentSearchResults\(\)/,
   "Clearing a category must return to the full directory without clearing the query"
+);
+assert.match(
+  appSource,
+  /function updateQuickFilterButtons\(\)[\s\S]*?const isActive = activeQuickFilter === "all";[\s\S]*?activeQuickFilter === filterName[\s\S]*?isDepartmentFilterActive_\(\)/,
+  "Quick-filter visual state must derive from one exclusive active filter"
+);
+
+const quickFilterStateSandbox = {
+  activeQuickFilter: "all",
+  directoryBrowseActivated: false,
+  selectionMode: false,
+  selectedContactIds: new Set(),
+  normalizeSearchText: value => String(value || "").trim().toLowerCase(),
+  closeDepartmentBrowser_: () => {},
+  updateQuickFilterButtons: () => {},
+  renderCurrentSearchResults: () => {},
+  openDepartmentBrowserCalls: 0,
+  openDepartmentBrowser_() {
+    this.openDepartmentBrowserCalls += 1;
+  }
+};
+vm.createContext(quickFilterStateSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "isDepartmentFilterActive_"),
+    extractCompleteFunction(appSource, "toggleQuickFilter"),
+    extractCompleteFunction(appSource, "clearActiveDirectoryFilter_"),
+    extractCompleteFunction(appSource, "handleDepartmentsFilterClick_"),
+    extractCompleteFunction(appSource, "selectDepartmentFilter_")
+  ].join("\n"),
+  quickFilterStateSandbox
+);
+quickFilterStateSandbox.toggleQuickFilter("vpn");
+assert.strictEqual(quickFilterStateSandbox.activeQuickFilter, "vpn");
+quickFilterStateSandbox.toggleQuickFilter("institutes");
+assert.strictEqual(quickFilterStateSandbox.activeQuickFilter, "institutes");
+quickFilterStateSandbox.toggleQuickFilter("labs");
+assert.strictEqual(quickFilterStateSandbox.activeQuickFilter, "labs");
+quickFilterStateSandbox.toggleQuickFilter("labs");
+assert.strictEqual(
+  quickFilterStateSandbox.activeQuickFilter,
+  "all",
+  "Tapping an active non-all filter must return to all"
+);
+quickFilterStateSandbox.selectDepartmentFilter_("טיפול נמרץ ילדים");
+assert.strictEqual(
+  quickFilterStateSandbox.activeQuickFilter,
+  "department:טיפול נמרץ ילדים"
+);
+quickFilterStateSandbox.handleDepartmentsFilterClick_();
+assert.strictEqual(
+  quickFilterStateSandbox.activeQuickFilter,
+  "all",
+  "Tapping an active department context must return to all"
+);
+assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, true);
+
+const quickFilterVisualElements = Object.fromEntries(
+  [
+    "allFilterBtn",
+    "vpnFilterBtn",
+    "institutesFilterBtn",
+    "labsFilterBtn",
+    "departmentsFilterBtn"
+  ].map(id => [
+    id,
+    {
+      classList: createTestClassList(),
+      setAttribute() {}
+    }
+  ])
+);
+quickFilterVisualElements.activeDirectoryFilter = { hidden: true };
+quickFilterVisualElements.activeDirectoryFilterText = { textContent: "" };
+const quickFilterVisualSandbox = {
+  activeQuickFilter: "all",
+  document: {
+    getElementById: id => quickFilterVisualElements[id] || null
+  },
+  isDepartmentFilterActive_: () =>
+    String(quickFilterVisualSandbox.activeQuickFilter).startsWith("department:"),
+  getActiveDirectoryFilterLabel_: () => ""
+};
+vm.createContext(quickFilterVisualSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "updateQuickFilterButtons"),
+  quickFilterVisualSandbox
+);
+const activeVisualFilterCount = () =>
+  [
+    "allFilterBtn",
+    "vpnFilterBtn",
+    "institutesFilterBtn",
+    "labsFilterBtn",
+    "departmentsFilterBtn"
+  ].filter(id => quickFilterVisualElements[id].classList.contains("active"))
+    .length;
+quickFilterVisualSandbox.updateQuickFilterButtons();
+assert.strictEqual(activeVisualFilterCount(), 1);
+quickFilterVisualSandbox.activeQuickFilter = "vpn";
+quickFilterVisualSandbox.updateQuickFilterButtons();
+assert.strictEqual(activeVisualFilterCount(), 1);
+assert.strictEqual(
+  quickFilterVisualElements.vpnFilterBtn.classList.contains("active"),
+  true
+);
+quickFilterVisualSandbox.activeQuickFilter = "department:מיון";
+quickFilterVisualSandbox.updateQuickFilterButtons();
+assert.strictEqual(activeVisualFilterCount(), 1);
+assert.strictEqual(
+  quickFilterVisualElements.departmentsFilterBtn.classList.contains("active"),
+  true
 );
 
 [
@@ -1589,6 +1914,7 @@ inlineHandlers.forEach(handler => {
 const requiredAppsScriptEntrypoints = [
   "onFormSubmit",
   "syncContactsToFirestore",
+  "syncCurrentMonthlyInternsToFirestore",
   "sendDailyAccessReport",
   "doPost",
   "doGet",
@@ -1819,4 +2145,9 @@ assert.deepStrictEqual(
   `Unreferenced CSS classes: ${unreferencedClasses.join(", ")}`
 );
 
-console.log("static audit: OK");
+continueEmailTestPromise
+  .then(() => console.log("static audit: OK"))
+  .catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });

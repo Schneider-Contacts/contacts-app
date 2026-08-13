@@ -20,6 +20,13 @@ const CONTACT_DIRECTORY_COLLECTION_NAME = "contactDirectory";
 const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
 const CONTACT_DIRECTORY_SCHEMA_VERSION = 3;
+const MONTHLY_INTERNS_SHEET_PREFIX = "interns_";
+const MONTHLY_INTERNS_TIME_ZONE = "Asia/Jerusalem";
+const MONTHLY_INTERNS_SYNC_INTERVAL_MS = 60 * 60 * 1000;
+const MONTHLY_INTERNS_LAST_SYNC_PROPERTY =
+  "monthly_interns_last_sync_v1";
+const MONTHLY_INTERNS_CONTENT_HASH_PREFIX =
+  "monthly_interns_content_hash_v1:";
 // עמודים קטנים נטענים במקביל ומהר יותר במכשירים סלולריים.
 // החלוקה היא דינמית לפי גודל בפועל, לא לפי אות או מייל.
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;

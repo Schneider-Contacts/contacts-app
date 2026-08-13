@@ -33,6 +33,8 @@ const CONTACT_DIRECTORY_META_ID = "meta";
 const CONTACT_DIRECTORY_PAGE_PREFIX = "page_";
 const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v5";
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
+const MONTHLY_INTERNS_DOCUMENT_PREFIX = "interns_";
+const MONTHLY_INTERNS_TIME_ZONE = "Asia/Jerusalem";
 
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_IMPORTED_PHONES_KEY = "contacts_recent_imported_phones_v1";
@@ -65,9 +67,17 @@ let hasLoadError = false;
 let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
-let activeQuickFilter = "";
+let activeQuickFilter = "all";
+let directoryBrowseActivated = false;
 let activeContactDetailId = null;
 let selectedRecentContactPhones = new Set();
+let monthlyInternsState = {
+  status: "idle",
+  descriptor: null,
+  entries: []
+};
+let monthlyInternsLoadPromise = null;
+let monthlyInternsLoadToken = 0;
 
 let authMode = "login";
 let authPurpose = "login";
@@ -1013,8 +1023,7 @@ function updateQuickFilterButtons() {
 
   const allButton = document.getElementById("allFilterBtn");
   if (allButton) {
-    const isActive = activeQuickFilter === "all" ||
-      (!activeQuickFilter && isSearchActive());
+    const isActive = activeQuickFilter === "all";
     allButton.classList.toggle("active", isActive);
     allButton.setAttribute("aria-pressed", String(isActive));
   }
@@ -1042,6 +1051,7 @@ function updateQuickFilterButtons() {
 
 function toggleQuickFilter(filterName) {
   activeQuickFilter = activeQuickFilter === filterName ? "all" : filterName;
+  directoryBrowseActivated = true;
   selectionMode = false;
   selectedContactIds.clear();
   closeDepartmentBrowser_();
@@ -1063,13 +1073,11 @@ function getActiveDirectoryFilterLabel_() {
 }
 
 function clearActiveDirectoryFilter_() {
-  if (activeQuickFilter === "all") {
-    updateQuickFilterButtons();
-    return;
-  }
   activeQuickFilter = "all";
+  directoryBrowseActivated = true;
   selectionMode = false;
   selectedContactIds.clear();
+  closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
 }
@@ -1117,6 +1125,15 @@ function openDepartmentBrowser_() {
   document.body.classList.add("directorySheetOpen");
 }
 
+function handleDepartmentsFilterClick_() {
+  if (isDepartmentFilterActive_()) {
+    clearActiveDirectoryFilter_();
+    return;
+  }
+
+  openDepartmentBrowser_();
+}
+
 function closeDepartmentBrowser_() {
   const sheet = document.getElementById("departmentSheet");
   if (!sheet) return;
@@ -1131,6 +1148,7 @@ function selectDepartmentFilter_(departmentKey) {
   const key = normalizeSearchText(departmentKey);
   if (!key) return;
   activeQuickFilter = `department:${key}`;
+  directoryBrowseActivated = true;
   selectionMode = false;
   selectedContactIds.clear();
   closeDepartmentBrowser_();
@@ -1155,6 +1173,16 @@ function updateMainActionButton() {
   btn.textContent = "בחירה";
   btn.classList.remove("active");
   btn.setAttribute("aria-pressed", "false");
+}
+
+function openSelectionModeFromHome_() {
+  activeQuickFilter = "all";
+  directoryBrowseActivated = true;
+  selectionMode = false;
+  selectedContactIds.clear();
+  updateQuickFilterButtons();
+  renderCurrentSearchResults();
+  enterSelectionMode();
 }
 
 function handleMainImportButton() {
@@ -1238,7 +1266,227 @@ function applyRawContacts_(rawContacts) {
     _search: buildContactSearchIndex_(contact)
   }));
 
+  renderMonthlyInterns_();
+
   return contacts;
+}
+
+function getCurrentMonthlyInternsDescriptor_(date = new Date()) {
+  const keyParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: MONTHLY_INTERNS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit"
+  }).formatToParts(date);
+  const year = keyParts.find(part => part.type === "year")?.value ||
+    String(date.getFullYear());
+  const month = keyParts.find(part => part.type === "month")?.value ||
+    String(date.getMonth() + 1).padStart(2, "0");
+  const label = new Intl.DateTimeFormat("he-IL", {
+    timeZone: MONTHLY_INTERNS_TIME_ZONE,
+    year: "numeric",
+    month: "long"
+  }).format(date);
+
+  return {
+    year,
+    month,
+    key: `${MONTHLY_INTERNS_DOCUMENT_PREFIX}${year}_${month}`,
+    label
+  };
+}
+
+function normalizeMonthlyInternEntry_(entry) {
+  const source = entry && typeof entry === "object" ? entry : {};
+  return {
+    phone: normalizePhone(source.phone || ""),
+    name: String(source.name || "").trim(),
+    role: String(source.role || "").trim(),
+    department: String(source.department || "").trim()
+  };
+}
+
+function getMonthlyInternContact_(entry) {
+  const phone = normalizePhone(entry && entry.phone || "");
+  if (!phone) return null;
+  return contacts.find(contact => normalizePhone(contact.phone) === phone) || null;
+}
+
+function renderMonthlyInterns_() {
+  const section = document.getElementById("monthlyInternsSection");
+  const monthLabel = document.getElementById("monthlyInternsMonthLabel");
+  const countElement = document.getElementById("monthlyInternsCount");
+  const statusElement = document.getElementById("monthlyInternsStatus");
+  const listElement = document.getElementById("monthlyInternsList");
+  if (!section || !monthLabel || !countElement || !statusElement || !listElement) {
+    return;
+  }
+
+  const descriptor = monthlyInternsState.descriptor ||
+    getCurrentMonthlyInternsDescriptor_();
+  monthLabel.textContent = descriptor.label;
+  countElement.hidden = true;
+  countElement.textContent = "";
+  listElement.innerHTML = "";
+  statusElement.hidden = false;
+
+  if (["idle", "loading"].includes(monthlyInternsState.status)) {
+    statusElement.textContent = "טוען את הרשימה…";
+    return;
+  }
+
+  if (monthlyInternsState.status === "missing") {
+    statusElement.textContent = "עדיין לא הוזנה רשימת סטאז׳רים לחודש זה";
+    return;
+  }
+
+  if (monthlyInternsState.status === "unavailable") {
+    statusElement.textContent = "רשימת הסטאז׳רים אינה זמינה כרגע";
+    return;
+  }
+
+  const entries = Array.isArray(monthlyInternsState.entries)
+    ? monthlyInternsState.entries
+    : [];
+  if (!entries.length) {
+    statusElement.textContent = "עדיין לא הוזנו סטאז׳רים לחודש זה";
+    return;
+  }
+
+  statusElement.hidden = true;
+  countElement.textContent = String(entries.length);
+  countElement.hidden = false;
+  listElement.innerHTML = entries.map(entry => {
+    const contact = getMonthlyInternContact_(entry);
+    const name = contact
+      ? getContactDisplayName_(contact)
+      : entry.name || "סטאז׳ר/ית";
+    const role = entry.role || (contact && contact.role) || "";
+    const department = entry.department || (contact && contact.dept) || "";
+    const meta = [...new Set([role, department].filter(Boolean))].join(" · ");
+    const displayPhone = formatPhoneForDisplay(entry.phone);
+    const content = `
+      <span class="monthlyInternContent">
+        <strong>${escapeHtml(name)}</strong>
+        ${meta ? `<span>${escapeHtml(meta)}</span>` : ""}
+        <span class="monthlyInternPhone" dir="ltr">${escapeHtml(displayPhone)}</span>
+      </span>
+      ${contact ? `<span class="monthlyInternChevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>` : ""}
+    `;
+
+    return contact
+      ? `<button type="button" class="monthlyInternItem" data-monthly-intern-contact-id="${contact.id}" aria-label="פתיחת פרטי ${escapeHtml(name)}">${content}</button>`
+      : `<div class="monthlyInternItem monthlyInternItemStatic">${content}</div>`;
+  }).join("");
+}
+
+async function loadCurrentMonthInterns_(options = {}) {
+  const descriptor = getCurrentMonthlyInternsDescriptor_();
+  const sameMonth = Boolean(
+    monthlyInternsState.descriptor &&
+    monthlyInternsState.descriptor.key === descriptor.key
+  );
+
+  if (
+    options.force !== true &&
+    sameMonth &&
+    ["ready", "missing"].includes(monthlyInternsState.status)
+  ) {
+    renderMonthlyInterns_();
+    return monthlyInternsState;
+  }
+
+  if (sameMonth && monthlyInternsLoadPromise) {
+    return monthlyInternsLoadPromise;
+  }
+
+  const loadToken = ++monthlyInternsLoadToken;
+  monthlyInternsState = {
+    status: "loading",
+    descriptor,
+    entries: []
+  };
+  renderMonthlyInterns_();
+
+  const request = (async () => {
+    try {
+      if (!firebaseApi || !db) {
+        throw new Error("Monthly interns data is not initialized");
+      }
+
+      const snapshot = await firebaseApi.getDoc(
+        firebaseApi.doc(
+          db,
+          CONTACT_DIRECTORY_COLLECTION_NAME,
+          descriptor.key
+        )
+      );
+      if (loadToken !== monthlyInternsLoadToken) return monthlyInternsState;
+
+      if (!snapshot.exists()) {
+        monthlyInternsState = {
+          status: "missing",
+          descriptor,
+          entries: []
+        };
+        renderMonthlyInterns_();
+        return monthlyInternsState;
+      }
+
+      const data = snapshot.data() || {};
+      if (data.sourceSheetPresent === false) {
+        monthlyInternsState = {
+          status: "missing",
+          descriptor,
+          entries: []
+        };
+        renderMonthlyInterns_();
+        return monthlyInternsState;
+      }
+
+      const uniqueEntries = new Map();
+      (Array.isArray(data.entries) ? data.entries : [])
+        .map(normalizeMonthlyInternEntry_)
+        .filter(entry => entry.phone)
+        .forEach(entry => uniqueEntries.set(entry.phone, entry));
+      monthlyInternsState = {
+        status: "ready",
+        descriptor,
+        entries: [...uniqueEntries.values()]
+      };
+      renderMonthlyInterns_();
+      return monthlyInternsState;
+    } catch (error) {
+      if (loadToken !== monthlyInternsLoadToken) return monthlyInternsState;
+      console.warn("Monthly interns list could not be loaded", error);
+      monthlyInternsState = {
+        status: "unavailable",
+        descriptor,
+        entries: []
+      };
+      renderMonthlyInterns_();
+      return monthlyInternsState;
+    }
+  })();
+
+  monthlyInternsLoadPromise = request;
+  try {
+    return await request;
+  } finally {
+    if (monthlyInternsLoadPromise === request) {
+      monthlyInternsLoadPromise = null;
+    }
+  }
+}
+
+function resetMonthlyInternsState_() {
+  monthlyInternsLoadToken += 1;
+  monthlyInternsLoadPromise = null;
+  monthlyInternsState = {
+    status: "idle",
+    descriptor: getCurrentMonthlyInternsDescriptor_(),
+    entries: []
+  };
+  renderMonthlyInterns_();
 }
 
 function countUsableRawContacts_(rawContacts) {
@@ -3104,21 +3352,56 @@ async function continueFromEmailStep(options = {}) {
   rememberPendingAuthEmail_(email);
   invalidateEmailAuthFlow_();
   const flowToken = authEmailFlowToken;
-  showAuthPasswordStep_(email, "login", {
-    preserveFlow: true,
-    returning: options.returning === true
-  });
+  const canUseImmediatePasswordPath = options.returning === true;
 
-  // משתמש קיים יכול להזין סיסמה מיד. בדיקת Apps Script ממשיכה
-  // ברקע ורק מנתבת למצבים שדורשים פעולה אחרת.
-  getEmailAuthRoutePromise_(email, options)
-    .then(result =>
-      handleBackgroundEmailAuthRoute_(email, result, flowToken)
-    )
-    .catch(error => {
-      // כשל בבדיקה הרקע אינו חוסם כניסה לחשבון Firebase קיים.
-      console.warn("Background auth route lookup failed", error);
+  if (canUseImmediatePasswordPath) {
+    showAuthPasswordStep_(email, "login", {
+      preserveFlow: true,
+      returning: true
     });
+
+    // במכשיר שמכיר את המשתמש, הסיסמה זמינה מיד והנתב ממשיך ברקע.
+    getEmailAuthRoutePromise_(email, options)
+      .then(result =>
+        handleBackgroundEmailAuthRoute_(email, result, flowToken)
+      )
+      .catch(error => {
+        // כשל בבדיקת הרקע אינו חוסם כניסה לחשבון Firebase קיים.
+        console.warn("Background auth route lookup failed", error);
+      });
+    return;
+  }
+
+  // בזהות שאינה מוכרת למכשיר, הנתב קובע אם להציג סיסמה, טלפון,
+  // אישור מנהל או מצב גישה אחר. מצב ההמתנה משקף רק את זמן הבדיקה.
+  showAuthRoutingStep_();
+  try {
+    const result = await getEmailAuthRoutePromise_(email, options);
+    if (flowToken !== authEmailFlowToken) return;
+    applyResolvedEmailAuthRoute_(email, result, { flowToken });
+
+    if (authStage === "routing") {
+      showAuthPasswordStep_(email, "login", {
+        preserveFlow: true,
+        returning: false
+      });
+      setLoginStatus(
+        "לא הצלחנו לבדוק כרגע את מסלול הכניסה. אפשר לנסות להיכנס או לנסות שוב בעוד רגע.",
+        "error"
+      );
+    }
+  } catch (error) {
+    if (flowToken !== authEmailFlowToken) return;
+    console.warn("Auth route lookup failed", error);
+    showAuthPasswordStep_(email, "login", {
+      preserveFlow: true,
+      returning: false
+    });
+    setLoginStatus(
+      "לא הצלחנו לבדוק כרגע את מסלול הכניסה. אפשר לנסות להיכנס או לנסות שוב בעוד רגע.",
+      "error"
+    );
+  }
 }
 
 function isValidPhoneForRouting_(phone) {
@@ -4638,6 +4921,21 @@ async function submitMyProfileUpdate_() {
   }
 }
 
+function updateAdminEntryVisibility_() {
+  const menuButton = document.getElementById("adminOpenBtn");
+  if (menuButton) {
+    menuButton.classList.toggle("visible", currentUserIsAdmin);
+  }
+
+  const homeButton = document.getElementById("homeAdminToolBtn");
+  if (homeButton) homeButton.hidden = !currentUserIsAdmin;
+
+  const toolsGrid = document.getElementById("homeToolsGrid");
+  if (toolsGrid) {
+    toolsGrid.classList.toggle("hasAdmin", currentUserIsAdmin);
+  }
+}
+
 function showAppForUser(user) {
   closeAllDirectoryMenus_();
   closeContactDetail_();
@@ -4645,9 +4943,15 @@ function showAppForUser(user) {
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("adminPanel").style.display = "none";
+  if (!isQuickFilterActive()) activeQuickFilter = "all";
+  directoryBrowseActivated = false;
+  selectionMode = false;
+  selectedContactIds.clear();
   updateUserInfoForUser_(user);
+  updateAdminEntryVisibility_();
   setLoginStatus("", "");
-  show([]);
+  renderCurrentSearchResults();
+  loadCurrentMonthInterns_().catch(() => {});
 }
 
 function isPermissionDeniedError(error) {
@@ -4780,8 +5084,7 @@ async function handleAuthenticatedUser(user, options = {}) {
       currentUserIsSuperAdmin = false;
       currentAdminRole = "";
       currentAdminEmail = normalizeEmail(user.email);
-      const adminButton = document.getElementById("adminOpenBtn");
-      if (adminButton) adminButton.classList.remove("visible");
+      updateAdminEntryVisibility_();
     }
 
     if (
@@ -4951,14 +5254,15 @@ async function logout() {
     currentUserIsSuperAdmin = false;
     currentAdminRole = "";
     currentAdminEmail = "";
-    const adminButton = document.getElementById("adminOpenBtn");
-    if (adminButton) adminButton.classList.remove("visible");
+    updateAdminEntryVisibility_();
     document.getElementById("adminPanel").style.display = "none";
     closeRecentContactsModal();
     selectedContactIds.clear();
     currentDisplayedContacts = [];
     selectionMode = false;
-    activeQuickFilter = "";
+    activeQuickFilter = "all";
+    directoryBrowseActivated = false;
+    resetMonthlyInternsState_();
     closeAllDirectoryMenus_();
     closeContactDetail_();
     closeDepartmentBrowser_();
@@ -4995,8 +5299,7 @@ async function detectAdminAccess(user) {
   currentAdminRole = "";
   currentAdminEmail = normalizeEmail(user && user.email);
 
-  const adminButton = document.getElementById("adminOpenBtn");
-  if (adminButton) adminButton.classList.remove("visible");
+  updateAdminEntryVisibility_();
 
   if (!currentAdminEmail || !firebaseApi || !db) return false;
 
@@ -5014,9 +5317,7 @@ async function detectAdminAccess(user) {
       currentUserIsAdmin && currentAdminRole === "super_admin"
     );
 
-    if (adminButton) {
-      adminButton.classList.toggle("visible", currentUserIsAdmin);
-    }
+    updateAdminEntryVisibility_();
 
     if (currentUserIsAdmin) {
       loadAdminPendingSummary_().catch(error => {
@@ -5159,10 +5460,7 @@ function startPermissionListener(user) {
           nextIsAdmin && nextRole === "super_admin"
         );
 
-        const adminButton = document.getElementById("adminOpenBtn");
-        if (adminButton) {
-          adminButton.classList.toggle("visible", currentUserIsAdmin);
-        }
+        updateAdminEntryVisibility_();
 
         if (!currentUserIsAdmin) {
           if (document.getElementById("adminPanel").style.display === "block") {
@@ -10014,6 +10312,16 @@ function initMainDirectoryUx_() {
     });
   }
 
+  const monthlyInternsList = document.getElementById("monthlyInternsList");
+  if (monthlyInternsList) {
+    monthlyInternsList.addEventListener("click", event => {
+      const button = event.target.closest("[data-monthly-intern-contact-id]");
+      if (!button) return;
+      const contactId = Number(button.dataset.monthlyInternContactId);
+      if (Number.isInteger(contactId)) openContactDetail_(contactId);
+    });
+  }
+
   document.addEventListener("click", event => {
     if (!event.target.closest(".directoryMenuHost")) {
       closeAllDirectoryMenus_();
@@ -10043,8 +10351,22 @@ function updateSearchUI() {
 }
 
 function updateMainSearchActionVisibility_() {
-  const toolsButton = document.getElementById("directoryToolsMenuBtn");
-  if (toolsButton) toolsButton.hidden = false;
+  updateHomeDashboardVisibility_();
+}
+
+function shouldShowHomeDashboard_() {
+  return Boolean(
+    !selectionMode &&
+    !isSearchActive() &&
+    activeQuickFilter === "all" &&
+    !directoryBrowseActivated
+  );
+}
+
+function updateHomeDashboardVisibility_() {
+  const dashboard = document.getElementById("homeDashboard");
+  if (!dashboard) return;
+  dashboard.hidden = !shouldShowHomeDashboard_();
 }
 
 function clearSearch() {
@@ -10058,7 +10380,8 @@ function clearSearch() {
 }
 
 function shouldShowNoResults() {
-  return isSearchActive() || isQuickFilterActive();
+  return isSearchActive() || directoryBrowseActivated ||
+    activeQuickFilter !== "all";
 }
 
 function updateResultsSummary(list) {
@@ -10074,6 +10397,16 @@ function updateResultsSummary(list) {
     : count === 1
       ? "נמצא איש קשר אחד"
       : `נמצאו ${count} אנשי קשר`;
+}
+
+function updateDirectoryListToolbar_() {
+  const toolbar = document.querySelector("#app .directoryListToolbar");
+  if (!toolbar) return;
+  toolbar.hidden = Boolean(
+    !selectionMode &&
+    !currentDisplayedContacts.length &&
+    !shouldShowNoResults()
+  );
 }
 
 function updateBulkActions() {
@@ -11014,6 +11347,7 @@ function show(list) {
 
   updateMainActionButton();
   updateResultsSummary(list);
+  updateDirectoryListToolbar_();
 
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
@@ -11089,7 +11423,7 @@ function renderCurrentSearchResults() {
   if (selectionMode) selectedContactIds.clear();
 
   if (q.length < 1) {
-    if (!isQuickFilterActive()) {
+    if (shouldShowHomeDashboard_()) {
       selectionMode = false;
       if (logo) logo.classList.remove("hidden");
       show([]);

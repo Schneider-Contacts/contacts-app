@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260813-main-screen-v2">
+<link rel="stylesheet" href="styles.css?v=20260813-home-refinement-v1">
 
 
 
@@ -178,8 +178,12 @@
       </div>
     </div>
 
-    <div id="authRoutingStep" class="authRoutingStep" style="display:none;" aria-label="מעבר מאובטח">
+    <div id="authRoutingStep" class="authRoutingStep" style="display:none;" role="status" aria-live="polite" aria-busy="true" aria-label="טעינה">
       <img class="authRoutingLogo" src="app-logo.png?v=20260722-v16" alt="לוגו ספר אנשי הקשר">
+      <div class="authRoutingLabel">טעינה</div>
+      <div class="authRoutingDots" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
     </div>
 
     <div id="authNoticeStep" class="authNoticeStep" style="display:none;">
@@ -332,7 +336,7 @@
     <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')" aria-pressed="false">VPN</button>
     <button type="button" id="institutesFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('institutes')" aria-pressed="false">מכונים</button>
     <button type="button" id="labsFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('labs')" aria-pressed="false">מעבדות</button>
-    <button type="button" id="departmentsFilterBtn" class="quickFilterBtn" onclick="openDepartmentBrowser_()" aria-pressed="false">מחלקות</button>
+    <button type="button" id="departmentsFilterBtn" class="quickFilterBtn" onclick="handleDepartmentsFilterClick_()" aria-pressed="false">מחלקות</button>
   </div>
 
   <div id="activeDirectoryFilter" class="activeDirectoryFilter" hidden>
@@ -340,33 +344,56 @@
     <button type="button" onclick="clearActiveDirectoryFilter_()" aria-label="ניקוי הסינון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
   </div>
 
-  <div class="directoryListToolbar">
+  <div class="directoryListToolbar" hidden>
     <div id="resultsSummary" class="resultsSummary" aria-live="polite"></div>
     <div class="directoryListActions">
       <button type="button" id="selectionModeBtn" class="directoryToolbarBtn" onclick="toggleSelectionMode_()" hidden>בחירה</button>
-      <div class="directoryMenuHost toolsMenuHost">
-        <button type="button" id="directoryToolsMenuBtn" class="directoryToolbarBtn" aria-expanded="false" aria-controls="directoryToolsMenu" onclick="toggleDirectoryToolsMenu_()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
-          <span>כלים</span>
-        </button>
-        <div id="directoryToolsMenu" class="directoryMenu toolsMenu" role="menu" aria-hidden="true">
-          <button type="button" id="suggestContactBtn" class="directoryMenuItem suggestContactBtn" role="menuitem" onclick="closeAllDirectoryMenus_(); openContactAddModal_()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-            <span>הצעת איש קשר חדש לספר</span>
-          </button>
-          <button type="button" id="importAllBtn" class="directoryMenuItem importAllBtn" role="menuitem" onclick="closeAllDirectoryMenus_(); downloadAllContacts()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 19h14"/></svg>
-            <span>הורדת כל אנשי הקשר</span>
-          </button>
-          <button type="button" id="recentContactsBtn" class="directoryMenuItem recentContactsBtn" role="menuitem" onclick="closeAllDirectoryMenus_(); openRecentContactsModal()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M5.4 5.4A9 9 0 1 1 3 12"/><path d="M3 5v5h5"/></svg>
-            <span>הורדת אנשי קשר חדשים</span>
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
+
+  <div id="homeDashboard" class="homeDashboard">
+    <section class="homeModule homeToolsModule toolsMenu" aria-labelledby="homeToolsTitle">
+      <div class="homeModuleHeader">
+        <h3 id="homeToolsTitle">כלים שימושיים</h3>
+      </div>
+      <div id="homeToolsGrid" class="homeToolsGrid">
+        <button type="button" id="suggestContactBtn" class="homeToolButton" onclick="openContactAddModal_()">
+          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span>הוספת איש קשר למאגר</span>
+        </button>
+        <button type="button" id="importAllBtn" class="homeToolButton" onclick="downloadAllContacts()">
+          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 19h14"/></svg></span>
+          <span>הורדת כל אנשי הקשר</span>
+        </button>
+        <button type="button" id="recentContactsBtn" class="homeToolButton" onclick="openRecentContactsModal()">
+          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2M5.4 5.4A9 9 0 1 1 3 12"/><path d="M3 5v5h5"/></svg></span>
+          <span>הורדת אנשי קשר חדשים</span>
+        </button>
+        <button type="button" id="homeSelectionModeBtn" class="homeToolButton" onclick="openSelectionModeFromHome_()">
+          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="m15 17 2 2 3-4"/></svg></span>
+          <span>בחירת כמה אנשי קשר</span>
+        </button>
+        <button type="button" id="homeProfileBtn" class="homeToolButton homeProfileTool" onclick="openMyProfileModal()">
+          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="m17.6 5.4 1-1a1.4 1.4 0 0 1 2 2l-1 1-2-2Z"/></svg></span>
+          <span>הפרטים שלי</span>
+        </button>
+        <button type="button" id="homeAdminToolBtn" class="homeToolButton homeAdminTool" onclick="openAdminPanel()" hidden>
+          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg></span>
+          <span>ניהול המערכת</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="monthlyInternsSection" class="homeModule monthlyInternsModule" aria-labelledby="monthlyInternsTitle">
+      <div class="homeModuleHeader monthlyInternsHeader">
+        <h3 id="monthlyInternsTitle">סטאז׳רים — <span id="monthlyInternsMonthLabel"></span></h3>
+        <span id="monthlyInternsCount" class="monthlyInternsCount" hidden></span>
+      </div>
+      <div id="monthlyInternsStatus" class="monthlyInternsStatus" role="status" aria-live="polite">טוען את הרשימה…</div>
+      <div id="monthlyInternsList" class="monthlyInternsList"></div>
+    </section>
+  </div>
 
   <!-- PROTECTED_EASTER_EGG_START -->
   <div id="logo" class="green-signature-root green-signature-large" data-green-signature-root data-green-signature-copy="true">
@@ -775,7 +802,7 @@
 </div>
 
 
-  <script src="app.js?v=20260813-main-screen-v2"></script>
+  <script src="app.js?v=20260813-home-refinement-v1"></script>
 
 </body>
 </html>

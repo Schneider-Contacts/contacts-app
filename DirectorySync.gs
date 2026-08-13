@@ -18,6 +18,18 @@ function syncContactsToFirestore() {
     const effectiveContacts = buildEffectiveDirectoryContacts_(contacts);
     const result = writeSmartContactDirectory_(effectiveContacts);
 
+    try {
+      result.monthlyInterns = syncCurrentMonthlyInternsToFirestore_({
+        force: true
+      });
+    } catch (monthlyInternsError) {
+      console.error(
+        "סנכרון רשימת הסטאז׳רים החודשית נכשל, אך ספריית אנשי הקשר נשמרה:",
+        monthlyInternsError
+      );
+      result.monthlyInterns = { synced: false };
+    }
+
     // האינדקס נבנה בגיליון, ללא צריכת מכסת Firestore.
     rebuildEmailUpdatePhoneIndex();
 
@@ -373,6 +385,195 @@ function buildDirectoryDocumentPatchRequest_(documentId, data, token) {
   };
 }
 
+function getCurrentMonthlyInternsDescriptor_(date) {
+  const currentDate = date instanceof Date ? date : new Date();
+  const suffix = Utilities.formatDate(
+    currentDate,
+    MONTHLY_INTERNS_TIME_ZONE,
+    "yyyy_MM"
+  );
+  return {
+    sheetName: MONTHLY_INTERNS_SHEET_PREFIX + suffix,
+    monthKey: suffix
+  };
+}
+
+function getMonthlyInternsContentHash_(payload) {
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    JSON.stringify({
+      sourceSheetPresent: payload.sourceSheetPresent === true,
+      entries: Array.isArray(payload.entries) ? payload.entries : []
+    }),
+    Utilities.Charset.UTF_8
+  );
+  return Utilities.base64EncodeWebSafe(digest).replace(/=+$/g, "");
+}
+
+function readCurrentMonthlyInternsSheet_() {
+  const descriptor = getCurrentMonthlyInternsDescriptor_();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(
+    descriptor.sheetName
+  );
+  if (!sheet) {
+    return {
+      ...descriptor,
+      sourceSheetPresent: false,
+      entries: []
+    };
+  }
+
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 1 || lastColumn < 1) {
+    return {
+      ...descriptor,
+      sourceSheetPresent: true,
+      entries: []
+    };
+  }
+
+  const values = sheet.getRange(1, 1, lastRow, lastColumn).getDisplayValues();
+  const headers = values[0].map(value =>
+    cleanSheetValue_(value).toLowerCase()
+  );
+  const columnIndex = header => headers.indexOf(header);
+  const phoneIndex = columnIndex("phone");
+  if (phoneIndex < 0) {
+    throw new Error(
+      "בטאב " + descriptor.sheetName + " חסרה כותרת העמודה phone בשורה 1."
+    );
+  }
+
+  const nameIndex = columnIndex("name");
+  const roleIndex = columnIndex("role");
+  const departmentIndex = columnIndex("department");
+  const entriesByPhone = new Map();
+
+  values.slice(1).forEach(row => {
+    const phone = normalizeIsraeliPhone(row[phoneIndex]);
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 11 || phoneDigits.length > 12) return;
+
+    entriesByPhone.set(phone, {
+      phone,
+      name: nameIndex >= 0
+        ? cleanSheetValue_(row[nameIndex]).slice(0, 160)
+        : "",
+      role: roleIndex >= 0
+        ? cleanSheetValue_(row[roleIndex]).slice(0, 160)
+        : "",
+      department: departmentIndex >= 0
+        ? cleanSheetValue_(row[departmentIndex]).slice(0, 160)
+        : ""
+    });
+  });
+
+  return {
+    ...descriptor,
+    sourceSheetPresent: true,
+    entries: [...entriesByPhone.values()]
+  };
+}
+
+/**
+ * רענון ידני של רשימת הסטאז׳רים לתצוגה באפליקציה.
+ * הרשימה אינה משנה הרשאות כניסה ואינה יוצרת משתמשים.
+ */
+function syncCurrentMonthlyInternsToFirestore() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error(
+      "סנכרון אחר כבר מתבצע. נסו שוב בעוד מספר שניות."
+    );
+  }
+
+  try {
+    return syncCurrentMonthlyInternsToFirestore_({ force: true });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function syncCurrentMonthlyInternsToFirestore_(options) {
+  const settings = options && typeof options === "object" ? options : {};
+  const source = readCurrentMonthlyInternsSheet_();
+  const payload = {
+    kind: "monthly_interns",
+    monthKey: source.monthKey,
+    sourceSheetName: source.sheetName,
+    sourceSheetPresent: source.sourceSheetPresent,
+    entries: source.entries,
+    updatedAt: new Date().toISOString()
+  };
+  const properties = PropertiesService.getScriptProperties();
+  const hashProperty = MONTHLY_INTERNS_CONTENT_HASH_PREFIX + source.sheetName;
+  const contentHash = getMonthlyInternsContentHash_(payload);
+  const previousHash = properties.getProperty(hashProperty) || "";
+
+  if (settings.force !== true && previousHash === contentHash) {
+    properties.setProperty(
+      MONTHLY_INTERNS_LAST_SYNC_PROPERTY,
+      String(Date.now())
+    );
+    return {
+      synced: true,
+      unchanged: true,
+      sheetName: source.sheetName,
+      sourceSheetPresent: source.sourceSheetPresent,
+      internCount: source.entries.length
+    };
+  }
+
+  const request = buildDirectoryDocumentPatchRequest_(
+    source.sheetName,
+    payload,
+    ScriptApp.getOAuthToken()
+  );
+  const response = UrlFetchApp.fetch(request.url, {
+    method: request.method,
+    contentType: request.contentType,
+    headers: request.headers,
+    payload: request.payload,
+    muteHttpExceptions: true
+  });
+  const responseCode = response.getResponseCode();
+  if (responseCode < 200 || responseCode >= 300) {
+    throw new Error(
+      "כתיבת רשימת הסטאז׳רים ל-Firestore נכשלה. HTTP " +
+        responseCode + ": " + response.getContentText()
+    );
+  }
+
+  properties.setProperty(hashProperty, contentHash);
+  properties.setProperty(
+    MONTHLY_INTERNS_LAST_SYNC_PROPERTY,
+    String(Date.now())
+  );
+  return {
+    synced: true,
+    unchanged: false,
+    sheetName: source.sheetName,
+    sourceSheetPresent: source.sourceSheetPresent,
+    internCount: source.entries.length
+  };
+}
+
+function maybeSyncCurrentMonthlyInterns_() {
+  const properties = PropertiesService.getScriptProperties();
+  const lastSync = Number(
+    properties.getProperty(MONTHLY_INTERNS_LAST_SYNC_PROPERTY) || 0
+  );
+  const now = Date.now();
+  if (lastSync > 0 && now - lastSync < MONTHLY_INTERNS_SYNC_INTERVAL_MS) {
+    return { synced: false, skipped: true };
+  }
+
+  // גם ניסיון שנכשל מסומן, כדי שכשל זמני לא יגרום לניסיון כל חמש דקות.
+  properties.setProperty(MONTHLY_INTERNS_LAST_SYNC_PROPERTY, String(now));
+  return syncCurrentMonthlyInternsToFirestore_({ force: false });
+}
+
 function queueDirectoryRebuild_(reason, pendingContact) {
   const properties = PropertiesService.getScriptProperties();
   properties.setProperty(DIRECTORY_REBUILD_PENDING_KEY, "true");
@@ -504,6 +705,14 @@ function processPendingDirectoryRebuild() {
 
     const effectiveContacts = buildEffectiveDirectoryContacts_(contacts);
     writeSmartContactDirectory_(effectiveContacts);
+    try {
+      maybeSyncCurrentMonthlyInterns_();
+    } catch (monthlyInternsError) {
+      console.error(
+        "סנכרון רשימת הסטאז׳רים ברקע נכשל:",
+        monthlyInternsError
+      );
+    }
 
     removeDirectoryRebuildTriggers_();
 
@@ -534,6 +743,18 @@ function processPendingDirectoryRebuildScheduled() {
   const properties = PropertiesService.getScriptProperties();
 
   if (properties.getProperty(DIRECTORY_REBUILD_PENDING_KEY) !== "true") {
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(5000)) return;
+    try {
+      maybeSyncCurrentMonthlyInterns_();
+    } catch (monthlyInternsError) {
+      console.error(
+        "בדיקת רשימת הסטאז׳רים החודשית נכשלה:",
+        monthlyInternsError
+      );
+    } finally {
+      lock.releaseLock();
+    }
     return;
   }
 
