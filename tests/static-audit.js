@@ -876,8 +876,37 @@ assert.match(
 );
 assert.doesNotMatch(
   extractCompleteFunction(appSource, "renderMonthlyInterns_"),
-  /openContactDetail_|data-monthly-intern-contact-id|download|report/,
+  /openContactDetail_|data-monthly-intern-contact-id|downloadActiveContact_|reportActiveContact_/,
   "Interns must remain a lightweight display-only list rather than normal directory contacts"
+);
+assert.match(
+  extractCompleteFunction(appSource, "renderMonthlyInterns_"),
+  /currentUserIsAdmin[\s\S]*?openMonthlyInternEditor_[\s\S]*?deleteMonthlyIntern_[\s\S]*?openMonthlyInternReport_/,
+  "Only admins may see intern edit/delete actions while ordinary users receive the report action"
+);
+assert.match(
+  appSource,
+  /function createMonthlyInternId_[\s\S]*?function getMonthlyInternById_[\s\S]*?function updateActiveMonthlyInterns_[\s\S]*?function saveMonthlyInternChanges_[\s\S]*?function deleteMonthlyIntern_/,
+  "Monthly interns must have stable identifiers and isolated admin edit/delete operations"
+);
+const monthlyInternMutationSource = appSource.slice(
+  appSource.indexOf("function updateActiveMonthlyInterns_"),
+  appSource.indexOf("async function loadCurrentMonthInterns_")
+);
+assert.doesNotMatch(
+  monthlyInternMutationSource,
+  /allowedUsers|allowedPhones|verificationRequests|createUser|contacts\//,
+  "Editing or deleting an intern must not touch Contacts or access systems"
+);
+assert.match(
+  appSource,
+  /function openMonthlyInternReport_[\s\S]*?subjectType: "intern"[\s\S]*?internId[\s\S]*?internVersion[\s\S]*?internDepartment/,
+  "Intern reports must retain stable identity, published version, and report-time details"
+);
+assert.match(
+  appSource,
+  /report\.subjectType === "intern"[\s\S]*?הסטאז׳ר כבר אינו מופיע ברשימה הפעילה[\s\S]*?עריכת הסטאז׳ר[\s\S]*?סימון כטופל ללא שינוי/,
+  "Admin Inbox must support editing, resolving, and deleted-intern reports"
 );
 const monthlyInternsServerSource = directorySyncSource.slice(
   directorySyncSource.indexOf("function getCurrentMonthlyInternsDescriptor_"),
@@ -892,6 +921,11 @@ assert.match(
   rulesSource,
   /match \/monthlyInterns\/\{docId\} \{[\s\S]*?docId == "active" && isAllowed\(\)[\s\S]*?allow create, update: if isAdmin\(\)[\s\S]*?allow delete: if false/,
   "Only authenticated app users may read the active interns list and only admins may publish it"
+);
+assert.match(
+  rulesSource,
+  /match \/contactReports\/\{docId\} \{[\s\S]*?subjectType[\s\S]*?internId[\s\S]*?internVersion[\s\S]*?internDepartment[\s\S]*?allow read: if isAdmin\(\)/,
+  "Authenticated users may submit structured intern reports while only admins may review them"
 );
 
 const monthlyDescriptorSandbox = {

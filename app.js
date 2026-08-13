@@ -1320,11 +1320,31 @@ function getCurrentMonthlyInternsDescriptor_(date = new Date()) {
 
 function normalizeMonthlyInternEntry_(entry) {
   const source = entry && typeof entry === "object" ? entry : {};
+  const name = String(source.name || "").trim();
+  const phone = normalizePhone(source.phone || "");
   return {
-    phone: normalizePhone(source.phone || ""),
-    name: String(source.name || "").trim(),
-    department: String(source.department || "").trim()
+    id: String(source.id || createMonthlyInternId_(name, phone)).trim(),
+    phone,
+    name,
+    department: String(source.department || "").trim(),
+    manuallyEdited: source.manuallyEdited === true
   };
+}
+
+function createMonthlyInternId_(name, phone) {
+  const value = `${normalizeSearchText(name)}|${normalizePhone(phone)}`;
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `intern_${(hash >>> 0).toString(36)}`;
+}
+
+function getMonthlyInternById_(internId) {
+  return (monthlyInternsState.entries || []).find(
+    entry => String(entry.id || "") === String(internId || "")
+  ) || null;
 }
 
 function getMonthlyInternContact_(entry) {
@@ -1449,6 +1469,12 @@ function renderMonthlyInterns_() {
             <a href="tel:${escapeHtml(entry.phone)}" aria-label="חיוג אל ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'call')">${getDirectoryIconSvg_("phone")}</a>
             <a href="https://wa.me/${escapeHtml(cleanPhone)}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>
           </span>
+          <span class="monthlyInternSecondaryActions">
+            ${currentUserIsAdmin
+              ? `<button type="button" onclick="openMonthlyInternEditor_('${escapeJsString(entry.id)}')">עריכת פרטים</button>
+                 <button type="button" class="danger" onclick="deleteMonthlyIntern_('${escapeJsString(entry.id)}')">מחיקה מהרשימה</button>`
+              : `<button type="button" onclick="openMonthlyInternReport_('${escapeJsString(entry.id)}')">דיווח על טעות</button>`}
+          </span>
         </article>
       `;
     }).join("");
@@ -1493,6 +1519,110 @@ function closeMonthlyInternsView_() {
   window.scrollTo({ top: monthlyInternsHomeScrollY, behavior: "auto" });
   const quickEntry = document.getElementById("monthlyInternsQuickEntry");
   if (quickEntry) quickEntry.focus();
+}
+
+function openMonthlyInternEditor_(internId, reportId = "") {
+  if (!currentUserIsAdmin) return;
+  const intern = getMonthlyInternById_(internId);
+  if (!intern) {
+    setAdminStatus("הסטאז׳ר כבר אינו מופיע ברשימה הפעילה.", "error");
+    return;
+  }
+  openAdminFocusSheet_({
+    eyebrow: "סטאז׳רים החודש",
+    title: "עריכת פרטים",
+    subtitle: monthlyInternsState.descriptor?.label || "",
+    html: `
+      <div class="adminFormGrid monthlyInternEditForm">
+        <div class="adminFormField full"><label for="monthlyInternEditName">שם</label><input id="monthlyInternEditName" value="${escapeHtml(intern.name)}" maxlength="200" autocomplete="off"></div>
+        <div class="adminFormField full"><label for="monthlyInternEditPhone">טלפון</label><input id="monthlyInternEditPhone" value="${escapeHtml(formatPhoneForDisplay(intern.phone))}" maxlength="30" inputmode="tel" dir="ltr" autocomplete="tel"></div>
+        <div class="adminFormField full"><label for="monthlyInternEditDepartment">מחלקה — לא חובה</label><input id="monthlyInternEditDepartment" value="${escapeHtml(intern.department || "")}" maxlength="160" autocomplete="off"></div>
+      </div>
+      <div id="monthlyInternEditStatus" class="statusMessage adminSavingStatus"></div>
+      <div class="adminFocusPrimaryActions">
+        <button type="button" id="monthlyInternEditSaveBtn" class="adminActionBtn primary" onclick="saveMonthlyInternChanges_('${escapeJsString(intern.id)}', '${escapeJsString(reportId)}')">שמירת שינויים</button>
+      </div>
+    `
+  });
+}
+
+async function updateActiveMonthlyInterns_(transform) {
+  if (!currentUserIsAdmin || !firebaseApi || !db) throw new Error("ADMIN_REQUIRED");
+  const activeRef = firebaseApi.doc(db, MONTHLY_INTERNS_COLLECTION_NAME, MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID);
+  let updatedEntries = null;
+  let updatedData = null;
+  await firebaseApi.runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(activeRef);
+    if (!snapshot.exists()) throw new Error("NO_ACTIVE_INTERNS_LIST");
+    const current = snapshot.data() || {};
+    const entries = (Array.isArray(current.entries) ? current.entries : []).map(normalizeMonthlyInternEntry_);
+    updatedEntries = transform(entries);
+    if (!Array.isArray(updatedEntries)) throw new Error("INVALID_INTERNS_UPDATE");
+    updatedData = {
+      ...current,
+      entries: updatedEntries,
+      recordCount: updatedEntries.length,
+      version: String(current.version || `${Date.now()}_manual`),
+      publishedAt: firebaseApi.serverTimestamp(),
+      publishedBy: currentAdminEmail
+    };
+    transaction.set(activeRef, updatedData);
+  });
+  adminMonthlyInternsActive = { ...(adminMonthlyInternsActive || {}), ...updatedData, publishedAt: new Date(), entries: updatedEntries };
+  monthlyInternsState = { ...monthlyInternsState, status: "ready", version: updatedData.version, entries: updatedEntries };
+  renderMonthlyInterns_();
+  if (adminActiveTab === "system") renderAdminSystem_();
+  return updatedEntries;
+}
+
+async function saveMonthlyInternChanges_(internId, reportId = "") {
+  if (!currentUserIsAdmin) return;
+  const name = String(document.getElementById("monthlyInternEditName")?.value || "").trim();
+  const phone = normalizePhone(document.getElementById("monthlyInternEditPhone")?.value || "");
+  const department = String(document.getElementById("monthlyInternEditDepartment")?.value || "").trim();
+  const saveButton = document.getElementById("monthlyInternEditSaveBtn");
+  if (!name) return setStatus("monthlyInternEditStatus", "יש להזין שם.", "error");
+  if (!phone || !isValidPhoneForRouting_(phone)) return setStatus("monthlyInternEditStatus", "יש להזין מספר טלפון ישראלי תקין.", "error");
+  if (saveButton) saveButton.disabled = true;
+  setStatus("monthlyInternEditStatus", "שומר את השינויים...", "loading");
+  try {
+    await updateActiveMonthlyInterns_(entries => {
+      const index = entries.findIndex(entry => entry.id === internId);
+      if (index < 0) throw new Error("INTERN_NOT_FOUND");
+      if (entries.some((entry, entryIndex) => entryIndex !== index && entry.phone === phone)) throw new Error("DUPLICATE_INTERN_PHONE");
+      entries[index] = { ...entries[index], id: internId, name, phone, department, manuallyEdited: true, manuallyEditedAt: new Date().toISOString(), manuallyEditedBy: currentAdminEmail };
+      return entries;
+    });
+    logAdminAction("monthly_intern_edit", "", internId).catch(() => {});
+    closeAdminFocusSheet_();
+    if (reportId) await setContactReportStatus_(reportId, "resolved");
+    setAdminStatus("פרטי הסטאז׳ר עודכנו.", "success");
+  } catch (error) {
+    console.error("Monthly intern edit failed", error);
+    const message = error && error.message === "DUPLICATE_INTERN_PHONE" ? "מספר הטלפון כבר משויך לסטאז׳ר אחר ברשימה." : error && error.message === "INTERN_NOT_FOUND" ? "הסטאז׳ר כבר אינו מופיע ברשימה הפעילה." : "שמירת השינויים נכשלה.";
+    setStatus("monthlyInternEditStatus", message, "error");
+    if (saveButton) saveButton.disabled = false;
+  }
+}
+
+async function deleteMonthlyIntern_(internId) {
+  if (!currentUserIsAdmin) return;
+  const intern = getMonthlyInternById_(internId);
+  if (!intern) return;
+  const confirmed = await requestAdminConfirmation_({ title: "מחיקת סטאז׳ר", message: `${intern.name} יוסר מרשימת הסטאז׳רים הפעילה.`, confirmLabel: "מחיקה", tone: "danger" });
+  if (!confirmed) return;
+  try {
+    await updateActiveMonthlyInterns_(entries => {
+      const next = entries.filter(entry => entry.id !== internId);
+      if (next.length === entries.length) throw new Error("INTERN_NOT_FOUND");
+      return next;
+    });
+    logAdminAction("monthly_intern_delete", "", internId).catch(() => {});
+    setAdminStatus("הסטאז׳ר הוסר מהרשימה הפעילה בלבד.", "success");
+  } catch (error) {
+    console.error("Monthly intern deletion failed", error);
+    setAdminStatus("המחיקה נכשלה. הרשימה הפעילה לא השתנתה.", "error");
+  }
 }
 
 async function loadCurrentMonthInterns_(options = {}) {
@@ -1578,6 +1708,7 @@ async function loadCurrentMonthInterns_(options = {}) {
       monthlyInternsState = {
         status: "ready",
         descriptor: getMonthlyInternsDescriptorFromData_(data, descriptor),
+        version: String(data.version || ""),
         entries: [...uniqueEntries.values()]
       };
       renderMonthlyInterns_();
@@ -6322,6 +6453,10 @@ async function loadAdminReportsData_() {
     const data = document.data() || {};
     return {
       docId: document.id,
+      subjectType: data.subjectType === "intern" ? "intern" : "contact",
+      internId: String(data.internId || ""),
+      internVersion: String(data.internVersion || ""),
+      internDepartment: String(data.internDepartment || ""),
       contactDocId: String(data.contactDocId || ""),
       contactPhone: String(data.contactPhone || ""),
       contactName: String(data.contactName || ""),
@@ -6861,6 +6996,7 @@ function adminReportMatchesQuery_(report, query) {
   return normalizeSearchText([
     report.contactName,
     report.contactPhone,
+    report.internDepartment,
     report.reporterEmail,
     report.details,
     getReportTypeLabel_(report.issueType)
@@ -7791,6 +7927,16 @@ function getAdminAttentionRowPresentation_(item) {
     };
   }
   const report = item.data;
+  if (report.subjectType === "intern") {
+    return {
+      title: report.contactName || formatPhoneForDisplay(report.contactPhone) || "סטאז׳ר",
+      type: "דיווח על סטאז׳ר · " + getReportTypeLabel_(report.issueType),
+      time: formatAdminRelativeTime_(report.createdAt),
+      status: "ממתין",
+      tone: "report",
+      id: report.docId
+    };
+  }
   return {
     title: report.contactName || formatPhoneForDisplay(report.contactPhone) || "איש קשר",
     type: "דיווח על " + getReportTypeLabel_(report.issueType),
@@ -8022,6 +8168,37 @@ function openAdminAttentionItem_(kind, itemId) {
   }
 
   const report = item.data;
+  if (report.subjectType === "intern") {
+    const samePublishedList = !report.internVersion || !monthlyInternsState.version || report.internVersion === monthlyInternsState.version;
+    const currentIntern = samePublishedList ? getMonthlyInternById_(report.internId) : null;
+    openAdminFocusSheet_({
+      eyebrow: "דיווח על סטאז׳ר",
+      title: report.contactName || "סטאז׳ר",
+      subtitle: formatAdminRelativeTime_(report.createdAt),
+      html: `
+        ${currentIntern
+          ? renderAdminInfoRows_([
+              { label: "שם נוכחי", value: currentIntern.name },
+              { label: "טלפון נוכחי", value: formatPhoneForDisplay(currentIntern.phone), ltr: true },
+              { label: "מחלקה נוכחית", value: currentIntern.department || "ללא מחלקה" }
+            ])
+          : '<div class="adminFocusNotice warning">הסטאז׳ר כבר אינו מופיע ברשימה הפעילה</div>'}
+        ${renderAdminInfoRows_([
+          { label: "סוג הדיווח", value: getReportTypeLabel_(report.issueType) },
+          { label: "שם בעת הדיווח", value: report.contactName },
+          { label: "טלפון בעת הדיווח", value: formatPhoneForDisplay(report.contactPhone), ltr: true },
+          { label: "מחלקה בעת הדיווח", value: report.internDepartment || "ללא מחלקה" },
+          { label: "דווח על ידי", value: report.reporterEmail, ltr: true }
+        ])}
+        <div class="adminFocusReportText">${escapeHtml(report.details) || "לא נמסרו פרטים נוספים."}</div>
+        <div class="adminFocusPrimaryActions">
+          ${currentIntern ? `<button type="button" class="adminActionBtn primary" onclick="openMonthlyInternEditor_('${escapeJsString(currentIntern.id)}', '${escapeJsString(report.docId)}')">עריכת הסטאז׳ר</button>` : ""}
+          <button type="button" class="adminActionBtn ${currentIntern ? "secondary" : "primary"}" onclick="closeAdminFocusSheet_(); setContactReportStatus_('${escapeJsString(report.docId)}', 'resolved')">סימון כטופל ללא שינוי</button>
+        </div>
+      `
+    });
+    return;
+  }
   const matchingContact = adminContacts.find(contact =>
     (report.contactDocId && String(contact.docId) === String(report.contactDocId)) ||
     (report.contactPhone && normalizePhone(contact.phone) === normalizePhone(report.contactPhone))
@@ -8968,7 +9145,14 @@ function sanitizePublishedInternEntries_(entries) {
     const phone = normalizePhone(entry && entry.phone || "");
     const department = String(entry && entry.department || "").trim();
     if (!name || !isValidPhoneForRouting_(phone)) return;
-    if (!unique.has(phone)) unique.set(phone, { name, phone, department });
+    if (!unique.has(phone)) {
+      unique.set(phone, {
+        id: String(entry && entry.id || createMonthlyInternId_(name, phone)),
+        name,
+        phone,
+        department
+      });
+    }
   });
   return [...unique.values()];
 }
@@ -9050,6 +9234,7 @@ async function publishMonthlyInterns_() {
     monthlyInternsState = {
       status: "ready",
       descriptor: getMonthlyInternsDescriptorFromData_(adminMonthlyInternsActive, getCurrentMonthlyInternsDescriptor_()),
+      version,
       entries
     };
     renderMonthlyInterns_();
@@ -9127,6 +9312,7 @@ async function rollbackMonthlyInterns_() {
     monthlyInternsState = {
       status: "ready",
       descriptor: getMonthlyInternsDescriptorFromData_(adminMonthlyInternsActive, getCurrentMonthlyInternsDescriptor_()),
+      version: String(adminMonthlyInternsActive.version || ""),
       entries: (adminMonthlyInternsActive.entries || []).map(normalizeMonthlyInternEntry_)
     };
     renderMonthlyInterns_();
@@ -12111,10 +12297,22 @@ function openContactReportModal(id) {
   const contact = contacts.find(item => item.id === id);
   if (!contact) return;
 
-  activeReportContact = contact;
+  activeReportContact = { ...contact, reportSubject: "contact" };
   const contactBox = document.getElementById("contactReportContact");
   const details = document.getElementById("contactReportDetails");
   const type = document.getElementById("contactReportType");
+  const detailsLabel = document.getElementById("contactReportDetailsLabel");
+  if (detailsLabel) detailsLabel.textContent = "מה צריך להיות מעודכן?";
+  if (type) {
+    type.innerHTML = `
+      <option value="phone">מספר טלפון</option>
+      <option value="email">כתובת מייל</option>
+      <option value="name">שם או תואר</option>
+      <option value="role">תפקיד</option>
+      <option value="department">מחלקה / מכון</option>
+      <option value="other">אחר</option>
+    `;
+  }
   if (contactBox) {
     contactBox.textContent = `${contact.name || "איש קשר"} · ${formatPhoneForDisplay(contact.phone)}`;
   }
@@ -12126,11 +12324,38 @@ function openContactReportModal(id) {
   document.body.style.overflow = "hidden";
 }
 
+function openMonthlyInternReport_(internId) {
+  const intern = getMonthlyInternById_(internId);
+  if (!intern || !auth || !auth.currentUser) return;
+  activeReportContact = { ...intern, reportSubject: "intern" };
+  document.getElementById("contactReportModalTitle").textContent = "דיווח על טעות בפרטי סטאז׳ר";
+  document.getElementById("contactReportContact").textContent = `${intern.name} · ${formatPhoneForDisplay(intern.phone)}`;
+  const type = document.getElementById("contactReportType");
+  const detailsLabel = document.getElementById("contactReportDetailsLabel");
+  if (detailsLabel) detailsLabel.textContent = "מה צריך לתקן? — לא חובה";
+  if (type) {
+    type.innerHTML = `
+      <option value="name">שם שגוי</option>
+      <option value="phone">מספר טלפון שגוי</option>
+      <option value="department">מחלקה שגויה</option>
+      <option value="other">אחר</option>
+    `;
+    type.value = "phone";
+  }
+  const details = document.getElementById("contactReportDetails");
+  if (details) details.value = "";
+  setStatus("contactReportStatus", "", "");
+  document.getElementById("contactReportModal")?.classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
 function closeContactReportModal() {
   const modal = document.getElementById("contactReportModal");
   if (modal) modal.classList.remove("visible");
   document.body.style.overflow = "";
   activeReportContact = null;
+  const title = document.getElementById("contactReportModalTitle");
+  if (title) title.textContent = "דיווח על פרטים שגויים";
   setStatus("contactReportStatus", "", "");
 }
 
@@ -12143,7 +12368,7 @@ async function submitContactReport() {
   const issueType = String(typeInput ? typeInput.value : "other");
   const details = String(detailsInput ? detailsInput.value : "").trim();
 
-  if (details.length < 3) {
+  if (activeReportContact.reportSubject !== "intern" && details.length < 3) {
     setStatus("contactReportStatus", "כתבו בקצרה מה דורש תיקון.", "error");
     return;
   }
@@ -12156,18 +12381,28 @@ async function submitContactReport() {
       "report",
       auth.currentUser
     );
+    const isInternReport = activeReportContact.reportSubject === "intern";
+    const reportPayload = {
+      contactDocId: isInternReport ? "" : String(activeReportContact.docId || ""),
+      contactPhone: String(activeReportContact.phone || ""),
+      contactName: String(activeReportContact.name || ""),
+      issueType,
+      details,
+      reporterEmail: normalizeEmail(auth.currentUser.email),
+      status: "open",
+      createdAt: firebaseApi.serverTimestamp()
+    };
+    if (isInternReport) {
+      Object.assign(reportPayload, {
+        subjectType: "intern",
+        internId: String(activeReportContact.id || ""),
+        internVersion: String(monthlyInternsState.version || ""),
+        internDepartment: String(activeReportContact.department || "")
+      });
+    }
     await firebaseApi.setDoc(
       firebaseApi.doc(db, "contactReports", reportId),
-      {
-        contactDocId: String(activeReportContact.docId || ""),
-        contactPhone: String(activeReportContact.phone || ""),
-        contactName: String(activeReportContact.name || ""),
-        issueType,
-        details,
-        reporterEmail: normalizeEmail(auth.currentUser.email),
-        status: "open",
-        createdAt: firebaseApi.serverTimestamp()
-      },
+      reportPayload,
       { merge: false }
     );
 

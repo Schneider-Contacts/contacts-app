@@ -337,7 +337,7 @@ service cloud.firestore {
         && request.resource.data.monthLabel.size() >= 3
         && request.resource.data.monthLabel.size() <= 80
         && request.resource.data.entries is list
-        && request.resource.data.entries.size() >= 1
+        && request.resource.data.entries.size() >= 0
         && request.resource.data.entries.size() <= 500
         && request.resource.data.recordCount is int
         && request.resource.data.recordCount == request.resource.data.entries.size()
@@ -586,7 +586,11 @@ service cloud.firestore {
           "details",
           "reporterEmail",
           "status",
-          "createdAt"
+          "createdAt",
+          "subjectType",
+          "internId",
+          "internVersion",
+          "internDepartment"
         ])
         && request.resource.data.reporterEmail == request.auth.token.email
         && request.resource.data.contactDocId is string
@@ -601,10 +605,43 @@ service cloud.firestore {
           "phone", "email", "name", "role", "department", "other"
         ]
         && request.resource.data.details is string
-        && request.resource.data.details.size() >= 3
         && request.resource.data.details.size() <= 1000
         && request.resource.data.status == "open"
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && (
+          !("subjectType" in request.resource.data)
+          || request.resource.data.subjectType == "contact"
+          || (
+            request.resource.data.subjectType == "intern"
+            && request.resource.data.internId is string
+            && request.resource.data.internId.size() >= 3
+            && request.resource.data.internId.size() <= 120
+            && request.resource.data.internVersion is string
+            && request.resource.data.internVersion.size() <= 120
+            && request.resource.data.internDepartment is string
+            && request.resource.data.internDepartment.size() <= 160
+            && request.resource.data.contactDocId == ""
+            && request.resource.data.issueType in [
+              "phone", "name", "department", "other"
+            ]
+          )
+        )
+        && (
+          (
+            "subjectType" in request.resource.data
+            && request.resource.data.subjectType == "intern"
+            && request.resource.data.details.size() >= 0
+          )
+          || (
+            !("subjectType" in request.resource.data)
+            && request.resource.data.details.size() >= 3
+          )
+          || (
+            "subjectType" in request.resource.data
+            && request.resource.data.subjectType == "contact"
+            && request.resource.data.details.size() >= 3
+          )
+        );
 
       allow read: if isAdmin();
 

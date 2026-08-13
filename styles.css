@@ -4764,6 +4764,7 @@ body.directorySheetOpen {
   color: #294d40;
   box-shadow: none;
   text-align: right;
+  flex-wrap: wrap;
 }
 
 #app .monthlyInternItem:last-child {
@@ -4804,6 +4805,36 @@ body.directorySheetOpen {
   font-size: 11.5px;
   font-weight: 700;
   unicode-bidi: plaintext;
+}
+
+#app .monthlyInternSecondaryActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  gap: 12px;
+  padding-top: 5px;
+  border-top: 1px solid #edf2ef;
+}
+
+#app .monthlyInternSecondaryActions button {
+  min-height: 34px;
+  margin: 0;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: #557168;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+#app .monthlyInternSecondaryActions button.danger {
+  color: #a24b4b;
+}
+
+.monthlyInternEditForm {
+  margin-bottom: 4px;
 }
 
 /* ===== Admin UX v2 + monthly interns management ===== */
