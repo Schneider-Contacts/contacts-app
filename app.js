@@ -18,7 +18,6 @@ const AUTH_ROUTER_CLIENT = "login-ux-v2";
 const REGISTRATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
 const AUTH_ROUTE_TIMEOUT_MS = 20 * 1000;
-const AUTH_ROUTE_SLOW_NOTICE_MS = 7 * 1000;
 const PASSWORD_HELP_TIMEOUT_MS = 30000;
 const AUTH_ROUTE_CACHE_MS = 15 * 1000;
 const AUTH_ROUTE_CACHE_PREFIX = "contacts_auth_route_v2_";
@@ -67,6 +66,7 @@ let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
 let activeQuickFilter = "";
+let activeContactDetailId = null;
 let selectedRecentContactPhones = new Set();
 
 let authMode = "login";
@@ -689,44 +689,169 @@ function normalizeSearchText(value) {
     .toLowerCase();
 }
 
-function getSearchPriority(contact, q, qNoHyphen) {
-  const first = normalizeSearchText(contact.first);
-  const last = normalizeSearchText(contact.last);
-  const firstEn = normalizeSearchText(contact.firstEn);
-  const lastEn = normalizeSearchText(contact.lastEn);
-  const full = [first, last].filter(Boolean).join(" ");
+function buildContactSearchIndex_(contact) {
+  const first = normalizeSearchText(contact && contact.first);
+  const last = normalizeSearchText(contact && contact.last);
+  const firstEn = normalizeSearchText(contact && contact.firstEn);
+  const lastEn = normalizeSearchText(contact && contact.lastEn);
+  const title = normalizeSearchText(contact && contact.title);
+  const role = normalizeSearchText(contact && contact.role);
+  const department = normalizeSearchText(contact && contact.dept);
+  const hospital = normalizeSearchText(contact && contact.hospital);
+  const email = normalizeSearchText(contact && contact.email);
+  const fullHe = [first, last].filter(Boolean).join(" ");
   const fullEn = [firstEn, lastEn].filter(Boolean).join(" ");
-  const nameParts = [first, last].filter(Boolean);
-  const englishNameParts = [firstEn, lastEn].filter(Boolean);
-  const queryTokens = q.split(" ").filter(Boolean);
-  const phoneIntl = normalizeSearchText(contact.phone);
-  const phoneLocal = getPhoneSearchValue(contact.phone);
+  const titledFullHe = [title, fullHe].filter(Boolean).join(" ");
+  const phoneInternational = normalizePhone(contact && contact.phone)
+    .replace(/\D/g, "");
+  const phoneLocal = getPhoneSearchValue(contact && contact.phone)
+    .replace(/\D/g, "");
 
-  if (first === q || last === q || full === q) return 1;
+  return {
+    first,
+    last,
+    firstEn,
+    lastEn,
+    title,
+    role,
+    department,
+    hospital,
+    email,
+    fullHe,
+    fullEn,
+    titledFullHe,
+    nameParts: [first, last, firstEn, lastEn].filter(Boolean),
+    roleParts: role.split(" ").filter(Boolean),
+    departmentParts: department.split(" ").filter(Boolean),
+    metadataParts: [title, hospital, email].filter(Boolean),
+    phoneInternational,
+    phoneLocal
+  };
+}
 
-  if (queryTokens.length > 1 && queryTokens.every((token, index) => !!nameParts[index] && nameParts[index].startsWith(token))) {
-    return 2;
+function getContactSearchIndex_(contact) {
+  return contact && contact._search
+    ? contact._search
+    : buildContactSearchIndex_(contact || {});
+}
+
+function getSearchTokenPriority_(index, token, tokenDigits = "") {
+  if (!token && !tokenDigits) return null;
+
+  if (token && index.nameParts.some(value => value === token)) return 1;
+  if (token && index.nameParts.some(value => value.startsWith(token))) return 2;
+  if (
+    token &&
+    [index.fullHe, index.fullEn].some(value => value && value.includes(token))
+  ) return 3;
+  if (token && index.role === token) return 4;
+  if (token && index.roleParts.some(value => value.startsWith(token))) return 5;
+  if (token && index.role.includes(token)) return 6;
+  if (token && index.department === token) return 7;
+  if (
+    token &&
+    index.departmentParts.some(value => value.startsWith(token))
+  ) return 8;
+  if (token && index.department.includes(token)) return 9;
+  if (
+    token &&
+    index.metadataParts.some(value => value.includes(token))
+  ) return 10;
+  if (
+    tokenDigits &&
+    (
+      index.phoneLocal.includes(tokenDigits) ||
+      index.phoneInternational.includes(tokenDigits)
+    )
+  ) return 11;
+  return null;
+}
+
+function getSearchPriority(contact, q, qNoHyphen) {
+  const index = getContactSearchIndex_(contact);
+  const normalizedQuery = normalizeSearchText(q);
+  const queryDigits = String(qNoHyphen || "").replace(/\D/g, "");
+  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+
+  if (!normalizedQuery && !queryDigits) return null;
+  if (
+    normalizedQuery &&
+    [index.fullHe, index.fullEn, index.titledFullHe]
+      .some(value => value === normalizedQuery)
+  ) return 1;
+  if (
+    normalizedQuery &&
+    index.nameParts.some(value => value === normalizedQuery)
+  ) return 2;
+  if (
+    normalizedQuery &&
+    [index.fullHe, index.fullEn].some(value =>
+      value && value.startsWith(normalizedQuery)
+    )
+  ) return 3;
+  if (
+    normalizedQuery &&
+    index.nameParts.some(value => value.startsWith(normalizedQuery))
+  ) return 4;
+  if (
+    queryTokens.length > 1 &&
+    queryTokens.every(token =>
+      index.nameParts.some(value => value.startsWith(token))
+    )
+  ) return 5;
+  if (
+    normalizedQuery &&
+    [index.fullHe, index.fullEn].some(value =>
+      value && value.includes(normalizedQuery)
+    )
+  ) return 6;
+  if (normalizedQuery && index.role === normalizedQuery) return 7;
+  if (normalizedQuery && index.role.startsWith(normalizedQuery)) return 8;
+  if (normalizedQuery && index.department === normalizedQuery) return 9;
+  if (
+    normalizedQuery &&
+    index.department.startsWith(normalizedQuery)
+  ) return 10;
+  if (
+    normalizedQuery &&
+    (index.role.includes(normalizedQuery) || index.department.includes(normalizedQuery))
+  ) return 11;
+  if (
+    queryDigits &&
+    (index.phoneLocal === queryDigits || index.phoneInternational === queryDigits)
+  ) return 12;
+  if (
+    queryDigits &&
+    (
+      index.phoneLocal.startsWith(queryDigits) ||
+      index.phoneInternational.startsWith(queryDigits)
+    )
+  ) return 13;
+
+  if (queryTokens.length) {
+    const tokenPriorities = queryTokens.map(token =>
+      getSearchTokenPriority_(
+        index,
+        token,
+        token.replace(/\D/g, "")
+      )
+    );
+    if (tokenPriorities.every(priority => priority !== null)) {
+      return 20 + tokenPriorities.reduce((sum, priority) => sum + priority, 0) / 100;
+    }
   }
 
-  if (first.startsWith(q) || last.startsWith(q)) return 3;
-  if (full.startsWith(q)) return 4;
-
-  if (queryTokens.length > 1 && queryTokens.every(token => nameParts.some(namePart => namePart.startsWith(token)))) {
-    return 5;
-  }
-
-  if (first.includes(q) || last.includes(q) || full.includes(q)) return 6;
-  if (firstEn === q || lastEn === q || fullEn === q) return 7;
-  if (firstEn.startsWith(q) || lastEn.startsWith(q) || fullEn.startsWith(q)) return 8;
-
-  if (queryTokens.length > 1 && queryTokens.every(token => englishNameParts.some(namePart => namePart.startsWith(token)))) {
-    return 9;
-  }
-
-  if (firstEn.includes(q) || lastEn.includes(q) || fullEn.includes(q)) return 10;
-  if (qNoHyphen && phoneLocal.startsWith(qNoHyphen)) return 11;
-  if (qNoHyphen && phoneIntl.replace(/\D/g, "").startsWith(qNoHyphen)) return 12;
-  if (qNoHyphen && (phoneLocal.includes(qNoHyphen) || phoneIntl.replace(/\D/g, "").includes(qNoHyphen))) return 13;
+  if (
+    queryDigits &&
+    (
+      index.phoneLocal.includes(queryDigits) ||
+      index.phoneInternational.includes(queryDigits)
+    )
+  ) return 40;
+  if (
+    normalizedQuery &&
+    index.metadataParts.some(value => value.includes(normalizedQuery))
+  ) return 50;
   return null;
 }
 
@@ -738,7 +863,7 @@ function compareContactsByName(a, b) {
 
 function isSearchActive() {
   const input = document.getElementById("searchInput");
-  return !!input && normalizeSearchText(input.value).length >= 2;
+  return !!input && normalizeSearchText(input.value).length > 0;
 }
 
 function getLocalPhoneDigits(phone) {
@@ -849,14 +974,28 @@ function getRecentContacts() {
   });
 }
 
-function isQuickFilterActive() { return ["vpn", "institutes", "labs"].includes(activeQuickFilter); }
-function canUseMultiSelection() { return isSearchActive() || isQuickFilterActive(); }
+function isDepartmentFilterActive_() {
+  return String(activeQuickFilter || "").startsWith("department:");
+}
+
+function isQuickFilterActive() {
+  return ["all", "vpn", "institutes", "labs"].includes(activeQuickFilter) ||
+    isDepartmentFilterActive_();
+}
+
+function canUseMultiSelection() {
+  return currentDisplayedContacts.length > 0;
+}
+
 function contactMatchesQuickFilter(contact, filterName) {
   const department = normalizeSearchText(contact.dept);
   const belongsToVpnList = department.includes("vpn");
   if (filterName === "vpn") return belongsToVpnList && isMobilePhone(contact.phone);
   if (filterName === "institutes") return belongsToVpnList && isInstituteLandline(contact.phone);
   if (filterName === "labs") return department.includes("מעבד");
+  if (String(filterName || "").startsWith("department:")) {
+    return department === String(filterName).slice("department:".length);
+  }
   return true;
 }
 
@@ -872,40 +1011,150 @@ function updateQuickFilterButtons() {
     labs: document.getElementById("labsFilterBtn")
   };
 
+  const allButton = document.getElementById("allFilterBtn");
+  if (allButton) {
+    const isActive = activeQuickFilter === "all" ||
+      (!activeQuickFilter && isSearchActive());
+    allButton.classList.toggle("active", isActive);
+    allButton.setAttribute("aria-pressed", String(isActive));
+  }
+
   Object.entries(buttons).forEach(([filterName, button]) => {
     if (!button) return;
     const isActive = activeQuickFilter === filterName;
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
+
+  const departmentsButton = document.getElementById("departmentsFilterBtn");
+  if (departmentsButton) {
+    const isActive = isDepartmentFilterActive_();
+    departmentsButton.classList.toggle("active", isActive);
+    departmentsButton.setAttribute("aria-pressed", String(isActive));
+  }
+
+  const activeFilter = document.getElementById("activeDirectoryFilter");
+  const activeFilterText = document.getElementById("activeDirectoryFilterText");
+  const label = getActiveDirectoryFilterLabel_();
+  if (activeFilter) activeFilter.hidden = !label;
+  if (activeFilterText) activeFilterText.textContent = label;
 }
 
 function toggleQuickFilter(filterName) {
-  activeQuickFilter = activeQuickFilter === filterName ? "" : filterName;
+  activeQuickFilter = activeQuickFilter === filterName ? "all" : filterName;
+  selectionMode = false;
+  selectedContactIds.clear();
+  closeDepartmentBrowser_();
+  updateQuickFilterButtons();
+  renderCurrentSearchResults();
+}
+
+function getActiveDirectoryFilterLabel_() {
+  const labels = {
+    vpn: "VPN",
+    institutes: "מכונים",
+    labs: "מעבדות"
+  };
+  if (labels[activeQuickFilter]) return labels[activeQuickFilter];
+  if (!isDepartmentFilterActive_()) return "";
+  const key = activeQuickFilter.slice("department:".length);
+  const option = getDepartmentOptions_().find(item => item.key === key);
+  return option ? option.label : key;
+}
+
+function clearActiveDirectoryFilter_() {
+  if (activeQuickFilter === "all") {
+    updateQuickFilterButtons();
+    return;
+  }
+  activeQuickFilter = "all";
   selectionMode = false;
   selectedContactIds.clear();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
 }
 
+function getDepartmentOptions_() {
+  const departments = new Map();
+  contacts.forEach(contact => {
+    const label = String(contact && contact.dept || "").trim();
+    const key = normalizeSearchText(label);
+    if (!key) return;
+    const current = departments.get(key) || { key, label, count: 0 };
+    current.count += 1;
+    if (!current.label) current.label = label;
+    departments.set(key, current);
+  });
+  return [...departments.values()].sort((a, b) =>
+    a.label.localeCompare(b.label, "he", { sensitivity: "base" })
+  );
+}
+
+function renderDepartmentBrowser_() {
+  const list = document.getElementById("departmentList");
+  if (!list) return;
+  const options = getDepartmentOptions_();
+  list.innerHTML = options.length
+    ? options.map(option => {
+        const isActive = activeQuickFilter === "department:" + option.key;
+        return `
+          <button type="button" class="departmentOption ${isActive ? "active" : ""}" data-department-key="${escapeHtml(option.key)}">
+            <span>${escapeHtml(option.label)}</span>
+            <small>${option.count}</small>
+          </button>
+        `;
+      }).join("")
+    : '<div class="departmentListEmpty">לא נמצאו מחלקות ברשימה.</div>';
+}
+
+function openDepartmentBrowser_() {
+  closeAllDirectoryMenus_();
+  renderDepartmentBrowser_();
+  const sheet = document.getElementById("departmentSheet");
+  if (!sheet) return;
+  sheet.classList.add("visible");
+  sheet.setAttribute("aria-hidden", "false");
+  document.body.classList.add("directorySheetOpen");
+}
+
+function closeDepartmentBrowser_() {
+  const sheet = document.getElementById("departmentSheet");
+  if (!sheet) return;
+  sheet.classList.remove("visible");
+  sheet.setAttribute("aria-hidden", "true");
+  if (!document.querySelector(".directorySheet.visible")) {
+    document.body.classList.remove("directorySheetOpen");
+  }
+}
+
+function selectDepartmentFilter_(departmentKey) {
+  const key = normalizeSearchText(departmentKey);
+  if (!key) return;
+  activeQuickFilter = `department:${key}`;
+  selectionMode = false;
+  selectedContactIds.clear();
+  closeDepartmentBrowser_();
+  updateQuickFilterButtons();
+  renderCurrentSearchResults();
+}
+
 function updateMainActionButton() {
-  const btn = document.getElementById("importAllBtn");
+  const btn = document.getElementById("selectionModeBtn");
   if (!btn) return;
 
+  btn.hidden = !currentDisplayedContacts.length;
   if (selectionMode) {
     btn.disabled = false;
-    btn.textContent = "בטל בחירה";
+    btn.textContent = "סיום בחירה";
+    btn.classList.add("active");
+    btn.setAttribute("aria-pressed", "true");
     return;
   }
 
   btn.disabled = false;
-
-  if (canUseMultiSelection()) {
-    btn.textContent = "בחירת כמה אנשי קשר";
-    return;
-  }
-
-  btn.textContent = "הורדת כל אנשי הקשר";
+  btn.textContent = "בחירה";
+  btn.classList.remove("active");
+  btn.setAttribute("aria-pressed", "false");
 }
 
 function handleMainImportButton() {
@@ -920,6 +1169,11 @@ function handleMainImportButton() {
   }
 
   downloadAllContacts();
+}
+
+function toggleSelectionMode_() {
+  if (selectionMode) exitSelectionMode();
+  else enterSelectionMode();
 }
 
 function enterSelectionMode() {
@@ -980,7 +1234,8 @@ function applyRawContacts_(rawContacts) {
       .filter(contact => contact.phone)
   ).map((contact, index) => ({
     ...contact,
-    id: index
+    id: index,
+    _search: buildContactSearchIndex_(contact)
   }));
 
   return contacts;
@@ -1518,7 +1773,7 @@ function applyResolvedEmailAuthRoute_(email, result, options = {}) {
   }
 
   if (route === "PASSWORD") {
-    if (authMode === "register") {
+    if (authMode === "register" || authStage === "routing") {
       showAuthPasswordStep_(normalizedEmail, "login", {
         preserveFlow: true,
         returning: authReturningUser
@@ -1534,6 +1789,12 @@ function applyResolvedEmailAuthRoute_(email, result, options = {}) {
   }
 
   if (options.afterPasswordFailure === true) {
+    if (authStage === "routing") {
+      showAuthPasswordStep_(normalizedEmail, "login", {
+        preserveFlow: true,
+        returning: authReturningUser
+      });
+    }
     setLoginStatus(
       "לא הצלחנו לבדוק כרגע את מסלול הכניסה. נסו שוב בעוד רגע.",
       "error"
@@ -1569,13 +1830,17 @@ async function selectAuthPasswordPath_(mode) {
   }
 
   const flowToken = authEmailFlowToken;
-  setLoginStatus("בודק את מסלול הכניסה...", "loading");
+  showAuthRoutingStep_();
   try {
     const result = await getEmailAuthRoutePromise_(email);
     if (flowToken !== authEmailFlowToken) return;
     applyResolvedEmailAuthRoute_(email, result, { flowToken });
   } catch (error) {
     if (flowToken === authEmailFlowToken) {
+      showAuthPasswordStep_(email, "login", {
+        preserveFlow: true,
+        returning: authReturningUser
+      });
       setLoginStatus(
         "לא הצלחנו לבדוק כרגע את מסלול הכניסה. נסו שוב.",
         "error"
@@ -1648,12 +1913,19 @@ function rememberSuccessfulEmail_(email) {
   }
 }
 
+function setAuthRoutingActive_(active) {
+  const login = document.getElementById("login");
+  if (login) login.classList.toggle("authRoutingActive", Boolean(active));
+}
+
 function setAuthRedirectPanelVisible_(visible) {
+  if (visible) setAuthRoutingActive_(false);
   const panel = document.getElementById("authRedirectPanel");
   if (panel) panel.classList.toggle("visible", Boolean(visible));
 }
 
 function setVerificationSuccessPanelVisible_(visible) {
+  if (visible) setAuthRoutingActive_(false);
   const panel = document.getElementById("verificationSuccessPanel");
   if (panel) panel.classList.toggle("visible", Boolean(visible));
 }
@@ -1681,6 +1953,7 @@ function updateAuthProgress_(stage) {
 }
 
 function setPasswordRecoveryPanelVisible_(visible) {
+  if (visible) setAuthRoutingActive_(false);
   const panel = document.getElementById("passwordRecoveryPanel");
   const form = document.getElementById("authForm");
   if (panel) panel.classList.toggle("visible", Boolean(visible));
@@ -1696,6 +1969,7 @@ function setPasswordRecoveryPanelVisible_(visible) {
 }
 
 function setVerificationPanelVisible_(visible) {
+  if (visible) setAuthRoutingActive_(false);
   const form = document.getElementById("authForm");
   const panel = document.getElementById("verificationPanel");
   if (form) form.style.display = visible ? "none" : "block";
@@ -1742,15 +2016,34 @@ async function continueAfterVerificationSuccess_() {
 }
 
 function hideAllAuthFormSteps_() {
+  setAuthRoutingActive_(false);
   [
     "authEmailStep",
     "authPhoneStep",
     "authPasswordStep",
+    "authRoutingStep",
     "authNoticeStep"
   ].forEach(id => {
     const element = document.getElementById(id);
     if (element) element.style.display = "none";
   });
+}
+
+function showAuthRoutingStep_() {
+  authStage = "routing";
+  setVerificationPanelVisible_(false);
+  setPasswordRecoveryPanelVisible_(false);
+  setAuthRedirectPanelVisible_(false);
+  setVerificationSuccessPanelVisible_(false);
+  hideAllAuthFormSteps_();
+
+  const form = document.getElementById("authForm");
+  const routingStep = document.getElementById("authRoutingStep");
+  setAuthRoutingActive_(true);
+  if (form) form.style.display = "block";
+  if (routingStep) routingStep.style.display = "grid";
+  updateAuthProgress_("");
+  setLoginStatus("", "");
 }
 
 function showAuthEmailStep_(options = {}) {
@@ -2873,31 +3166,25 @@ async function continueFromPhoneStep() {
 
   const isManagerPasswordReset =
     authStage === "password_recovery_claim";
+  const phoneInputValue = input ? input.value : "";
+  const phoneStepEmail = normalizeEmail(
+    isManagerPasswordReset
+      ? managerPasswordResetEmail
+      : lastUnknownEmail
+  );
+  const phoneStepPurpose = isManagerPasswordReset
+    ? "password_reset"
+    : "email_update";
+  const phoneButtonLabel = isManagerPasswordReset
+    ? "המשך ליצירת סיסמה חדשה"
+    : "המשך";
   setStepButtonBusy_(
     "phoneContinueBtn",
     true,
-    "בודק...",
-    isManagerPasswordReset
-      ? "המשך ליצירת סיסמה חדשה"
-      : "המשך"
+    phoneButtonLabel,
+    phoneButtonLabel
   );
-  setLoginStatus(
-    isManagerPasswordReset
-      ? "מאמת את מספר הטלפון ופותח יצירת סיסמה חדשה..."
-      : "מחפש את מספר הטלפון בספר אנשי הקשר...",
-    "loading"
-  );
-  const slowNoticeTimer = setTimeout(() => {
-    if (
-      authStage === "phone" ||
-      authStage === "password_recovery_claim"
-    ) {
-      setLoginStatus(
-        "הבדיקה לוקחת מעט יותר מהרגיל. ממשיכים לבדוק...",
-        "loading"
-      );
-    }
-  }, AUTH_ROUTE_SLOW_NOTICE_MS);
+  showAuthRoutingStep_();
 
   try {
     if (isManagerPasswordReset) {
@@ -2957,24 +3244,28 @@ async function continueFromPhoneStep() {
       return;
     }
 
+    showAuthPhoneStep_(phoneStepEmail, phoneStepPurpose);
+    const restoredInput = document.getElementById("phoneInput");
+    if (restoredInput) restoredInput.value = phoneInputValue;
     setLoginStatus("לא הצלחנו לבדוק את מספר הטלפון כרגע. נסו שוב בעוד רגע.", "error");
   } catch (error) {
     console.error("Phone route lookup failed", error);
+    showAuthPhoneStep_(phoneStepEmail, phoneStepPurpose);
+    const restoredInput = document.getElementById("phoneInput");
+    if (restoredInput) restoredInput.value = phoneInputValue;
+    const publicErrorMessage = String(error && error.message || "");
     setLoginStatus(
-      error && error.message
-        ? error.message
+      publicErrorMessage && !publicErrorMessage.startsWith("AUTH_ROUTE_")
+        ? publicErrorMessage
         : "בדיקת מספר הטלפון נכשלה זמנית. בדקו את החיבור ונסו שוב.",
       "error"
     );
   } finally {
-    clearTimeout(slowNoticeTimer);
     setStepButtonBusy_(
       "phoneContinueBtn",
       false,
-      "בודק...",
-      isManagerPasswordReset
-        ? "המשך ליצירת סיסמה חדשה"
-        : "המשך"
+      phoneButtonLabel,
+      phoneButtonLabel
     );
   }
 }
@@ -3682,6 +3973,8 @@ async function applySelectedAuthPersistence() {
 async function handlePrimaryAuthAction() {
   if (authActionInProgress) return;
 
+  if (authStage === "routing") return;
+
   if (authStage === "email") {
     await continueFromEmailStep();
     return;
@@ -4080,7 +4373,7 @@ async function loginWithPassword() {
     const code = error && error.code ? error.code : "";
     if (["auth/invalid-credential", "auth/invalid-login-credentials", "auth/wrong-password", "auth/user-not-found"].includes(code)) {
       const flowToken = authEmailFlowToken;
-      setLoginStatus("בודק את מסלול הכניסה...", "loading");
+      showAuthRoutingStep_();
       try {
         const result = await getEmailAuthRoutePromise_(email, {
           forceFresh: code === "auth/user-not-found"
@@ -4102,6 +4395,10 @@ async function loginWithPassword() {
         }
       } catch (routeError) {
         if (flowToken === authEmailFlowToken) {
+          showAuthPasswordStep_(email, "login", {
+            preserveFlow: true,
+            returning: authReturningUser
+          });
           setLoginStatus(
             "הסיסמה אינה נכונה או שהחשבון עדיין לא הוגדר. בדקו את הסיסמה ונסו שוב.",
             "error"
@@ -4342,6 +4639,9 @@ async function submitMyProfileUpdate_() {
 }
 
 function showAppForUser(user) {
+  closeAllDirectoryMenus_();
+  closeContactDetail_();
+  closeDepartmentBrowser_();
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("adminPanel").style.display = "none";
@@ -4659,6 +4959,9 @@ async function logout() {
     currentDisplayedContacts = [];
     selectionMode = false;
     activeQuickFilter = "";
+    closeAllDirectoryMenus_();
+    closeContactDetail_();
+    closeDepartmentBrowser_();
     updateQuickFilterButtons();
     document.getElementById("list").innerHTML = "";
     showLoginScreen();
@@ -9661,6 +9964,75 @@ async function initializeFirebase() {
   });
 }
 
+function setDirectoryMenuOpen_(menuId, buttonId, open) {
+  const menu = document.getElementById(menuId);
+  const button = document.getElementById(buttonId);
+  if (menu) {
+    menu.classList.toggle("visible", Boolean(open));
+    menu.setAttribute("aria-hidden", String(!open));
+  }
+  if (button) button.setAttribute("aria-expanded", String(Boolean(open)));
+}
+
+function closeAllDirectoryMenus_() {
+  setDirectoryMenuOpen_("accountMenu", "accountMenuBtn", false);
+  setDirectoryMenuOpen_(
+    "directoryToolsMenu",
+    "directoryToolsMenuBtn",
+    false
+  );
+}
+
+function toggleAccountMenu_() {
+  const menu = document.getElementById("accountMenu");
+  const shouldOpen = !menu || !menu.classList.contains("visible");
+  closeAllDirectoryMenus_();
+  setDirectoryMenuOpen_("accountMenu", "accountMenuBtn", shouldOpen);
+}
+
+function toggleDirectoryToolsMenu_() {
+  const menu = document.getElementById("directoryToolsMenu");
+  const shouldOpen = !menu || !menu.classList.contains("visible");
+  closeAllDirectoryMenus_();
+  setDirectoryMenuOpen_(
+    "directoryToolsMenu",
+    "directoryToolsMenuBtn",
+    shouldOpen
+  );
+}
+
+function initMainDirectoryUx_() {
+  if (document.body.dataset.mainDirectoryUxInitialized === "true") return;
+  document.body.dataset.mainDirectoryUxInitialized = "true";
+
+  const departmentList = document.getElementById("departmentList");
+  if (departmentList) {
+    departmentList.addEventListener("click", event => {
+      const button = event.target.closest("[data-department-key]");
+      if (!button) return;
+      selectDepartmentFilter_(button.dataset.departmentKey || "");
+    });
+  }
+
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".directoryMenuHost")) {
+      closeAllDirectoryMenus_();
+    }
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    closeAllDirectoryMenus_();
+    if (document.getElementById("contactDetailSheet")?.classList.contains("visible")) {
+      closeContactDetail_();
+      return;
+    }
+    if (document.getElementById("departmentSheet")?.classList.contains("visible")) {
+      closeDepartmentBrowser_();
+    }
+  });
+}
+
 function updateSearchUI() {
   const input = document.getElementById("searchInput");
   const q = input ? input.value.trim() : "";
@@ -9671,16 +10043,8 @@ function updateSearchUI() {
 }
 
 function updateMainSearchActionVisibility_() {
-  const hideGeneralActions =
-    isSearchActive() || isQuickFilterActive();
-  [
-    "suggestContactBtn",
-    "importAllBtn",
-    "recentContactsBtn"
-  ].forEach(buttonId => {
-    const button = document.getElementById(buttonId);
-    if (button) button.hidden = hideGeneralActions;
-  });
+  const toolsButton = document.getElementById("directoryToolsMenuBtn");
+  if (toolsButton) toolsButton.hidden = false;
 }
 
 function clearSearch() {
@@ -9705,7 +10069,11 @@ function updateResultsSummary(list) {
     return;
   }
   const count = Array.isArray(list) ? list.length : 0;
-  summary.textContent = count === 1 ? "נמצא איש קשר אחד" : `נמצאו ${count} אנשי קשר`;
+  summary.textContent = count === 0
+    ? "לא נמצאו אנשי קשר"
+    : count === 1
+      ? "נמצא איש קשר אחד"
+      : `נמצאו ${count} אנשי קשר`;
 }
 
 function updateBulkActions() {
@@ -9738,16 +10106,17 @@ function refreshSelectedCardsUI() {
   document.querySelectorAll(".contact").forEach(card => {
     const id = Number(card.dataset.id);
     card.classList.toggle("selected", selectionMode && selectedContactIds.has(id));
-  });
-
-  document.querySelectorAll(".contactSelect").forEach(label => {
-    const id = Number(label.dataset.id);
-    label.classList.toggle("selected", selectionMode && selectedContactIds.has(id));
-  });
-
-  document.querySelectorAll(".contactSelect input[type='checkbox']").forEach(checkbox => {
-    const id = Number(checkbox.dataset.id);
-    checkbox.checked = selectedContactIds.has(id);
+    const button = card.querySelector(".contactRowMain");
+    if (button && selectionMode) {
+      button.setAttribute(
+        "aria-pressed",
+        String(selectedContactIds.has(id))
+      );
+    }
+    const indicator = card.querySelector(".contactSelectionIndicator");
+    if (indicator) {
+      indicator.classList.toggle("selected", selectedContactIds.has(id));
+    }
   });
 }
 
@@ -10487,18 +10856,136 @@ function highlightSearchText(value) {
 }
 
 function renderContactName(contact) {
+  const first = String(contact && contact.first || "").trim();
+  const last = String(contact && contact.last || "").trim();
+  const firstEn = String(contact && contact.firstEn || "").trim();
+  const lastEn = String(contact && contact.lastEn || "").trim();
   const renderedName = [
     escapeHtml(contact.title),
-    highlightSearchText(contact.first),
-    highlightSearchText(contact.last)
+    highlightSearchText(first || firstEn),
+    highlightSearchText(last || lastEn)
   ].filter(Boolean).join(" ").trim();
 
   return renderedName || escapeHtml(contact.name || formatPhoneForDisplay(contact.phone));
 }
 
+function getContactDisplayName_(contact) {
+  const hebrewName = [contact && contact.first, contact && contact.last]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const englishName = [contact && contact.firstEn, contact && contact.lastEn]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return [contact && contact.title, hebrewName || englishName]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || formatPhoneForDisplay(contact && contact.phone);
+}
+
+function getDirectoryIconSvg_(iconName) {
+  const paths = {
+    phone: '<path d="M7.2 3.5 9.5 8l-2 1.6a15 15 0 0 0 6.9 6.9l1.6-2 4.5 2.3-.7 3a2 2 0 0 1-2 1.6C9.4 20.7 3.3 14.6 2.6 6.2a2 2 0 0 1 1.6-2z"/>',
+    whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M8.5 8.4c.6 3 2.1 4.5 5.1 5.1"/>',
+    chevron: '<path d="m14.5 6-6 6 6 6"/>',
+    check: '<path d="m5 12.5 4.2 4.2L19 7"/>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[iconName] || ""}</svg>`;
+}
+
+function closeContactDetail_() {
+  const sheet = document.getElementById("contactDetailSheet");
+  if (sheet) {
+    sheet.classList.remove("visible");
+    sheet.setAttribute("aria-hidden", "true");
+  }
+  activeContactDetailId = null;
+  if (!document.querySelector(".directorySheet.visible")) {
+    document.body.classList.remove("directorySheetOpen");
+  }
+}
+
+function openContactDetail_(id) {
+  if (selectionMode) {
+    toggleContactSelection(id);
+    return;
+  }
+
+  const contact = contacts.find(item => item.id === Number(id));
+  if (!contact) return;
+  activeContactDetailId = contact.id;
+  closeAllDirectoryMenus_();
+
+  const name = getContactDisplayName_(contact);
+  const englishName = [contact.firstEn, contact.lastEn]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const meta = [contact.role, getVisibleDepartment_(contact)]
+    .filter(Boolean)
+    .join(" · ");
+  const displayPhone = formatPhoneForDisplay(contact.phone);
+  const cleanPhone = normalizePhone(contact.phone).replace("+", "");
+  const hideWhatsapp = isNoWhatsappPhone(contact.phone);
+
+  document.getElementById("contactDetailName").textContent = name;
+  const englishNameElement = document.getElementById("contactDetailEnglishName");
+  if (englishNameElement) {
+    englishNameElement.textContent = englishName;
+    englishNameElement.hidden = !englishName;
+  }
+  document.getElementById("contactDetailMeta").textContent = meta;
+  document.getElementById("contactDetailPhone").textContent = displayPhone;
+
+  const callLink = document.getElementById("contactDetailCall");
+  callLink.href = `tel:${contact.phone}`;
+  callLink.setAttribute("aria-label", `חיוג אל ${name}`);
+  callLink.onclick = () => recordContactUse_(contact.id, "call");
+
+  const whatsappLink = document.getElementById("contactDetailWhatsapp");
+  whatsappLink.hidden = hideWhatsapp;
+  whatsappLink.href = `https://wa.me/${cleanPhone}`;
+  whatsappLink.setAttribute("aria-label", `פתיחת WhatsApp עם ${name}`);
+  whatsappLink.onclick = () => recordContactUse_(contact.id, "whatsapp");
+
+  const emailLink = document.getElementById("contactDetailEmail");
+  const emailRow = document.getElementById("contactDetailEmailRow");
+  const emailText = document.getElementById("contactDetailEmailText");
+  emailLink.hidden = !contact.email;
+  emailRow.hidden = !contact.email;
+  emailLink.href = contact.email ? `mailto:${contact.email}` : "#";
+  emailLink.setAttribute("aria-label", `שליחת מייל אל ${name}`);
+  emailLink.onclick = () => recordContactUse_(contact.id, "email");
+  emailText.textContent = contact.email || "";
+
+  const sheet = document.getElementById("contactDetailSheet");
+  sheet.classList.add("visible");
+  sheet.setAttribute("aria-hidden", "false");
+  document.body.classList.add("directorySheetOpen");
+  window.setTimeout(() => {
+    const closeButton = sheet.querySelector(".directorySheetClose");
+    if (closeButton) closeButton.focus();
+  }, 0);
+}
+
+function downloadActiveContact_() {
+  if (activeContactDetailId === null) return;
+  downloadContact(activeContactDetailId);
+}
+
+function reportActiveContact_() {
+  if (activeContactDetailId === null) return;
+  const id = activeContactDetailId;
+  closeContactDetail_();
+  openContactReportModal(id);
+}
+
 function getVisibleDepartment_(contact) {
   const department = String(contact && contact.dept || "").trim();
-  if (!department || !activeQuickFilter) return department;
+  if (!department || !activeQuickFilter || activeQuickFilter === "all") {
+    return department;
+  }
 
   const normalized = normalizeSearchText(department);
   const genericLabels = new Set([
@@ -10532,7 +11019,10 @@ function show(list) {
     document.getElementById("list").innerHTML = "";
 
     if (shouldShowNoResults()) {
-      setListStatus("לא נמצאו תוצאות", "empty");
+      setListStatus(
+        "לא נמצאו אנשי קשר. נסו שם, תפקיד או מחלקה.",
+        "empty"
+      );
     } else {
       setListStatus("", "");
     }
@@ -10549,81 +11039,37 @@ function show(list) {
     const displayPhone = formatPhoneForDisplay(c.phone);
     const isSelected = selectionMode && selectedContactIds.has(c.id);
     const hideWhatsapp = isNoWhatsappPhone(c.phone);
-
-    let metaRows = "";
-    let actionChips = "";
-    let selectionHtml = "";
-
-    if (c.role) {
-      metaRows += `<div class="contactMetaRow">${escapeHtml(c.role)}</div>`;
-    }
-
     const visibleDepartment = getVisibleDepartment_(c);
-    if (visibleDepartment) {
-      metaRows += `<div class="contactMetaRow">${escapeHtml(visibleDepartment)}</div>`;
-    }
-
-    metaRows += `
-      <div class="contactMetaRow phoneRow">
-        📞 <a href="tel:${c.phone}" onclick="recordContactUse_(${c.id}, 'phone')">${displayPhone}</a>
-      </div>
-    `;
-
-    actionChips += `
-      <a class="actionChip" href="tel:${c.phone}" onclick="recordContactUse_(${c.id}, 'call')">חיוג</a>
-    `;
-
-    if (!hideWhatsapp) {
-      actionChips += `
-        <a class="actionChip" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener" onclick="recordContactUse_(${c.id}, 'whatsapp')">וואטסאפ</a>
-      `;
-    }
-
-    if (c.email) {
-      metaRows += `
-        <div class="contactMetaRow">
-          📧 <a href="mailto:${escapeHtml(c.email)}" onclick="recordContactUse_(${c.id}, 'email')">${escapeHtml(c.email)}</a>
-        </div>
-      `;
-
-      actionChips += `
-        <a class="actionChip" href="mailto:${escapeHtml(c.email)}" onclick="recordContactUse_(${c.id}, 'email')">מייל</a>
-      `;
-    }
-
-    if (selectionMode) {
-      selectionHtml = `
-        <label class="contactSelect ${isSelected ? "selected" : ""}" data-id="${c.id}">
-          <input type="checkbox" data-id="${c.id}" ${isSelected ? "checked" : ""} onchange="toggleContactSelection(${c.id})">
-          <span class="contactSelectBox">✓</span>
-          <span class="contactSelectText">בחר/י</span>
-        </label>
-      `;
-    }
+    const meta = [c.role, visibleDepartment]
+      .filter(Boolean)
+      .map(highlightSearchText)
+      .join('<span class="contactMetaSeparator" aria-hidden="true"> · </span>');
+    const displayName = getContactDisplayName_(c);
+    const rowAction = selectionMode
+      ? `toggleContactSelection(${c.id})`
+      : `openContactDetail_(${c.id})`;
+    const rowLabel = selectionMode
+      ? `${isSelected ? "ביטול בחירת" : "בחירת"} ${displayName}`
+      : `פתיחת פרטי ${displayName}`;
 
     html += `
-      <div class="contact ${isSelected ? "selected" : ""}" data-id="${c.id}">
-        <div class="contactTopRow">
-          <div class="contactHeader">
+      <article class="contact ${isSelected ? "selected" : ""}" data-id="${c.id}">
+        <button type="button" class="contactRowMain" onclick="${rowAction}" aria-label="${escapeHtml(rowLabel)}" ${selectionMode ? `aria-pressed="${isSelected}"` : ""}>
+          ${selectionMode ? `<span class="contactSelectionIndicator ${isSelected ? "selected" : ""}" data-id="${c.id}">${getDirectoryIconSvg_("check")}</span>` : ""}
+          <span class="contactRowContent">
             <span class="contactName">${renderContactName(c)}</span>
+            ${meta ? `<span class="contactRowMeta">${meta}</span>` : ""}
+            <span class="contactRowPhone" dir="ltr">${escapeHtml(displayPhone)}</span>
+          </span>
+          ${selectionMode ? "" : `<span class="contactRowChevron">${getDirectoryIconSvg_("chevron")}</span>`}
+        </button>
+        ${selectionMode ? "" : `
+          <div class="contactRowActions">
+            <a class="contactIconAction call" href="tel:${c.phone}" aria-label="חיוג אל ${escapeHtml(displayName)}" onclick="recordContactUse_(${c.id}, 'call')">${getDirectoryIconSvg_("phone")}</a>
+            ${hideWhatsapp ? "" : `<a class="contactIconAction whatsapp" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(displayName)}" onclick="recordContactUse_(${c.id}, 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>`}
           </div>
-
-          ${selectionHtml}
-        </div>
-
-        <div class="contactMeta">
-          ${metaRows}
-        </div>
-
-        <div class="contactDivider"></div>
-
-        <div class="contactActions">
-          ${actionChips}
-        </div>
-
-        <button class="addContactBtn" onclick="downloadContact(${c.id})">הוסף לאנשי קשר</button>
-        ${selectionMode ? "" : `<button class="contactReportBtn" onclick="openContactReportModal(${c.id})">הפרטים אינם מעודכנים? דווחו לנו</button>`}
-      </div>
+        `}
+      </article>
     `;
   });
 
@@ -10642,7 +11088,7 @@ function renderCurrentSearchResults() {
   updateSearchUI();
   if (selectionMode) selectedContactIds.clear();
 
-  if (q.length < 2) {
+  if (q.length < 1) {
     if (!isQuickFilterActive()) {
       selectionMode = false;
       if (logo) logo.classList.remove("hidden");
@@ -10810,6 +11256,7 @@ function initHiddenGreenSignature_() {
 function init() {
   initHiddenGreenSignature_();
   initAuthInputEnhancements_();
+  initMainDirectoryUx_();
   cleanupOldImportPayloads();
 
   const params = new URLSearchParams(window.location.search);
