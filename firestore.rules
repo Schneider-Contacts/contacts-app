@@ -321,6 +321,44 @@ service cloud.firestore {
         );
     }
 
+    function isValidMonthlyInternsDocument(docId) {
+      return docId in ["active", "previous"]
+        && request.resource.data.kind in [
+          "monthly_interns_active",
+          "monthly_interns_previous"
+        ]
+        && request.resource.data.schemaVersion == 2
+        && request.resource.data.version is string
+        && request.resource.data.version.size() >= 3
+        && request.resource.data.version.size() <= 120
+        && request.resource.data.monthKey is string
+        && request.resource.data.monthKey.matches('^20[0-9][0-9]-(0[1-9]|1[0-2])$')
+        && request.resource.data.monthLabel is string
+        && request.resource.data.monthLabel.size() >= 3
+        && request.resource.data.monthLabel.size() <= 80
+        && request.resource.data.entries is list
+        && request.resource.data.entries.size() >= 1
+        && request.resource.data.entries.size() <= 500
+        && request.resource.data.recordCount is int
+        && request.resource.data.recordCount == request.resource.data.entries.size()
+        && request.resource.data.sourceFileName is string
+        && request.resource.data.sourceFileName.size() <= 240
+        && request.resource.data.publishedBy is string
+        && request.resource.data.publishedBy.size() <= 320
+        && (
+          (
+            docId == "active"
+            && request.resource.data.kind == "monthly_interns_active"
+            && request.resource.data.publishedBy == request.auth.token.email
+          )
+          || (
+            docId == "previous"
+            && request.resource.data.kind == "monthly_interns_previous"
+            && request.resource.data.snapshotSavedBy == request.auth.token.email
+          )
+        );
+    }
+
     match /contacts/{docId} {
       allow read: if isAllowed() || isAdmin();
       allow create, update, delete: if isAdmin();
@@ -339,6 +377,18 @@ service cloud.firestore {
     match /contactDirectory/{docId} {
       allow read: if isAllowed() || isAdmin();
       allow create, update, delete: if isAdmin();
+    }
+
+    // רשימת הסטאז׳רים היא ספר חיוג חודשי נפרד לחלוטין מאנשי הקשר
+    // ומהרשאות הכניסה. משתמש פעיל קורא רק את הגרסה הפעילה;
+    // מנהל בלבד מפרסם או משחזר גרסה מלאה ואטומית.
+    match /monthlyInterns/{docId} {
+      allow get: if isAdmin()
+        || (docId == "active" && isAllowed());
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && isValidMonthlyInternsDocument(docId);
+      allow delete: if false;
     }
 
     match /allowedUsers/{docId} {

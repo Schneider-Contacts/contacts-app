@@ -11,6 +11,9 @@ const appSource = read("app.js");
 const indexSource = read("index.html");
 const emailUpdateSource = read("email-update.html");
 const stylesSource = read("styles.css");
+const internImporterSource = read("intern-import.js");
+const internImporter = require(path.join(root, "intern-import.js"));
+const xlsxVendorPath = path.join(root, "vendor", "xlsx.full.min.js");
 const appsScriptFiles = [
   "Code.gs",
   "FormAccess.gs",
@@ -36,6 +39,12 @@ const activeAuthRouterId =
   "AKfycbwqwWDEUgxLRWIOEGX3TaK0tmdacrl-CG_kkdK01dlfAeGcDq3fXdHIjtSjQ2NwZvBK";
 
 new vm.Script(appSource, { filename: "app.js" });
+new vm.Script(internImporterSource, { filename: "intern-import.js" });
+assert(fs.existsSync(xlsxVendorPath), "The pinned local XLSX parser must exist");
+assert(
+  fs.statSync(xlsxVendorPath).size > 900000,
+  "The vendored SheetJS standalone build must not be replaced by a stub"
+);
 appsScriptFiles.forEach(fileName => {
   new vm.Script(read(fileName), { filename: fileName });
 });
@@ -847,8 +856,13 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function renderMonthlyInterns_\([\s\S]*?עדיין לא הוזנה רשימת סטאז׳רים לחודש זה[\s\S]*?monthlyInternPhone[\s\S]*?data-monthly-intern-contact-id/,
-  "A missing month must stay quiet, every intern phone must be visible, and resolved contacts may reuse contact details"
+  /function renderMonthlyInterns_\([\s\S]*?עדיין לא הוזנה רשימת סטאז׳רים לחודש זה[\s\S]*?monthlyInternPhone[\s\S]*?monthlyInternActions[\s\S]*?tel:[\s\S]*?wa\.me/,
+  "A missing month must stay quiet and every intern must expose only direct call and WhatsApp actions"
+);
+assert.doesNotMatch(
+  extractCompleteFunction(appSource, "renderMonthlyInterns_"),
+  /openContactDetail_|data-monthly-intern-contact-id|download|report/,
+  "Interns must remain a lightweight display-only list rather than normal directory contacts"
 );
 const monthlyInternsServerSource = directorySyncSource.slice(
   directorySyncSource.indexOf("function getCurrentMonthlyInternsDescriptor_"),
@@ -861,8 +875,8 @@ assert.doesNotMatch(
 );
 assert.match(
   rulesSource,
-  /match \/contactDirectory\/\{docId\} \{[\s\S]*?allow read: if isAllowed\(\) \|\| isAdmin\(\);/,
-  "Monthly interns must inherit the existing authenticated directory read rule"
+  /match \/monthlyInterns\/\{docId\} \{[\s\S]*?docId == "active" && isAllowed\(\)[\s\S]*?allow create, update: if isAdmin\(\)[\s\S]*?allow delete: if false/,
+  "Only authenticated app users may read the active interns list and only admins may publish it"
 );
 
 const monthlyDescriptorSandbox = {
@@ -937,23 +951,55 @@ assert.strictEqual(
   "Duplicate intern rows must resolve deterministically by normalized phone"
 );
 
-const monthlyContactSandbox = {
-  contacts: [{ id: 4, phone: "+972501234567" }],
+const importerFixture = internImporter.analyzeTables([
+  {
+    name: "נתונים",
+    rows: [
+      ["אוניברסיטה", "טלפון", "שם הסטאז׳ר", "שיבוץ"],
+      ["תל אביב", "050-1234567", "נועה כהן", "ילדים א׳"],
+      ["חיפה", 547654321, "דניאל לוי", "מיון"],
+      ["תל אביב", "+972501234567", "נועה כהן", "ילדים א׳"]
+    ]
+  }
+], {
   normalizePhone: value => {
     let digits = String(value || "").replace(/\D/g, "");
     if (digits.startsWith("0")) digits = `972${digits.slice(1)}`;
-    return digits;
-  }
-};
-vm.createContext(monthlyContactSandbox);
-vm.runInContext(
-  extractCompleteFunction(appSource, "getMonthlyInternContact_"),
-  monthlyContactSandbox
-);
+    else if (digits && !digits.startsWith("972")) digits = `972${digits}`;
+    return digits ? `+${digits}` : "";
+  },
+  knownDepartments: ["ילדים א׳", "מיון"]
+});
+assert.strictEqual(importerFixture.status, "ready");
+assert.strictEqual(importerFixture.mapping.phoneColumn, 1);
+assert.strictEqual(importerFixture.mapping.nameColumn, 2);
+assert.strictEqual(importerFixture.mapping.departmentColumn, 3);
+assert.strictEqual(importerFixture.parsed.entries.length, 2);
+assert.strictEqual(importerFixture.parsed.duplicates, 1);
+assert.strictEqual(importerFixture.parsed.entries[1].phone, "+972547654321");
 assert.strictEqual(
-  monthlyContactSandbox.getMonthlyInternContact_({ phone: "050-123-4567" }).id,
-  4,
-  "An intern linked by normalized phone must reuse the existing directory contact"
+  internImporter.inferMonthYear("עותק של סטאזרים אוגוסט1 2026.xlsx", [], new Date("2025-01-01")),
+  "2026-08",
+  "The publication month should be inferred from a Hebrew filename"
+);
+const internPublishFunctionSource = extractCompleteFunction(
+  appSource,
+  "publishMonthlyInterns_"
+);
+assert.match(internPublishFunctionSource, /firebaseApi\.runTransaction/);
+assert.match(internPublishFunctionSource, /MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID/);
+assert.match(internPublishFunctionSource, /MONTHLY_INTERNS_PREVIOUS_DOCUMENT_ID/);
+assert.match(internPublishFunctionSource, /transaction\.set\(previousRef/);
+assert.match(internPublishFunctionSource, /transaction\.set\(activeRef/);
+const internPublicationSource = [
+  extractCompleteFunction(appSource, "sanitizePublishedInternEntries_"),
+  extractCompleteFunction(appSource, "publishMonthlyInterns_"),
+  extractCompleteFunction(appSource, "rollbackMonthlyInterns_")
+].join("\n");
+assert.doesNotMatch(
+  internPublicationSource,
+  /allowedUsers|allowedPhones|createUser|verificationRequests|contactAddRequests|contacts\//,
+  "Intern publication must never touch contacts, Firebase accounts, access data, or approval requests"
 );
 
 const directorySearchSandbox = {};
@@ -1540,19 +1586,19 @@ assert(
   "Legacy pending users without a request document must remain actionable"
 );
 
-const moreRendererSource = extractCompleteFunction(
+const systemRendererSource = extractCompleteFunction(
   appSource,
-  "renderAdminMore_"
+  "renderAdminSystem_"
 );
 assert.match(
-  moreRendererSource,
+  systemRendererSource,
   /אנשים השתמשו באפליקציה היום/,
-  "The More view must show one clear daily-usage number"
+  "The System view must show one clear daily-usage number"
 );
 assert.doesNotMatch(
-  moreRendererSource,
+  systemRendererSource,
   /%|14 הימים|השתמשו בפרטי איש קשר/,
-  "The More view must not show percentages or detailed usage analytics"
+  "The System view must not show percentages or detailed usage analytics"
 );
 
 const adminFocusElements = {
@@ -1599,7 +1645,9 @@ Object.assign(adminFocusSandbox, {
   getIsraelDateKey_: () => "2026-07-29",
   getActivityCategory: () => "changed",
   getActivityTitle: () => "פעילות",
-  formatActivityTimestamp: () => "עכשיו"
+  formatActivityTimestamp: () => "עכשיו",
+  adminMonthlyInternsActive: null,
+  adminMonthlyInternsPrevious: null
 });
 adminFocusSandbox.getUserAccessState_ = user => ({
   key: user.active ? "pending" : "blocked",
@@ -1610,17 +1658,19 @@ adminFocusSandbox.getUserAccessState_ = user => ({
 vm.runInContext(
   [
     extractCompleteFunction(appSource, "adminAttentionItemMatchesQuery_"),
-    extractCompleteFunction(appSource, "renderAdminAttentionAccessCard_"),
-    extractCompleteFunction(appSource, "renderAdminAttentionResetCard_"),
-    extractCompleteFunction(appSource, "renderAdminAttentionContactCard_"),
-    extractCompleteFunction(appSource, "renderAdminAttentionReportCard_"),
+    extractCompleteFunction(appSource, "getAdminIconSvg_"),
+    extractCompleteFunction(appSource, "formatAdminRelativeTime_"),
+    extractCompleteFunction(appSource, "getAdminAttentionRowPresentation_"),
+    extractCompleteFunction(appSource, "renderAdminInboxRow_"),
     extractCompleteFunction(appSource, "renderAdminAttention_"),
     extractCompleteFunction(appSource, "adminPersonMatchesQuery_"),
-    extractCompleteFunction(appSource, "renderAdminPersonManagement_"),
     extractCompleteFunction(appSource, "renderAdminPeople_"),
     extractCompleteFunction(appSource, "renderAdminMoreActivityHtml_"),
     extractCompleteFunction(appSource, "renderAdminMoreManagersHtml_"),
-    extractCompleteFunction(appSource, "renderAdminMore_")
+    extractCompleteFunction(appSource, "formatMonthlyInternMonthLabel_"),
+    extractCompleteFunction(appSource, "getPublishedInternCount_"),
+    extractCompleteFunction(appSource, "renderAdminInternsSystemCard_"),
+    extractCompleteFunction(appSource, "renderAdminSystem_")
   ].join("\n"),
   adminFocusSandbox
 );
@@ -1628,37 +1678,29 @@ vm.runInContext(
 adminFocusSandbox.renderAdminAttention_();
 assert.match(
   adminFocusElements.adminList.innerHTML,
-  /טיפול בבקשה[\s\S]*?טיפול באיפוס הסיסמה[\s\S]*?בדיקת הבקשה[\s\S]*?טיפול בדיווח/,
-  "Every pending request type must render through one focused action"
+  /בקשת אישור כניסה[\s\S]*?בקשת איפוס סיסמה[\s\S]*?בקשת הוספת איש קשר[\s\S]*?דיווח על/,
+  "Every pending request type must render as a compact inbox row"
 );
 
 adminFocusSandbox.renderAdminPeople_();
 assert.match(
   adminFocusElements.adminList.innerHTML,
-  /ניהול איש הקשר[\s\S]*?עריכת פרטים[\s\S]*?עזרה באיפוס סיסמה[\s\S]*?פעולות נוספות[\s\S]*?חסימת גישה[\s\S]*?מחיקת הרשאה[\s\S]*?הסרה מהאפליקציה/,
-  "Each contact must expose one ordered management flow"
-);
-assert.doesNotMatch(
-  adminFocusElements.adminList.innerHTML,
-  /פרטי איש קשר[\s\S]*?כניסה והרשאות/,
-  "Contact management must not be split into separate sections"
+  /adminPersonRow[\s\S]*?openAdminPerson_/,
+  "Each person must open one consolidated management view"
 );
 
-adminFocusSandbox.renderAdminMore_();
+adminFocusSandbox.renderAdminSystem_();
 assert.match(
   adminFocusElements.adminList.innerHTML,
-  />7<[\s\S]*?אנשים השתמשו באפליקציה היום/,
-  "The More view must render the daily active-user count"
+  />7<[\s\S]*?אנשים השתמשו באפליקציה היום[\s\S]*?סטאז׳רים החודש/,
+  "The System view must render usage and monthly interns management"
 );
 
 const focusedAdminRenderSource = [
-  "renderAdminAttentionAccessCard_",
-  "renderAdminAttentionResetCard_",
-  "renderAdminAttentionContactCard_",
-  "renderAdminAttentionReportCard_",
-  "renderAdminPersonManagement_",
+  "openAdminAttentionItem_",
+  "openAdminPerson_",
   "renderAdminMoreManagersHtml_",
-  "renderAdminMore_"
+  "renderAdminSystem_"
 ].map(name => extractCompleteFunction(appSource, name)).join("\n");
 const focusedAdminActionFunctions = [
   "approveManualAccess_",
@@ -1710,7 +1752,7 @@ const createAdminTabElement = () => ({
 const adminTabElements = {
   adminAttentionTab: createAdminTabElement(),
   adminPeopleTab: createAdminTabElement(),
-  adminMoreTab: createAdminTabElement(),
+  adminSystemTab: createAdminTabElement(),
   adminToolbar: createAdminTabElement(),
   adminAttentionFilters: createAdminTabElement(),
   adminPeopleFilters: createAdminTabElement(),
@@ -1755,15 +1797,15 @@ assert.strictEqual(
 );
 assert.strictEqual(
   adminTabElements.adminSearchInput.placeholder,
-  "חיפוש אדם לפי שם, מייל או טלפון"
+  "שם, מחלקה, מייל או טלפון"
 );
 
-adminTabsSandbox.adminActiveTab = "more";
+adminTabsSandbox.adminActiveTab = "system";
 adminTabsSandbox.updateAdminTabs();
 assert.strictEqual(
   adminTabElements.adminToolbar.style.display,
   "none",
-  "The More tab must hide search and filters"
+  "The System tab must hide people/request search and filters"
 );
 
 assert(
@@ -1786,6 +1828,12 @@ assert.strictEqual(
   3,
   "Admin navigation must expose exactly three primary tabs"
 );
+assert.match(
+  indexSource,
+  /id="adminAttentionTab"[\s\S]*?>\s*לטיפול[\s\S]*?id="adminPeopleTab"[\s\S]*?>אנשים<[\s\S]*?id="adminSystemTab"[\s\S]*?>מערכת</,
+  "Admin navigation must be organized as Attention, People, and System"
+);
+assert.doesNotMatch(indexSource, /id="adminSystemTab"[^>]*>עוד</);
 assert.doesNotMatch(
   indexSource,
   /id="admin(?:General|Contacts|Users|Reports|Activity|Managers)Tab"/,
@@ -1798,13 +1846,23 @@ assert.match(
 );
 assert.match(
   appSource,
-  /<details class="adminFocusAction"/,
-  "Focused admin cards must expose one expandable primary action"
+  /class="adminInboxRow[\s\S]*?openAdminAttentionItem_/,
+  "Pending work must render as a compact inbox that opens focused review"
 );
 assert.match(
   appSource,
-  /<details class="adminActionMenu"/,
-  "Destructive admin actions must render in a secondary action menu"
+  /<details class="adminAdvancedActions"/,
+  "Destructive person actions must render in a separate advanced section"
+);
+assert.match(
+  indexSource,
+  /id="adminFocusSheet"[\s\S]*?id="adminFocusBody"[\s\S]*?id="adminConfirmModal"/,
+  "Admin reviews and confirmations must use polished in-app surfaces"
+);
+assert.match(
+  indexSource,
+  /id="monthlyInternsAdminModal"[\s\S]*?id="monthlyInternsWorkbookInput"[^>]*accept="\.xlsx/,
+  "System administration must expose a local Excel upload flow"
 );
 assert.match(
   appSource,

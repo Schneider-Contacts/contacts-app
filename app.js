@@ -35,6 +35,12 @@ const CONTACT_DIRECTORY_CACHE_KEY = "contacts_directory_cache_v5";
 const CONTACT_DIRECTORY_TARGET_BYTES = 220000;
 const MONTHLY_INTERNS_DOCUMENT_PREFIX = "interns_";
 const MONTHLY_INTERNS_TIME_ZONE = "Asia/Jerusalem";
+const MONTHLY_INTERNS_COLLECTION_NAME = "monthlyInterns";
+const MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID = "active";
+const MONTHLY_INTERNS_PREVIOUS_DOCUMENT_ID = "previous";
+const MONTHLY_INTERNS_SCHEMA_VERSION = 2;
+const MONTHLY_INTERNS_MAX_RECORDS = 500;
+const XLSX_VENDOR_URL = "vendor/xlsx.full.min.js?v=0.20.3";
 
 const RECENT_CONTACTS_STORAGE_KEY = "contacts_last_recent_import_at_v2";
 const RECENT_CONTACTS_IMPORTED_PHONES_KEY = "contacts_recent_imported_phones_v1";
@@ -153,6 +159,19 @@ let adminLoadedSections = new Set();
 let adminSectionLoadPromises = new Map();
 let adminDataPartLoadPromises = new Map();
 let adminReasonResolve = null;
+let adminConfirmationResolve = null;
+let adminActiveFocus = null;
+let adminMonthlyInternsActive = null;
+let adminMonthlyInternsPrevious = null;
+let monthlyInternsImportState = {
+  phase: "idle",
+  fileName: "",
+  analysis: null,
+  parsed: null,
+  monthValue: "",
+  error: ""
+};
+let xlsxLibraryLoadPromise = null;
 
 
 function getIsraelDateKey_(date = new Date()) {
@@ -1300,7 +1319,6 @@ function normalizeMonthlyInternEntry_(entry) {
   return {
     phone: normalizePhone(source.phone || ""),
     name: String(source.name || "").trim(),
-    role: String(source.role || "").trim(),
     department: String(source.department || "").trim()
   };
 }
@@ -1309,6 +1327,26 @@ function getMonthlyInternContact_(entry) {
   const phone = normalizePhone(entry && entry.phone || "");
   if (!phone) return null;
   return contacts.find(contact => normalizePhone(contact.phone) === phone) || null;
+}
+
+function getMonthlyInternsDescriptorFromData_(data, fallbackDescriptor) {
+  const source = data && typeof data === "object" ? data : {};
+  const monthKey = String(source.monthKey || "");
+  const match = monthKey.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+  if (!match) return fallbackDescriptor;
+  const date = new Date(`${match[1]}-${match[2]}-15T12:00:00`);
+  const label = String(source.monthLabel || "").trim() ||
+    new Intl.DateTimeFormat("he-IL", {
+      timeZone: MONTHLY_INTERNS_TIME_ZONE,
+      year: "numeric",
+      month: "long"
+    }).format(date);
+  return {
+    year: match[1],
+    month: match[2],
+    key: monthKey,
+    label
+  };
 }
 
 function renderMonthlyInterns_() {
@@ -1356,26 +1394,23 @@ function renderMonthlyInterns_() {
   countElement.textContent = String(entries.length);
   countElement.hidden = false;
   listElement.innerHTML = entries.map(entry => {
-    const contact = getMonthlyInternContact_(entry);
-    const name = contact
-      ? getContactDisplayName_(contact)
-      : entry.name || "סטאז׳ר/ית";
-    const role = entry.role || (contact && contact.role) || "";
-    const department = entry.department || (contact && contact.dept) || "";
-    const meta = [...new Set([role, department].filter(Boolean))].join(" · ");
+    const name = entry.name || "סטאז׳ר/ית";
+    const department = entry.department || "";
     const displayPhone = formatPhoneForDisplay(entry.phone);
-    const content = `
+    const cleanPhone = normalizePhone(entry.phone).replace(/\D/g, "");
+    return `
+      <article class="monthlyInternItem">
       <span class="monthlyInternContent">
         <strong>${escapeHtml(name)}</strong>
-        ${meta ? `<span>${escapeHtml(meta)}</span>` : ""}
+        ${department ? `<span>${escapeHtml(department)}</span>` : ""}
         <span class="monthlyInternPhone" dir="ltr">${escapeHtml(displayPhone)}</span>
       </span>
-      ${contact ? `<span class="monthlyInternChevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>` : ""}
+        <span class="monthlyInternActions">
+          <a href="tel:${escapeHtml(entry.phone)}" aria-label="חיוג אל ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'call')">${getDirectoryIconSvg_("phone")}</a>
+          <a href="https://wa.me/${escapeHtml(cleanPhone)}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>
+        </span>
+      </article>
     `;
-
-    return contact
-      ? `<button type="button" class="monthlyInternItem" data-monthly-intern-contact-id="${contact.id}" aria-label="פתיחת פרטי ${escapeHtml(name)}">${content}</button>`
-      : `<div class="monthlyInternItem monthlyInternItemStatic">${content}</div>`;
   }).join("");
 }
 
@@ -1413,23 +1448,34 @@ async function loadCurrentMonthInterns_(options = {}) {
         throw new Error("Monthly interns data is not initialized");
       }
 
-      const snapshot = await firebaseApi.getDoc(
+      let snapshot = await firebaseApi.getDoc(
         firebaseApi.doc(
           db,
-          CONTACT_DIRECTORY_COLLECTION_NAME,
-          descriptor.key
+          MONTHLY_INTERNS_COLLECTION_NAME,
+          MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID
         )
       );
       if (loadToken !== monthlyInternsLoadToken) return monthlyInternsState;
 
       if (!snapshot.exists()) {
-        monthlyInternsState = {
-          status: "missing",
-          descriptor,
-          entries: []
-        };
-        renderMonthlyInterns_();
-        return monthlyInternsState;
+        // Backward-compatible fallback until the first Admin upload is published.
+        snapshot = await firebaseApi.getDoc(
+          firebaseApi.doc(
+            db,
+            CONTACT_DIRECTORY_COLLECTION_NAME,
+            descriptor.key
+          )
+        );
+        if (loadToken !== monthlyInternsLoadToken) return monthlyInternsState;
+        if (!snapshot.exists()) {
+          monthlyInternsState = {
+            status: "missing",
+            descriptor,
+            entries: []
+          };
+          renderMonthlyInterns_();
+          return monthlyInternsState;
+        }
       }
 
       const data = snapshot.data() || {};
@@ -1446,11 +1492,11 @@ async function loadCurrentMonthInterns_(options = {}) {
       const uniqueEntries = new Map();
       (Array.isArray(data.entries) ? data.entries : [])
         .map(normalizeMonthlyInternEntry_)
-        .filter(entry => entry.phone)
+        .filter(entry => entry.phone && entry.name)
         .forEach(entry => uniqueEntries.set(entry.phone, entry));
       monthlyInternsState = {
         status: "ready",
-        descriptor,
+        descriptor: getMonthlyInternsDescriptorFromData_(data, descriptor),
         entries: [...uniqueEntries.values()]
       };
       renderMonthlyInterns_();
@@ -5588,6 +5634,9 @@ function openAdminPanel() {
 function closeAdminPanel() {
   document.getElementById("adminPanel").style.display = "none";
   document.getElementById("app").style.display = "block";
+  closeAdminFocusSheet_();
+  closeMonthlyInternsAdmin_();
+  resolveAdminConfirmation_(false);
   closeAdminEditModal();
   closeManagerModal();
   renderCurrentSearchResults();
@@ -5595,8 +5644,9 @@ function closeAdminPanel() {
 }
 
 function setAdminTab(tabName) {
-  const requestedTab = ["attention", "people", "more"].includes(tabName)
-    ? tabName
+  const normalizedTab = tabName === "more" ? "system" : tabName;
+  const requestedTab = ["attention", "people", "system"].includes(normalizedTab)
+    ? normalizedTab
     : "attention";
 
   adminActiveTab = requestedTab;
@@ -5767,12 +5817,32 @@ function updateAdminPendingBadges_() {
       ? "99+ לטיפול"
       : `${counts.total} לטיפול`;
   }
+
+  const headerBadge = document.getElementById("adminHeaderPendingBadge");
+  if (headerBadge) {
+    headerBadge.hidden = !counts.loaded || counts.total < 1;
+    headerBadge.textContent = counts.total > 99
+      ? "99+ לטיפול"
+      : `${counts.total} לטיפול`;
+  }
+
+  const filterCounts = {
+    adminFilterCountAll: counts.total,
+    adminFilterCountAccess: counts.verificationRequests,
+    adminFilterCountReset: counts.passwordResetRequests,
+    adminFilterCountContacts: counts.contactRequests,
+    adminFilterCountReports: counts.contactReports
+  };
+  Object.entries(filterCounts).forEach(([elementId, count]) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = counts.loaded ? String(count) : "";
+  });
 }
 
 function updateAdminTabs() {
   const attentionTab = document.getElementById("adminAttentionTab");
   const peopleTab = document.getElementById("adminPeopleTab");
-  const moreTab = document.getElementById("adminMoreTab");
+  const systemTab = document.getElementById("adminSystemTab");
   const adminToolbar = document.getElementById("adminToolbar");
   const attentionFilters = document.getElementById(
     "adminAttentionFilters"
@@ -5782,7 +5852,7 @@ function updateAdminTabs() {
   [
     [attentionTab, "attention"],
     [peopleTab, "people"],
-    [moreTab, "more"]
+    [systemTab, "system"]
   ].forEach(([button, tabName]) => {
     if (!button) return;
     const isActive = adminActiveTab === tabName;
@@ -5792,7 +5862,7 @@ function updateAdminTabs() {
 
   if (adminToolbar) {
     adminToolbar.style.display =
-      adminActiveTab === "more" ? "none" : "block";
+      adminActiveTab === "system" ? "none" : "block";
   }
 
   if (attentionFilters) {
@@ -5808,7 +5878,7 @@ function updateAdminTabs() {
   if (searchInput) {
     const placeholders = {
       attention: "חיפוש בקשה לפי שם, מייל או טלפון",
-      people: "חיפוש אדם לפי שם, מייל או טלפון"
+      people: "שם, מחלקה, מייל או טלפון"
     };
     searchInput.placeholder = placeholders[adminActiveTab] || "חיפוש";
   }
@@ -5845,7 +5915,7 @@ function handleAdminSearchInput_() {
 }
 
 function updateAdminFilterButtons() {
-  if (adminActiveTab === "more") return;
+  if (adminActiveTab === "system") return;
 
   const containerId = adminActiveTab === "attention"
     ? "adminAttentionFilters"
@@ -5880,6 +5950,8 @@ function resetAdminDataCache_() {
   adminReports = [];
   adminContactAddRequests = [];
   adminVerificationRequests = [];
+  adminMonthlyInternsActive = null;
+  adminMonthlyInternsPrevious = null;
   updateAdminPendingBadges_();
 }
 
@@ -5895,7 +5967,7 @@ function renderAdminLoading_(section) {
   const labels = {
     attention: "טוען את הפריטים שממתינים לטיפול...",
     people: "טוען אנשי קשר והרשאות כניסה...",
-    more: "טוען פעילות ונתוני מערכת..."
+    system: "טוען פעילות ונתוני מערכת..."
   };
   const summary = document.getElementById("adminSummary");
   if (summary) summary.textContent = "";
@@ -6116,6 +6188,37 @@ async function loadAdminActivityData_() {
   );
 }
 
+async function loadAdminInternsData_() {
+  const [activeSnapshot, previousSnapshot] = await Promise.all([
+    firebaseApi.getDoc(
+      firebaseApi.doc(
+        db,
+        MONTHLY_INTERNS_COLLECTION_NAME,
+        MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID
+      )
+    ).catch(error => {
+      console.warn("Active monthly interns data could not be loaded", error);
+      return null;
+    }),
+    firebaseApi.getDoc(
+      firebaseApi.doc(
+        db,
+        MONTHLY_INTERNS_COLLECTION_NAME,
+        MONTHLY_INTERNS_PREVIOUS_DOCUMENT_ID
+      )
+    ).catch(error => {
+      console.warn("Previous monthly interns data could not be loaded", error);
+      return null;
+    })
+  ]);
+  adminMonthlyInternsActive = activeSnapshot && activeSnapshot.exists()
+    ? activeSnapshot.data() || null
+    : null;
+  adminMonthlyInternsPrevious = previousSnapshot && previousSnapshot.exists()
+    ? previousSnapshot.data() || null
+    : null;
+}
+
 async function loadAdminReportsData_() {
   const reportsQuery = firebaseApi.query(
     firebaseApi.collection(db, "contactReports"),
@@ -6252,10 +6355,11 @@ async function loadAdminPeopleData_() {
   ]);
 }
 
-async function loadAdminMoreData_() {
+async function loadAdminSystemData_() {
   const loaders = [
     loadAdminDataPart_("general", loadAdminGeneralData_),
-    loadAdminDataPart_("activity", loadAdminActivityData_)
+    loadAdminDataPart_("activity", loadAdminActivityData_),
+    loadAdminDataPart_("interns", loadAdminInternsData_)
   ];
 
   if (currentUserIsSuperAdmin) {
@@ -6271,9 +6375,9 @@ function getAdminCompositeParts_(section) {
   return {
     attention: ["users", "reports"],
     people: ["contacts", "users"],
-    more: currentUserIsSuperAdmin
-      ? ["general", "activity", "managers"]
-      : ["general", "activity"]
+    system: currentUserIsSuperAdmin
+      ? ["general", "activity", "interns", "managers"]
+      : ["general", "activity", "interns"]
   }[section] || [];
 }
 
@@ -6281,7 +6385,7 @@ function getAdminSectionLoader_(section) {
   return {
     attention: loadAdminAttentionData_,
     people: loadAdminPeopleData_,
-    more: loadAdminMoreData_
+    system: loadAdminSystemData_
   }[section] || loadAdminAttentionData_;
 }
 
@@ -6512,7 +6616,9 @@ function getActivityTitle(activity) {
     temporary_access_automatic: "גישה זמנית אושרה אוטומטית עד 23:59",
     manual_approval_grant: "גישה אושרה ידנית",
     manual_approval_reject: "בקשת אישור נדחתה",
-    manual_approval_revoke: "אישור ידני בוטל"
+    manual_approval_revoke: "אישור ידני בוטל",
+    monthly_interns_publish: "רשימת הסטאז׳רים פורסמה",
+    monthly_interns_rollback: "רשימת הסטאז׳רים הקודמת שוחזרה"
   };
 
   return labels[activity.action] || "פעילות מערכת";
@@ -7021,7 +7127,12 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       ? `לאשר את הוספת ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} וגם להעניק גישה למייל ${values.email}?`
       : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
 
-  if (!confirm(existingMessage)) return;
+  if (!await requestAdminConfirmation_({
+    title: isSelfUpdate ? "אישור עדכון פרטים" : existingContact ? "עדכון איש קשר קיים" : "הוספת איש קשר",
+    message: existingMessage,
+    confirmLabel: isSelfUpdate ? "אישור ועדכון" : "אישור והוספה",
+    tone: "primary"
+  })) return;
 
   const payload = buildApprovedContactPayload_(request, values, existingContact);
   const docId = existingContact && existingContact.docId
@@ -7142,11 +7253,14 @@ async function rejectContactAddRequest_(requestId) {
   if (!currentUserIsAdmin || !requestId) return;
   const request = adminContactAddRequests.find(item => item.docId === requestId);
   if (!request || request.status !== "pending") return;
-  if (!confirm(
-    request.requestType === "self_update"
-      ? "לדחות את בקשת עדכון הפרטים?"
-      : "לדחות את בקשת הוספת איש הקשר?"
-  )) return;
+  if (!await requestAdminConfirmation_({
+    title: "דחיית הבקשה",
+    message: request.requestType === "self_update"
+      ? "בקשת עדכון הפרטים תסומן כנדחתה."
+      : "בקשת הוספת איש הקשר תסומן כנדחתה.",
+    confirmLabel: "דחיית הבקשה",
+    tone: "warning"
+  })) return;
 
   try {
     const batch = firebaseApi.writeBatch(db);
@@ -7541,22 +7655,328 @@ function renderAdminAttentionReportCard_(item) {
   `;
 }
 
+function formatAdminRelativeTime_(value) {
+  const timestamp = getAdminTimestampMillis_(value);
+  if (!timestamp) return "מועד לא ידוע";
+  const diffMinutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+  if (diffMinutes < 1) return "עכשיו";
+  if (diffMinutes < 60) return `לפני ${diffMinutes} דקות`;
+  const today = getIsraelDateKey_();
+  if (getIsraelDateKey_(new Date(timestamp)) === today) {
+    return "היום " + new Intl.DateTimeFormat("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(timestamp));
+  }
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(timestamp));
+}
+
+function getAdminAttentionRowPresentation_(item) {
+  if (item.kind === "access") {
+    const { user, request, accessState } = item.data;
+    const contact = findContactByEmail(user.email);
+    return {
+      title: contact && contact.name ? contact.name : user.email,
+      type: "בקשת אישור כניסה",
+      time: formatAdminRelativeTime_(request.requestedAt || request.updatedAt),
+      status: accessState.key === "temporary" ? "עד סוף היום" : "ממתין",
+      tone: "access",
+      id: user.email
+    };
+  }
+  if (item.kind === "reset") {
+    const request = item.data;
+    const contact = findContactByEmail(request.email);
+    return {
+      title: contact && contact.name ? contact.name : request.email,
+      type: "בקשת איפוס סיסמה",
+      time: formatAdminRelativeTime_(request.requestedAt),
+      status: request.status === "approved" ? "אושר" : "ממתין",
+      tone: "reset",
+      id: request.docId
+    };
+  }
+  if (item.kind === "contact") {
+    const request = item.data;
+    return {
+      title: getContactAddRequestName_(request) || request.email || formatPhoneForDisplay(request.phone) || "איש קשר",
+      type: request.requestType === "self_update"
+        ? "בקשת עדכון פרטים"
+        : request.grantAccessOnApproval === true
+          ? "בקשת איש קשר וגישה"
+          : "בקשת הוספת איש קשר",
+      time: formatAdminRelativeTime_(request.createdAt),
+      status: "ממתין",
+      tone: "contact",
+      id: request.docId
+    };
+  }
+  const report = item.data;
+  return {
+    title: report.contactName || formatPhoneForDisplay(report.contactPhone) || "איש קשר",
+    type: "דיווח על " + getReportTypeLabel_(report.issueType),
+    time: formatAdminRelativeTime_(report.createdAt),
+    status: "פתוח",
+    tone: "report",
+    id: report.docId
+  };
+}
+
+function renderAdminInboxRow_(item) {
+  const presentation = getAdminAttentionRowPresentation_(item);
+  return `
+    <button type="button" class="adminInboxRow ${presentation.tone}" onclick="openAdminAttentionItem_('${escapeJsString(item.kind)}', '${escapeJsString(presentation.id)}')">
+      <span class="adminInboxRowIcon" aria-hidden="true">${getAdminIconSvg_(presentation.tone)}</span>
+      <span class="adminInboxRowContent">
+        <strong>${escapeHtml(presentation.title)}</strong>
+        <span>${escapeHtml(presentation.type)} · ${escapeHtml(presentation.time)}</span>
+      </span>
+      <span class="adminInboxRowEnd">
+        <span class="adminInboxStatus">${escapeHtml(presentation.status)}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+    </button>
+  `;
+}
+
+function getAdminIconSvg_(kind) {
+  const icons = {
+    access: '<svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="m16 11 1.6 1.6L21 9.2"/></svg>',
+    reset: '<svg viewBox="0 0 24 24"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/><path d="M12 14v2"/></svg>',
+    contact: '<svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="M19 4v5m-2.5-2.5h5"/></svg>',
+    report: '<svg viewBox="0 0 24 24"><path d="M12 4 3.5 20h17L12 4Zm0 5v5m0 3v.1"/></svg>',
+    system: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'
+  };
+  return icons[kind] || icons.system;
+}
+
+function openAdminFocusSheet_(options) {
+  const sheet = document.getElementById("adminFocusSheet");
+  if (!sheet) return;
+  document.getElementById("adminFocusEyebrow").textContent = options.eyebrow || "";
+  document.getElementById("adminFocusTitle").textContent = options.title || "";
+  document.getElementById("adminFocusSubtitle").textContent = options.subtitle || "";
+  document.getElementById("adminFocusBody").innerHTML = options.html || "";
+  sheet.classList.add("visible");
+  sheet.setAttribute("aria-hidden", "false");
+  document.body.classList.add("directorySheetOpen");
+  const firstAction = sheet.querySelector("button:not(.directorySheetBackdrop):not(.directorySheetClose)");
+  if (firstAction) setTimeout(() => firstAction.focus(), 80);
+}
+
+function closeAdminFocusSheet_() {
+  const sheet = document.getElementById("adminFocusSheet");
+  if (!sheet) return;
+  sheet.classList.remove("visible");
+  sheet.setAttribute("aria-hidden", "true");
+  adminActiveFocus = null;
+  if (!document.querySelector(".directorySheet.visible")) {
+    document.body.classList.remove("directorySheetOpen");
+  }
+}
+
+function renderAdminInfoRows_(rows) {
+  return `<dl class="adminFocusInfo">${rows.filter(row => row && row.value).map(row => `
+    <div><dt>${escapeHtml(row.label)}</dt><dd ${row.ltr ? 'dir="ltr"' : ""}>${escapeHtml(row.value)}</dd></div>
+  `).join("")}</dl>`;
+}
+
+function getContactRequestDiffHtml_(request) {
+  const existing = findExistingContactForAddRequest_({
+    phone: request.phone,
+    email: request.email
+  }, request);
+  if (!existing || request.requestType !== "self_update") return "";
+  const current = {
+    "שם פרטי": existing.first || "",
+    "שם משפחה": existing.last || "",
+    "תואר": existing.title || "",
+    "תפקיד": existing.role || "",
+    "מחלקה": existing.dept || "",
+    "טלפון": formatPhoneForDisplay(existing.phone || ""),
+    "מייל": existing.email || ""
+  };
+  const requested = {
+    "שם פרטי": request.firstName || current["שם פרטי"],
+    "שם משפחה": request.lastName || current["שם משפחה"],
+    "תואר": request.titlePrefix,
+    "תפקיד": request.role,
+    "מחלקה": request.department,
+    "טלפון": formatPhoneForDisplay(request.phone || existing.phone || ""),
+    "מייל": request.email || current["מייל"]
+  };
+  const changes = Object.keys(current).filter(label =>
+    normalizeSearchText(current[label]) !== normalizeSearchText(requested[label])
+  );
+  if (!changes.length) {
+    return '<div class="adminFocusNotice neutral">לא נמצאו הבדלים בתוכן הבקשה.</div>';
+  }
+  return `<div class="adminRequestDiff"><h4>מה ישתנה</h4>${changes.map(label => `
+    <div class="adminDiffRow">
+      <strong>${escapeHtml(label)}</strong>
+      <span class="adminDiffBefore">${escapeHtml(current[label] || "ריק")}</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+      <span class="adminDiffAfter">${escapeHtml(requested[label] || "ריק")}</span>
+    </div>
+  `).join("")}</div>`;
+}
+
+function getPossibleDuplicateWarningHtml_(request) {
+  if (request.requestType === "self_update") return "";
+  const duplicate = findExistingContactForAddRequest_({
+    phone: request.phone,
+    email: request.email
+  }, request);
+  if (!duplicate) return "";
+  return `
+    <div class="adminFocusNotice warning">
+      <strong>ייתכן שאיש הקשר כבר קיים</strong>
+      <span>${escapeHtml(duplicate.name || formatPhoneForDisplay(duplicate.phone))}${duplicate.phone ? " · " + escapeHtml(formatPhoneForDisplay(duplicate.phone)) : ""}</span>
+    </div>
+  `;
+}
+
+function openAdminAttentionItem_(kind, itemId) {
+  let item = null;
+  if (kind === "access") {
+    item = getAdminAttentionItems_().find(candidate =>
+      candidate.kind === kind && normalizeEmail(candidate.data.user.email) === normalizeEmail(itemId)
+    );
+  } else {
+    item = getAdminAttentionItems_().find(candidate => {
+      if (candidate.kind !== kind) return false;
+      return String(candidate.data.docId || "") === String(itemId || "");
+    });
+  }
+  if (!item) {
+    setAdminStatus("הפריט כבר אינו ממתין לטיפול. רעננו את הרשימה.", "error");
+    return;
+  }
+  adminActiveFocus = { type: "attention", kind, itemId };
+
+  if (kind === "access") {
+    const { user, request, accessState } = item.data;
+    const contact = findContactByEmail(user.email);
+    const name = contact && contact.name ? contact.name : user.email;
+    const phone = contact && contact.phone ? contact.phone : user.phone;
+    const isTemporary = accessState.key === "temporary";
+    openAdminFocusSheet_({
+      eyebrow: "בקשת אישור כניסה",
+      title: name,
+      subtitle: formatAdminRelativeTime_(request.requestedAt || request.updatedAt),
+      html: `
+        ${renderAdminInfoRows_([
+          { label: "מייל", value: user.email, ltr: true },
+          { label: "טלפון", value: phone ? formatPhoneForDisplay(phone) : "", ltr: true },
+          { label: "מצב גישה", value: accessState.label },
+          { label: "סיבת הבקשה", value: request.automaticReason || "אישור מנהל נדרש" }
+        ])}
+        ${accessState.note ? `<p class="adminFocusDescription">${escapeHtml(accessState.note)}</p>` : ""}
+        <div class="adminFocusPrimaryActions">
+          <button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approveManualAccess_('${escapeJsString(user.email)}', false)">אישור קבוע</button>
+          ${isTemporary ? "" : `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); approveManualAccess_('${escapeJsString(user.email)}', true)">אישור עד סוף היום</button>`}
+        </div>
+        <div class="adminFocusSecondaryActions">
+          <button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); ${isTemporary ? "revokeManualAccess_" : "rejectManualAccess_"}('${escapeJsString(user.email)}')">${isTemporary ? "ביטול האישור הזמני" : "דחיית הבקשה"}</button>
+        </div>
+      `
+    });
+    return;
+  }
+
+  if (kind === "reset") {
+    const request = item.data;
+    const contact = findContactByEmail(request.email);
+    const name = contact && contact.name ? contact.name : request.email;
+    const isApproved = request.status === "approved";
+    openAdminFocusSheet_({
+      eyebrow: "בקשת איפוס סיסמה",
+      title: name,
+      subtitle: formatAdminRelativeTime_(request.requestedAt),
+      html: `
+        ${renderAdminInfoRows_([
+          { label: "מייל", value: request.email, ltr: true },
+          { label: "מזהה בקשה", value: request.requestId, ltr: true },
+          { label: "מצב", value: isApproved ? "האיפוס מאושר עד סוף היום" : "ממתין לאישור מנהל" }
+        ])}
+        <p class="adminFocusDescription">האישור באפליקציה מאפשר למשתמש לבחור סיסמה חדשה בלי לעבור דרך המייל.</p>
+        <div class="adminFocusPrimaryActions">
+          ${isApproved ? "" : `<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approvePasswordRecoveryForUser_('${escapeJsString(request.email)}')">אישור איפוס סיסמה</button>`}
+          ${isApproved ? "" : `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); sendPasswordResetForUser_('${escapeJsString(request.email)}')">שליחת קישור במייל</button>`}
+        </div>
+        <div class="adminFocusSecondaryActions">
+          <button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); closePasswordResetRequest_('${escapeJsString(request.email)}')">${isApproved ? "ביטול אישור האיפוס" : "סגירה ללא אישור"}</button>
+        </div>
+      `
+    });
+    return;
+  }
+
+  if (kind === "contact") {
+    const request = item.data;
+    const name = getContactAddRequestName_(request) || request.email || formatPhoneForDisplay(request.phone) || "איש קשר";
+    const isSelfUpdate = request.requestType === "self_update";
+    openAdminFocusSheet_({
+      eyebrow: isSelfUpdate ? "בקשת עדכון פרטים" : "בקשת הוספת איש קשר",
+      title: name,
+      subtitle: formatAdminRelativeTime_(request.createdAt),
+      html: `
+        ${getPossibleDuplicateWarningHtml_(request)}
+        ${getContactRequestDiffHtml_(request)}
+        ${renderAdminInfoRows_([
+          { label: "תפקיד", value: request.role },
+          { label: "מחלקה", value: request.department },
+          { label: "טלפון", value: request.phone ? formatPhoneForDisplay(request.phone) : "", ltr: true },
+          { label: "מייל", value: request.email, ltr: true },
+          { label: "נשלח על ידי", value: request.reporterEmail, ltr: true }
+        ])}
+        <div class="adminFocusPrimaryActions">
+          <button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : request.grantAccessOnApproval === true ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
+          <button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
+        </div>
+        <div class="adminFocusSecondaryActions">
+          <button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחיית הבקשה</button>
+        </div>
+      `
+    });
+    return;
+  }
+
+  const report = item.data;
+  const matchingContact = adminContacts.find(contact =>
+    (report.contactDocId && String(contact.docId) === String(report.contactDocId)) ||
+    (report.contactPhone && normalizePhone(contact.phone) === normalizePhone(report.contactPhone))
+  ) || null;
+  openAdminFocusSheet_({
+    eyebrow: "דיווח על פרטים שגויים",
+    title: report.contactName || formatPhoneForDisplay(report.contactPhone) || "איש קשר",
+    subtitle: formatAdminRelativeTime_(report.createdAt),
+    html: `
+      ${renderAdminInfoRows_([
+        { label: "סוג הדיווח", value: getReportTypeLabel_(report.issueType) },
+        { label: "טלפון", value: report.contactPhone ? formatPhoneForDisplay(report.contactPhone) : "", ltr: true },
+        { label: "דווח על ידי", value: report.reporterEmail, ltr: true }
+      ])}
+      <div class="adminFocusReportText">${escapeHtml(report.details) || "לא נמסרו פרטים נוספים."}</div>
+      <div class="adminFocusPrimaryActions">
+        ${matchingContact ? `<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); openAdminEditModal('${escapeJsString(matchingContact.docId)}')">פתיחת איש הקשר לעריכה</button>` : ""}
+        <button type="button" class="adminActionBtn ${matchingContact ? "secondary" : "primary"}" onclick="closeAdminFocusSheet_(); setContactReportStatus_('${escapeJsString(report.docId)}', 'resolved')">סימון הדיווח כטופל</button>
+      </div>
+    `
+  });
+}
+
 function renderAdminAttention_() {
   const query = getAdminSearchQuery();
   const items = getAdminAttentionItems_()
     .filter(item => {
-      if (
-        adminActiveFilter === "access" &&
-        !["access", "reset"].includes(item.kind)
-      ) {
-        return false;
-      }
-      if (
-        adminActiveFilter === "contacts" &&
-        !["contact", "report"].includes(item.kind)
-      ) {
-        return false;
-      }
+      if (adminActiveFilter === "access" && item.kind !== "access") return false;
+      if (adminActiveFilter === "reset" && item.kind !== "reset") return false;
+      if (adminActiveFilter === "contacts" && item.kind !== "contact") return false;
+      if (adminActiveFilter === "reports" && item.kind !== "report") return false;
       return adminAttentionItemMatchesQuery_(item, query);
     });
   const visibleItems = getVisibleAdminItems_(items);
@@ -7577,18 +7997,7 @@ function renderAdminAttention_() {
     return;
   }
 
-  const html = visibleItems.map(item => {
-    if (item.kind === "access") {
-      return renderAdminAttentionAccessCard_(item);
-    }
-    if (item.kind === "reset") {
-      return renderAdminAttentionResetCard_(item);
-    }
-    if (item.kind === "contact") {
-      return renderAdminAttentionContactCard_(item);
-    }
-    return renderAdminAttentionReportCard_(item);
-  }).join("");
+  const html = visibleItems.map(renderAdminInboxRow_).join("");
 
   document.getElementById("adminList").innerHTML =
     html + renderAdminLoadMore_(items.length, visibleItems.length);
@@ -7770,6 +8179,134 @@ function renderAdminPersonManagement_(contact, user) {
   `;
 }
 
+function openAdminPerson_(contactDocId, userEmail) {
+  const contact = [...adminContacts, ...adminRemovedContacts].find(item =>
+    String(item.docId || "") === String(contactDocId || "")
+  ) || null;
+  const user = getAllowedUserByEmail(userEmail || (contact && contact.email)) || null;
+  if (!contact && !user) {
+    setAdminStatus("האדם שבחרתם כבר אינו זמין ברשימה. רעננו את העמוד.", "error");
+    return;
+  }
+  const displayName =
+    (contact && contact.name) ||
+    (user && getAccountDisplayName_(user.email, user.email)) ||
+    formatPhoneForDisplay((contact && contact.phone) || (user && user.phone)) ||
+    "ללא שם";
+  const email = (user && user.email) || (contact && contact.email) || "";
+  const phone = (contact && contact.phone) || (user && user.phone) || "";
+  const accessState = user ? getUserAccessState_(user) : null;
+  const verificationRequest = user
+    ? getEffectiveVerificationRequestForUser_(user)
+    : null;
+  const passwordRecovery = user
+    ? getActivePasswordRecoveryForUser_(user.email)
+    : null;
+  const isSelf = Boolean(user && normalizeEmail(user.email) === currentAdminEmail);
+  const hasPendingAccess = Boolean(
+    verificationRequest &&
+    ["pending", "temporary_active"].includes(verificationRequest.status) &&
+    accessState &&
+    ["pending", "temporary", "expired"].includes(accessState.key)
+  );
+  const contactStatus = contact
+    ? contact.deleted ? "הוסר מהספר" : "מופיע בספר"
+    : "אין רשומת איש קשר";
+  const passwordStatus = !user
+    ? "אין חשבון עם הרשאת כניסה"
+    : !passwordRecovery
+      ? "אין בקשת איפוס פעילה"
+      : passwordRecovery.status === "pending"
+        ? "בקשת איפוס ממתינה"
+        : passwordRecovery.status === "consuming"
+          ? "הסיסמה מתעדכנת כעת"
+          : "איפוס מאושר עד סוף היום";
+  const routineContactAction = contact
+    ? contact.deleted
+      ? `<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לספר</button>`
+      : `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>`
+    : "";
+  let passwordAction = "";
+  if (user && !isSelf && user.active) {
+    if (!passwordRecovery) {
+      passwordAction = `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">עזרה באיפוס סיסמה</button>`;
+    } else if (passwordRecovery.status === "pending") {
+      passwordAction = '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת בקשת האיפוס</button>';
+    } else if (!["consuming"].includes(passwordRecovery.status)) {
+      passwordAction = `<button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>`;
+    }
+  }
+  const accessActions = [];
+  if (hasPendingAccess) {
+    accessActions.push('<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת הבקשה שממתינה</button>');
+  } else if (user && !isSelf) {
+    accessActions.push(
+      `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="closeAdminFocusSheet_(); toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>`
+    );
+  }
+
+  const advancedActions = [];
+  if (contact && !contact.deleted) {
+    advancedActions.push(
+      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(); removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>`
+    );
+  }
+  if (user && !isSelf) {
+    advancedActions.push(
+      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(); deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאת כניסה</button>`
+    );
+    if (user.manualApproved) {
+      advancedActions.push(
+        `<button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`
+      );
+    }
+  }
+
+  adminActiveFocus = { type: "person", contactDocId, userEmail: email };
+  openAdminFocusSheet_({
+    eyebrow: "ניהול איש הקשר",
+    title: displayName,
+    subtitle: [contact && contact.role, contact && contact.dept].filter(Boolean).join(" · ") || email || formatPhoneForDisplay(phone),
+    html: `
+      ${renderAdminInfoRows_([
+        { label: "טלפון", value: phone ? formatPhoneForDisplay(phone) : "", ltr: true },
+        { label: "מייל", value: email, ltr: true }
+      ])}
+      <section class="adminPersonSection">
+        <div class="adminPersonSectionHeader">
+          <span aria-hidden="true">${getAdminIconSvg_("contact")}</span>
+          <div><h4>בספר אנשי הקשר</h4><p>${escapeHtml(contactStatus)}</p></div>
+        </div>
+        ${contact && (contact.role || contact.dept || contact.hospital) ? `<div class="adminPersonSectionMeta">${escapeHtml([contact.role, contact.dept, contact.hospital].filter(Boolean).join(" · "))}</div>` : ""}
+        ${routineContactAction ? `<div class="adminPersonSectionActions">${routineContactAction}</div>` : ""}
+      </section>
+      <section class="adminPersonSection">
+        <div class="adminPersonSectionHeader">
+          <span aria-hidden="true">${getAdminIconSvg_("access")}</span>
+          <div><h4>גישה לאפליקציה</h4><p>${escapeHtml(accessState ? accessState.label : "ללא הרשאת כניסה")}</p></div>
+        </div>
+        ${accessState && accessState.note ? `<div class="adminPersonSectionMeta">${escapeHtml(accessState.note)}</div>` : ""}
+        ${isSelf ? '<div class="adminPersonSectionMeta">זהו חשבון המנהל הנוכחי.</div>' : ""}
+        ${accessActions.length ? `<div class="adminPersonSectionActions">${accessActions.join("")}</div>` : ""}
+      </section>
+      <section class="adminPersonSection">
+        <div class="adminPersonSectionHeader">
+          <span aria-hidden="true">${getAdminIconSvg_("reset")}</span>
+          <div><h4>סיסמה ואימות</h4><p>${escapeHtml(passwordStatus)}</p></div>
+        </div>
+        ${passwordAction ? `<div class="adminPersonSectionActions">${passwordAction}</div>` : ""}
+      </section>
+      ${advancedActions.length ? `
+        <details class="adminAdvancedActions">
+          <summary>פעולות מתקדמות</summary>
+          <p>פעולות אלה משנות או מסירות מידע והרשאות. יש להשתמש בהן רק כשנדרש.</p>
+          <div>${advancedActions.join("")}</div>
+        </details>
+      ` : ""}
+    `
+  });
+}
+
 function renderAdminPeople_() {
   const query = getAdminSearchQuery();
   const people = getAdminPeople_()
@@ -7832,26 +8369,23 @@ function renderAdminPeople_() {
       "";
     const accessState = user ? getUserAccessState_(user) : null;
 
+    const secondary = [
+      contact && contact.role,
+      contact && contact.dept,
+      phone && formatPhoneForDisplay(phone),
+      email
+    ].filter(Boolean);
     return `
-      <article class="adminCard adminPersonCard ${(contact && contact.deleted) || (user && !user.active) ? "blocked" : ""}">
-        <div class="adminCardTop">
-          <div>
-            <div class="adminCardName">${escapeHtml(displayName)}</div>
-            <div class="adminCardMeta">
-              ${email ? escapeHtml(email) : ""}
-              ${phone ? "<br>" + escapeHtml(formatPhoneForDisplay(phone)) : ""}
-            </div>
-          </div>
-          <div class="adminPersonBadges">
-            ${contact ? `<span class="adminMiniStatus ${contact.deleted ? "blocked" : ""}">${contact.deleted ? "איש קשר הוסר" : "איש קשר"}</span>` : ""}
-            <span class="adminMiniStatus ${accessState ? escapeHtml(accessState.badgeClass) : ""}">${accessState ? escapeHtml(accessState.label) : "ללא כניסה"}</span>
-          </div>
-        </div>
-        <details class="adminFocusAction">
-          <summary>ניהול איש הקשר</summary>
-          ${renderAdminPersonManagement_(contact, user)}
-        </details>
-      </article>
+      <button type="button" class="adminPersonRow ${(contact && contact.deleted) || (user && !user.active) ? "restricted" : ""}" onclick="openAdminPerson_('${escapeJsString(contact && contact.docId || "")}', '${escapeJsString(user && user.email || email)}')">
+        <span class="adminPersonRowContent">
+          <strong>${escapeHtml(displayName)}</strong>
+          <span>${secondary.map(escapeHtml).join(" · ")}</span>
+        </span>
+        <span class="adminPersonRowState">
+          <span class="adminMiniStatus ${accessState ? escapeHtml(accessState.badgeClass) : ""}">${accessState ? escapeHtml(accessState.label) : "ללא כניסה"}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </button>
     `;
   }).join("");
 
@@ -7899,7 +8433,7 @@ function renderAdminMoreManagersHtml_() {
         <small>${escapeHtml(String(managers.length))} מנהלים</small>
       </summary>
       <div class="adminMoreSectionBody">
-        <button type="button" class="adminActionBtn primary adminMoreAddManager" onclick="openAddManagerModal()">＋ הוספת מנהל</button>
+        <button type="button" class="adminActionBtn primary adminMoreAddManager" onclick="openAddManagerModal()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> הוספת מנהל</button>
         ${managers.map(manager => {
           const contact = findContactByEmail(manager.email);
           const isSuperAdmin = manager.role === "super_admin";
@@ -7925,7 +8459,46 @@ function renderAdminMoreManagersHtml_() {
   `;
 }
 
-function renderAdminMore_() {
+function formatMonthlyInternMonthLabel_(monthValue) {
+  const match = String(monthValue || "").match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+  if (!match) return "חודש לא ידוע";
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: MONTHLY_INTERNS_TIME_ZONE,
+    year: "numeric",
+    month: "long"
+  }).format(new Date(`${match[1]}-${match[2]}-15T12:00:00`));
+}
+
+function getPublishedInternCount_(data) {
+  return Array.isArray(data && data.entries) ? data.entries.length : 0;
+}
+
+function renderAdminInternsSystemCard_() {
+  const active = adminMonthlyInternsActive;
+  const activeCount = getPublishedInternCount_(active);
+  const activeLabel = active
+    ? String(active.monthLabel || formatMonthlyInternMonthLabel_(active.monthKey))
+    : "טרם פורסמה רשימה";
+  const previousCount = getPublishedInternCount_(adminMonthlyInternsPrevious);
+  return `
+    <section class="adminSystemFeatureCard adminInternsSystemCard">
+      <span class="adminSystemFeatureIcon" aria-hidden="true">${getAdminIconSvg_("contact")}</span>
+      <div class="adminSystemFeatureContent">
+        <div class="adminSystemFeatureHeading">
+          <div><h3>סטאז׳רים החודש</h3><p>${escapeHtml(activeLabel)}${active ? ` · ${escapeHtml(String(activeCount))} ברשימה` : ""}</p></div>
+          ${active ? '<span class="adminMiniStatus">פעיל</span>' : '<span class="adminMiniStatus pending">לא פורסם</span>'}
+        </div>
+        <p class="adminSystemFeatureDescription">העלאת Excel יוצרת רשימת חיוג ו־WhatsApp בלבד. היא אינה מוסיפה משתמשים או הרשאות.</p>
+        <div class="adminSystemFeatureActions">
+          <button type="button" class="adminActionBtn primary" onclick="openMonthlyInternsAdmin_()">ניהול והעלאת Excel</button>
+          ${previousCount ? `<button type="button" class="adminActionBtn secondary" onclick="rollbackMonthlyInterns_()">שחזור הרשימה הקודמת</button>` : ""}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminSystem_() {
   const todayKey = getIsraelDateKey_();
   const activeUsersByDate = new Map(
     adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
@@ -7942,6 +8515,8 @@ function renderAdminMore_() {
         </div>
       </section>
 
+      ${renderAdminInternsSystemCard_()}
+
       <details class="adminMoreSection" open>
         <summary>
           <span>פעילות אחרונה</span>
@@ -7954,9 +8529,538 @@ function renderAdminMore_() {
 
       ${renderAdminMoreManagersHtml_()}
 
-      <button type="button" id="adminRefreshBtn" class="adminRefreshBtn adminMoreRefresh" onclick="refreshAdminPage()">↻ רענון נתוני העמוד</button>
+      <button type="button" id="adminRefreshBtn" class="adminRefreshBtn adminMoreRefresh" onclick="refreshAdminPage()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8.2A7 7 0 0 1 18.7 7M17.9 15.8A7 7 0 0 1 5.3 17"/></svg> רענון נתוני העמוד</button>
     </div>
   `;
+}
+
+function requestAdminConfirmation_(options = {}) {
+  const modal = document.getElementById("adminConfirmModal");
+  if (!modal) return Promise.resolve(false);
+  if (adminConfirmationResolve) {
+    adminConfirmationResolve(false);
+    adminConfirmationResolve = null;
+  }
+  document.getElementById("adminConfirmTitle").textContent =
+    options.title || "אישור פעולה";
+  document.getElementById("adminConfirmMessage").textContent =
+    options.message || "האם להמשיך?";
+  const actionButton = document.getElementById("adminConfirmActionBtn");
+  actionButton.textContent = options.confirmLabel || "אישור";
+  actionButton.className = `adminActionBtn ${options.tone === "warning" ? "warning" : options.tone === "primary" ? "primary" : "danger"}`;
+  modal.classList.add("visible");
+  modal.setAttribute("aria-hidden", "false");
+  setTimeout(() => actionButton.focus(), 60);
+  return new Promise(resolve => {
+    adminConfirmationResolve = resolve;
+  });
+}
+
+function resolveAdminConfirmation_(approved) {
+  const modal = document.getElementById("adminConfirmModal");
+  if (modal) {
+    modal.classList.remove("visible");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  const resolve = adminConfirmationResolve;
+  adminConfirmationResolve = null;
+  if (resolve) resolve(Boolean(approved));
+}
+
+function openMonthlyInternsAdmin_() {
+  if (!currentUserIsAdmin) return;
+  monthlyInternsImportState = {
+    phase: "idle",
+    fileName: "",
+    analysis: null,
+    parsed: null,
+    monthValue: "",
+    error: ""
+  };
+  const modal = document.getElementById("monthlyInternsAdminModal");
+  modal.classList.add("visible");
+  modal.setAttribute("aria-hidden", "false");
+  renderMonthlyInternsAdmin_();
+}
+
+function closeMonthlyInternsAdmin_() {
+  const modal = document.getElementById("monthlyInternsAdminModal");
+  if (modal) {
+    modal.classList.remove("visible");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  const input = document.getElementById("monthlyInternsWorkbookInput");
+  if (input) input.value = "";
+}
+
+function chooseMonthlyInternsWorkbook_() {
+  const input = document.getElementById("monthlyInternsWorkbookInput");
+  if (input) input.click();
+}
+
+function loadXlsxLibrary_() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (xlsxLibraryLoadPromise) return xlsxLibraryLoadPromise;
+  xlsxLibraryLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-xlsx-vendor="0.20.3"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.XLSX), { once: true });
+      existing.addEventListener("error", () => reject(new Error("XLSX_LOAD_FAILED")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = XLSX_VENDOR_URL;
+    script.async = true;
+    script.dataset.xlsxVendor = "0.20.3";
+    script.onload = () => window.XLSX
+      ? resolve(window.XLSX)
+      : reject(new Error("XLSX_GLOBAL_MISSING"));
+    script.onerror = () => reject(new Error("XLSX_LOAD_FAILED"));
+    document.head.appendChild(script);
+  }).catch(error => {
+    xlsxLibraryLoadPromise = null;
+    throw error;
+  });
+  return xlsxLibraryLoadPromise;
+}
+
+function getKnownInternDepartments_() {
+  return [...new Set(
+    contacts.map(contact => String(contact.dept || "").trim()).filter(Boolean)
+  )];
+}
+
+async function handleMonthlyInternsWorkbookSelected_(event) {
+  const file = event && event.target && event.target.files
+    ? event.target.files[0]
+    : null;
+  if (!file) return;
+  if (!/\.xlsx$/i.test(file.name || "")) {
+    monthlyInternsImportState = {
+      ...monthlyInternsImportState,
+      phase: "error",
+      error: "יש לבחור קובץ Excel בפורמט ‎.xlsx."
+    };
+    renderMonthlyInternsAdmin_();
+    return;
+  }
+  monthlyInternsImportState = {
+    phase: "loading",
+    fileName: file.name,
+    analysis: null,
+    parsed: null,
+    monthValue: "",
+    error: ""
+  };
+  renderMonthlyInternsAdmin_();
+  try {
+    const [xlsx, arrayBuffer] = await Promise.all([
+      loadXlsxLibrary_(),
+      file.arrayBuffer()
+    ]);
+    const workbook = xlsx.read(arrayBuffer, {
+      type: "array",
+      cellDates: false,
+      cellText: true
+    });
+    const analysis = window.InternWorkbookImporter.analyzeWorkbook(
+      workbook,
+      xlsx,
+      {
+        normalizePhone,
+        knownDepartments: getKnownInternDepartments_()
+      }
+    );
+    const monthValue = window.InternWorkbookImporter.inferMonthYear(
+      file.name,
+      analysis.tables,
+      new Date()
+    );
+    monthlyInternsImportState = {
+      phase: analysis.status === "ready" ? "preview" : "mapping",
+      fileName: file.name,
+      analysis,
+      parsed: analysis.parsed,
+      monthValue,
+      selectedSheet: analysis.selectedSheet || (analysis.tables[0] && analysis.tables[0].name) || "",
+      error: analysis.status === "empty"
+        ? "לא נמצאו בקובץ שורות הכוללות שם ומספר טלפון תקין."
+        : ""
+    };
+    renderMonthlyInternsAdmin_();
+  } catch (error) {
+    console.error("Monthly interns workbook parsing failed", error);
+    monthlyInternsImportState = {
+      ...monthlyInternsImportState,
+      phase: "error",
+      error: "לא הצלחנו לקרוא את קובץ ה־Excel. ודאו שהוא תקין ונסו שוב."
+    };
+    renderMonthlyInternsAdmin_();
+  }
+}
+
+function selectMonthlyInternsMappingSheet_(sheetName) {
+  monthlyInternsImportState.selectedSheet = String(sheetName || "");
+  renderMonthlyInternsAdmin_();
+}
+
+function getMonthlyInternMappingDefaults_() {
+  const analysis = monthlyInternsImportState.analysis;
+  const selectedSheet = monthlyInternsImportState.selectedSheet;
+  const selectedAnalysis = analysis && analysis.analyses
+    ? analysis.analyses.find(item => item.table.name === selectedSheet)
+    : null;
+  return selectedAnalysis && selectedAnalysis.mapping
+    ? selectedAnalysis.mapping
+    : { nameColumn: null, phoneColumn: null, departmentColumn: null };
+}
+
+function renderMonthlyInternColumnOptions_(options, selectedIndex, includeNone) {
+  const noneOption = includeNone ? '<option value="">ללא מחלקה</option>' : '<option value="">בחירה</option>';
+  return noneOption + options.map(option => `
+    <option value="${escapeHtml(String(option.columnIndex))}" ${option.columnIndex === selectedIndex ? "selected" : ""}>${escapeHtml(option.label)}</option>
+  `).join("");
+}
+
+function applyMonthlyInternsManualMapping_() {
+  const analysis = monthlyInternsImportState.analysis;
+  const sheetName = document.getElementById("internMappingSheet").value;
+  const nameValue = document.getElementById("internMappingName").value;
+  const phoneValue = document.getElementById("internMappingPhone").value;
+  const departmentValue = document.getElementById("internMappingDepartment").value;
+  try {
+    const parsed = window.InternWorkbookImporter.parseManualMapping(
+      analysis,
+      {
+        sheetName,
+        nameColumn: nameValue === "" ? null : Number(nameValue),
+        phoneColumn: phoneValue === "" ? null : Number(phoneValue),
+        departmentColumn: departmentValue === "" ? null : Number(departmentValue)
+      },
+      { normalizePhone }
+    );
+    if (!parsed.entries.length) {
+      throw new Error("לא נמצאו שורות תקינות לפי המיפוי שנבחר.");
+    }
+    monthlyInternsImportState = {
+      ...monthlyInternsImportState,
+      phase: "preview",
+      selectedSheet: sheetName,
+      parsed,
+      error: ""
+    };
+    renderMonthlyInternsAdmin_();
+  } catch (error) {
+    monthlyInternsImportState.error = error && error.message
+      ? error.message
+      : "המיפוי שבחרתם אינו תקין.";
+    renderMonthlyInternsAdmin_();
+  }
+}
+
+function renderMonthlyInternPreviewRows_(entries) {
+  const visibleEntries = entries.slice(0, 100);
+  return visibleEntries.map(entry => `
+    <div class="internPreviewRow">
+      <div><strong>${escapeHtml(entry.name)}</strong>${entry.department ? `<span>${escapeHtml(entry.department)}</span>` : ""}</div>
+      <span dir="ltr">${escapeHtml(formatPhoneForDisplay(entry.phone))}</span>
+    </div>
+  `).join("") + (entries.length > visibleEntries.length
+    ? `<div class="internPreviewMore">ועוד ${escapeHtml(String(entries.length - visibleEntries.length))} רשומות</div>`
+    : "");
+}
+
+function renderMonthlyInternsAdmin_() {
+  const body = document.getElementById("monthlyInternsAdminBody");
+  if (!body) return;
+  const state = monthlyInternsImportState;
+  const active = adminMonthlyInternsActive;
+
+  if (state.phase === "loading" || state.phase === "publishing") {
+    body.innerHTML = `
+      <div class="internImportProgress" role="status">
+        <span class="internImportProgressIcon" aria-hidden="true">${getAdminIconSvg_(state.phase === "loading" ? "system" : "contact")}</span>
+        <strong>${state.phase === "loading" ? "קורא את קובץ ה־Excel" : "מפרסם את הרשימה"}</strong>
+        <span>${state.phase === "loading" ? "הקובץ נשאר במכשיר; רק התוצאה הנקייה תישמר." : "הרשימה הקודמת נשמרת עד שההחלפה מסתיימת."}</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.phase === "success") {
+    body.innerHTML = `
+      <div class="internImportSuccess">
+        <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"/></svg></span>
+        <h4>הרשימה פורסמה בהצלחה</h4>
+        <p>${escapeHtml(formatMonthlyInternMonthLabel_(state.monthValue))} · ${escapeHtml(String(state.parsed.entries.length))} סטאז׳רים</p>
+        <button type="button" class="adminActionBtn primary" onclick="closeMonthlyInternsAdmin_()">סיום</button>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.phase === "mapping") {
+    const analysis = state.analysis;
+    const selectedTable = analysis && analysis.tables
+      ? analysis.tables.find(table => table.name === state.selectedSheet) || analysis.tables[0]
+      : null;
+    const options = selectedTable
+      ? window.InternWorkbookImporter.getMappingOptions(selectedTable)
+      : [];
+    const defaults = getMonthlyInternMappingDefaults_();
+    body.innerHTML = `
+      <div class="internImportIntro compact">
+        <span class="internImportSafetyIcon" aria-hidden="true">${getAdminIconSvg_("system")}</span>
+        <div><h4>נדרש מיפוי קצר</h4><p>לא הצלחנו לזהות בוודאות את מבנה הקובץ. בחרו רק שם וטלפון; מחלקה אינה חובה.</p></div>
+      </div>
+      ${state.error ? `<div class="internImportError">${escapeHtml(state.error)}</div>` : ""}
+      <div class="adminFormGrid internMappingGrid">
+        <div class="adminFormField full">
+          <label for="internMappingSheet">גיליון</label>
+          <select id="internMappingSheet" onchange="selectMonthlyInternsMappingSheet_(this.value)">
+            ${(analysis && analysis.tables || []).map(table => `<option value="${escapeHtml(table.name)}" ${table.name === (selectedTable && selectedTable.name) ? "selected" : ""}>${escapeHtml(table.name)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="adminFormField">
+          <label for="internMappingName">עמודת שם</label>
+          <select id="internMappingName">${renderMonthlyInternColumnOptions_(options, defaults.nameColumn, false)}</select>
+        </div>
+        <div class="adminFormField">
+          <label for="internMappingPhone">עמודת טלפון</label>
+          <select id="internMappingPhone">${renderMonthlyInternColumnOptions_(options, defaults.phoneColumn, false)}</select>
+        </div>
+        <div class="adminFormField full">
+          <label for="internMappingDepartment">עמודת מחלקה — לא חובה</label>
+          <select id="internMappingDepartment">${renderMonthlyInternColumnOptions_(options, defaults.departmentColumn, true)}</select>
+        </div>
+      </div>
+      <div class="adminModalActions">
+        <button type="button" class="adminActionBtn secondary" onclick="chooseMonthlyInternsWorkbook_()">בחירת קובץ אחר</button>
+        <button type="button" class="adminActionBtn primary" onclick="applyMonthlyInternsManualMapping_()">יצירת תצוגה מקדימה</button>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.phase === "preview" && state.parsed) {
+    const parsed = state.parsed;
+    body.innerHTML = `
+      <div class="internPreviewSummary">
+        <div><span>נמצאו</span><strong>${escapeHtml(String(parsed.entries.length))}</strong><span>סטאז׳רים</span></div>
+        <p>${escapeHtml(state.fileName)}</p>
+      </div>
+      <div class="adminFormField full internMonthField">
+        <label for="internPublicationMonth">חודש הפרסום</label>
+        <input id="internPublicationMonth" type="month" value="${escapeHtml(state.monthValue)}" min="2020-01" max="2100-12" onchange="monthlyInternsImportState.monthValue = this.value">
+      </div>
+      <div class="internPreviewStats">
+        <span>${escapeHtml(String(parsed.entries.length))} ייכנסו לרשימה</span>
+        <span>${escapeHtml(String(parsed.rejected.length))} שורות דולגו</span>
+        ${parsed.duplicates ? `<span>${escapeHtml(String(parsed.duplicates))} כפילויות אוחדו</span>` : ""}
+      </div>
+      ${parsed.warnings.length ? `<div class="internImportWarning">נמצאו ${escapeHtml(String(parsed.warnings.length))} מספרים עם שמות שונים. השם הראשון נשמר בתצוגה המקדימה.</div>` : ""}
+      <div class="internPreviewList">${renderMonthlyInternPreviewRows_(parsed.entries)}</div>
+      <div class="internAccessBoundary"><strong>ללא שינוי הרשאות</strong><span>הפרסום אינו מוסיף משתמשים, אנשי קשר או גישה לאפליקציה.</span></div>
+      <div class="adminModalActions">
+        <button type="button" class="adminActionBtn secondary" onclick="chooseMonthlyInternsWorkbook_()">בחירת קובץ אחר</button>
+        <button type="button" class="adminActionBtn primary" onclick="publishMonthlyInterns_()">החלפה ופרסום</button>
+      </div>
+    `;
+    return;
+  }
+
+  const error = state.phase === "error" ? state.error : "";
+  body.innerHTML = `
+    <div class="internImportIntro">
+      <span class="internImportSafetyIcon" aria-hidden="true">${getAdminIconSvg_("contact")}</span>
+      <div>
+        <h4>העלאת קובץ Excel</h4>
+        <p>המערכת תזהה שם, טלפון ומחלקה, ותציג תצוגה מקדימה לפני פרסום.</p>
+      </div>
+    </div>
+    ${active ? `<div class="internCurrentList"><span>הרשימה הפעילה</span><strong>${escapeHtml(String(active.monthLabel || formatMonthlyInternMonthLabel_(active.monthKey)))}</strong><small>${escapeHtml(String(getPublishedInternCount_(active)))} סטאז׳רים</small></div>` : '<div class="internCurrentList empty"><span>עדיין לא פורסמה רשימה</span></div>'}
+    ${error ? `<div class="internImportError">${escapeHtml(error)}</div>` : ""}
+    <div class="internAccessBoundary"><strong>רשימת תצוגה בלבד</strong><span>הקובץ אינו משנה אנשי קשר, משתמשים, סיסמאות או הרשאות כניסה.</span></div>
+    <button type="button" class="adminActionBtn primary internChooseFileBtn" onclick="chooseMonthlyInternsWorkbook_()">העלאת קובץ Excel</button>
+  `;
+}
+
+function sanitizePublishedInternEntries_(entries) {
+  const unique = new Map();
+  (Array.isArray(entries) ? entries : []).forEach(entry => {
+    const name = String(entry && entry.name || "").trim();
+    const phone = normalizePhone(entry && entry.phone || "");
+    const department = String(entry && entry.department || "").trim();
+    if (!name || !isValidPhoneForRouting_(phone)) return;
+    if (!unique.has(phone)) unique.set(phone, { name, phone, department });
+  });
+  return [...unique.values()];
+}
+
+async function publishMonthlyInterns_() {
+  if (!currentUserIsAdmin || !firebaseApi || !db) return;
+  const state = monthlyInternsImportState;
+  const monthValue = String(
+    document.getElementById("internPublicationMonth")?.value || state.monthValue || ""
+  );
+  const entries = sanitizePublishedInternEntries_(state.parsed && state.parsed.entries);
+  if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(monthValue)) {
+    state.error = "יש לבחור חודש פרסום תקין.";
+    renderMonthlyInternsAdmin_();
+    return;
+  }
+  if (!entries.length) {
+    state.error = "אין ברשימה שורות תקינות לפרסום.";
+    renderMonthlyInternsAdmin_();
+    return;
+  }
+  if (entries.length > MONTHLY_INTERNS_MAX_RECORDS) {
+    state.error = `ניתן לפרסם עד ${MONTHLY_INTERNS_MAX_RECORDS} רשומות בחודש.`;
+    renderMonthlyInternsAdmin_();
+    return;
+  }
+  const confirmed = await requestAdminConfirmation_({
+    title: "החלפת רשימת הסטאז׳רים",
+    message: `הרשימה הפעילה תוחלף ב-${entries.length} סטאז׳רים עבור ${formatMonthlyInternMonthLabel_(monthValue)}. הרשימה הנוכחית תישמר לשחזור.`,
+    confirmLabel: "החלפה ופרסום",
+    tone: "primary"
+  });
+  if (!confirmed) return;
+
+  monthlyInternsImportState = { ...state, phase: "publishing", monthValue };
+  renderMonthlyInternsAdmin_();
+  const activeRef = firebaseApi.doc(
+    db,
+    MONTHLY_INTERNS_COLLECTION_NAME,
+    MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID
+  );
+  const previousRef = firebaseApi.doc(
+    db,
+    MONTHLY_INTERNS_COLLECTION_NAME,
+    MONTHLY_INTERNS_PREVIOUS_DOCUMENT_ID
+  );
+  const version = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const payload = {
+    kind: "monthly_interns_active",
+    schemaVersion: MONTHLY_INTERNS_SCHEMA_VERSION,
+    version,
+    monthKey: monthValue,
+    monthLabel: formatMonthlyInternMonthLabel_(monthValue),
+    entries,
+    recordCount: entries.length,
+    sourceFileName: String(state.fileName || "").slice(0, 240),
+    publishedAt: firebaseApi.serverTimestamp(),
+    publishedBy: currentAdminEmail
+  };
+  try {
+    await firebaseApi.runTransaction(db, async transaction => {
+      const currentSnapshot = await transaction.get(activeRef);
+      if (currentSnapshot.exists()) {
+        transaction.set(previousRef, {
+          ...currentSnapshot.data(),
+          kind: "monthly_interns_previous",
+          snapshotSavedAt: firebaseApi.serverTimestamp(),
+          snapshotSavedBy: currentAdminEmail
+        });
+      }
+      transaction.set(activeRef, payload);
+    });
+    adminMonthlyInternsPrevious = adminMonthlyInternsActive;
+    adminMonthlyInternsActive = {
+      ...payload,
+      publishedAt: new Date(),
+      entries
+    };
+    monthlyInternsState = {
+      status: "ready",
+      descriptor: getMonthlyInternsDescriptorFromData_(adminMonthlyInternsActive, getCurrentMonthlyInternsDescriptor_()),
+      entries
+    };
+    renderMonthlyInterns_();
+    logAdminAction("monthly_interns_publish", "", monthValue).catch(() => {});
+    monthlyInternsImportState = {
+      ...state,
+      phase: "success",
+      monthValue,
+      parsed: { ...state.parsed, entries }
+    };
+    renderMonthlyInternsAdmin_();
+    if (adminActiveTab === "system") renderAdminSystem_();
+  } catch (error) {
+    console.error("Monthly interns publication failed", error);
+    monthlyInternsImportState = {
+      ...state,
+      phase: "error",
+      monthValue,
+      error: "הפרסום נכשל. הרשימה הפעילה הקודמת לא השתנתה."
+    };
+    renderMonthlyInternsAdmin_();
+  }
+}
+
+async function rollbackMonthlyInterns_() {
+  if (!currentUserIsAdmin || !adminMonthlyInternsPrevious) return;
+  const previousLabel = String(
+    adminMonthlyInternsPrevious.monthLabel ||
+    formatMonthlyInternMonthLabel_(adminMonthlyInternsPrevious.monthKey)
+  );
+  const confirmed = await requestAdminConfirmation_({
+    title: "שחזור הרשימה הקודמת",
+    message: `הרשימה הפעילה תוחלף ברשימת ${previousLabel}. הרשימה הנוכחית תישמר כרשימת החזרה הבאה.`,
+    confirmLabel: "שחזור הרשימה",
+    tone: "warning"
+  });
+  if (!confirmed) return;
+  const activeRef = firebaseApi.doc(db, MONTHLY_INTERNS_COLLECTION_NAME, MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID);
+  const previousRef = firebaseApi.doc(db, MONTHLY_INTERNS_COLLECTION_NAME, MONTHLY_INTERNS_PREVIOUS_DOCUMENT_ID);
+  try {
+    await firebaseApi.runTransaction(db, async transaction => {
+      const [activeSnapshot, previousSnapshot] = await Promise.all([
+        transaction.get(activeRef),
+        transaction.get(previousRef)
+      ]);
+      if (!previousSnapshot.exists()) throw new Error("NO_PREVIOUS_INTERNS_LIST");
+      const current = activeSnapshot.exists() ? activeSnapshot.data() : null;
+      const restored = previousSnapshot.data();
+      transaction.set(activeRef, {
+        ...restored,
+        kind: "monthly_interns_active",
+        version: `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+        publishedAt: firebaseApi.serverTimestamp(),
+        publishedBy: currentAdminEmail,
+        restoredFromPrevious: true
+      });
+      if (current) {
+        transaction.set(previousRef, {
+          ...current,
+          kind: "monthly_interns_previous",
+          snapshotSavedAt: firebaseApi.serverTimestamp(),
+          snapshotSavedBy: currentAdminEmail
+        });
+      }
+    });
+    const current = adminMonthlyInternsActive;
+    adminMonthlyInternsActive = {
+      ...adminMonthlyInternsPrevious,
+      kind: "monthly_interns_active",
+      publishedAt: new Date(),
+      publishedBy: currentAdminEmail,
+      restoredFromPrevious: true
+    };
+    adminMonthlyInternsPrevious = current;
+    monthlyInternsState = {
+      status: "ready",
+      descriptor: getMonthlyInternsDescriptorFromData_(adminMonthlyInternsActive, getCurrentMonthlyInternsDescriptor_()),
+      entries: (adminMonthlyInternsActive.entries || []).map(normalizeMonthlyInternEntry_)
+    };
+    renderMonthlyInterns_();
+    logAdminAction("monthly_interns_rollback", "", adminMonthlyInternsActive.monthKey || "").catch(() => {});
+    renderAdminSystem_();
+    setAdminStatus("הרשימה הקודמת שוחזרה בהצלחה.", "success");
+  } catch (error) {
+    console.error("Monthly interns rollback failed", error);
+    setAdminStatus("השחזור נכשל. הרשימה הפעילה לא השתנתה.", "error");
+  }
 }
 
 async function refreshAdminPage() {
@@ -7982,7 +9086,7 @@ async function refreshAdminPage() {
   } finally {
     if (button) {
       button.disabled = false;
-      button.textContent = "↻ רענון נתוני העמוד";
+      button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8.2A7 7 0 0 1 18.7 7M17.9 15.8A7 7 0 0 1 5.3 17"/></svg> רענון נתוני העמוד';
     }
   }
 }
@@ -7999,8 +9103,8 @@ function renderAdminList() {
 
   if (adminActiveTab === "people") {
     renderAdminPeople_();
-  } else if (adminActiveTab === "more") {
-    renderAdminMore_();
+  } else if (adminActiveTab === "system") {
+    renderAdminSystem_();
   } else {
     renderAdminAttention_();
   }
@@ -8380,7 +9484,7 @@ function closeAdminReasonModal_(value = null) {
 
 async function approveManualAccess_(email, temporary = false) {
   if (!currentUserIsAdmin) {
-    alert("רק מנהל פעיל יכול לאשר גישה.");
+    setAdminStatus("רק מנהל פעיל יכול לאשר גישה.", "error");
     return;
   }
 
@@ -8394,13 +9498,14 @@ async function approveManualAccess_(email, temporary = false) {
     !request ||
     !["pending", "temporary_active"].includes(request.status)
   ) {
-    alert("לא נמצאה בקשת אישור פעילה עבור המשתמש.");
+    setAdminStatus("לא נמצאה בקשת אישור פעילה עבור המשתמש.", "error");
     return;
   }
 
   if (!user.phonePermissionActive) {
-    alert(
-      "לא ניתן לאשר גישה לפני שקיים קישור פעיל בין המייל למספר הטלפון."
+    setAdminStatus(
+      "לא ניתן לאשר גישה לפני שקיים קישור פעיל בין המייל למספר הטלפון.",
+      "error"
     );
     return;
   }
@@ -8430,7 +9535,7 @@ async function approveManualAccess_(email, temporary = false) {
   if (reason === null) return;
   const cleanReason = String(reason || "").trim();
   if (cleanReason.length < 3) {
-    alert("יש לרשום סיבה קצרה או אופן זיהוי לפני האישור.");
+    setAdminStatus("יש לרשום סיבה קצרה או אופן זיהוי לפני האישור.", "error");
     return;
   }
 
@@ -8516,7 +9621,12 @@ async function rejectManualAccess_(email) {
   const normalizedEmail = normalizeEmail(email);
   const user = getAllowedUserByEmail(normalizedEmail);
   const request = getEffectiveVerificationRequestForUser_(user);
-  if (!confirm(`לדחות את בקשת האישור של ${normalizedEmail}?`)) return;
+  if (!await requestAdminConfirmation_({
+    title: "דחיית בקשת כניסה",
+    message: `בקשת האישור של ${normalizedEmail} תידחה.`,
+    confirmLabel: "דחיית הבקשה",
+    tone: "warning"
+  })) return;
 
   setAdminStatus("דוחה את הבקשה...", "loading");
   try {
@@ -8568,7 +9678,12 @@ async function rejectManualAccess_(email) {
 async function revokeManualAccess_(email) {
   if (!currentUserIsAdmin) return;
   const normalizedEmail = normalizeEmail(email);
-  if (!confirm(`לבטל את האישור הידני של ${normalizedEmail}?\nאם המייל לא אומת, המשתמש ינותק ויידרש להשלים אימות.`)) return;
+  if (!await requestAdminConfirmation_({
+    title: "ביטול אישור ידני",
+    message: `האישור הידני של ${normalizedEmail} יבוטל. אם המייל לא אומת, המשתמש ינותק ויידרש להשלים אימות.`,
+    confirmLabel: "ביטול האישור",
+    tone: "warning"
+  })) return;
 
   setAdminStatus("מבטל אישור ידני...", "loading");
   try {
@@ -8783,7 +9898,7 @@ async function preparePasswordRecoveryForUser_(email) {
   if (reason === null) return;
   const cleanReason = String(reason || "").trim();
   if (cleanReason.length < 3) {
-    alert("יש לרשום דרך זיהוי קצרה לפני האישור.");
+    setAdminStatus("יש לרשום דרך זיהוי קצרה לפני האישור.", "error");
     return;
   }
 
@@ -8833,7 +9948,12 @@ async function cancelPreparedPasswordRecoveryForUser_(email) {
     return;
   }
 
-  if (!confirm(`לבטל את אישור איפוס הסיסמה של ${normalizedEmail}?`)) {
+  if (!await requestAdminConfirmation_({
+    title: "ביטול אישור איפוס",
+    message: `אישור איפוס הסיסמה של ${normalizedEmail} יבוטל מיד.`,
+    confirmLabel: "ביטול האישור",
+    tone: "warning"
+  })) {
     return;
   }
 
@@ -8902,7 +10022,7 @@ async function approvePasswordRecoveryForUser_(email) {
   if (reason === null) return;
   const cleanReason = String(reason || "").trim();
   if (cleanReason.length < 3) {
-    alert("יש לרשום דרך זיהוי קצרה לפני האישור.");
+    setAdminStatus("יש לרשום דרך זיהוי קצרה לפני האישור.", "error");
     return;
   }
 
@@ -9287,7 +10407,7 @@ function setAdminManagerModalStatus(message = "", type = "") {
 
 function openAddManagerModal() {
   if (!currentUserIsSuperAdmin) {
-    alert("רק מנהל־על יכול להוסיף מנהלים.");
+    setAdminStatus("רק מנהל־על יכול להוסיף מנהלים.", "error");
     return;
   }
 
@@ -9384,11 +10504,16 @@ async function removeManager(email) {
   const manager = adminManagers.find(item => item.email === normalizedEmail);
 
   if (!manager || manager.role === "super_admin" || normalizedEmail === currentAdminEmail) {
-    alert("לא ניתן להסיר את מנהל־העל.");
+    setAdminStatus("לא ניתן להסיר את מנהל־העל.", "error");
     return;
   }
 
-  if (!confirm(`להסיר את הרשאת הניהול של ${normalizedEmail}?\nהרשאת הכניסה הרגילה לאפליקציה תישאר ללא שינוי.`)) return;
+  if (!await requestAdminConfirmation_({
+    title: "הסרת מנהל",
+    message: `הרשאת הניהול של ${normalizedEmail} תוסר. הרשאת הכניסה הרגילה לאפליקציה תישאר ללא שינוי.`,
+    confirmLabel: "הסרת מנהל",
+    tone: "danger"
+  })) return;
 
   try {
     const batch = firebaseApi.writeBatch(db);
@@ -9409,7 +10534,7 @@ async function removeManager(email) {
     await loadAdminData();
   } catch (error) {
     console.error("Removing manager failed", error);
-    alert("לא הצלחנו להסיר את הרשאת המנהל.");
+    setAdminStatus("לא הצלחנו להסיר את הרשאת המנהל.", "error");
   }
 }
 
@@ -9905,7 +11030,12 @@ async function removeAdminContact(docId) {
   const contact = getAdminContactByDocId(docId);
   if (!contact || contact.deleted) return;
 
-  if (!confirm(`להסיר את ${contact.name || formatPhoneForDisplay(contact.phone)} מהאפליקציה? ניתן יהיה להחזיר את הרשומה בהמשך.`)) {
+  if (!await requestAdminConfirmation_({
+    title: "הסרת איש קשר",
+    message: `${contact.name || formatPhoneForDisplay(contact.phone)} יוסר מהאפליקציה. ניתן יהיה להחזיר את הרשומה בהמשך.`,
+    confirmLabel: "הסרה מהאפליקציה",
+    tone: "danger"
+  })) {
     return;
   }
 
@@ -9950,7 +11080,12 @@ async function restoreAdminContact(docId) {
   const contact = getAdminContactByDocId(docId);
   if (!contact || !contact.deleted) return;
 
-  if (!confirm(`להחזיר את ${contact.name || formatPhoneForDisplay(contact.phone)} לאפליקציה?`)) {
+  if (!await requestAdminConfirmation_({
+    title: "החזרת איש קשר",
+    message: `${contact.name || formatPhoneForDisplay(contact.phone)} יחזור להופיע בספר אנשי הקשר.`,
+    confirmLabel: "החזרה לאפליקציה",
+    tone: "primary"
+  })) {
     return;
   }
 
@@ -9995,12 +11130,18 @@ async function toggleUserAccess(email, shouldActivate) {
   const normalizedEmail = normalizeEmail(email);
 
   if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
-    alert("לא ניתן לחסום את חשבון המנהל הנוכחי.");
+    setAdminStatus("לא ניתן לשנות את הגישה של חשבון המנהל הנוכחי.", "error");
     return;
   }
 
-  const actionLabel = shouldActivate ? "להחזיר גישה" : "לחסום גישה";
-  if (!confirm(`${actionLabel} עבור ${normalizedEmail}?`)) return;
+  if (!await requestAdminConfirmation_({
+    title: shouldActivate ? "החזרת גישה" : "חסימת גישה",
+    message: shouldActivate
+      ? `${normalizedEmail} יוכל להיכנס שוב לאפליקציה.`
+      : `${normalizedEmail} לא יוכל להיכנס לאפליקציה עד להחזרת הגישה.`,
+    confirmLabel: shouldActivate ? "החזרת גישה" : "חסימת גישה",
+    tone: shouldActivate ? "primary" : "warning"
+  })) return;
 
   setAdminStatus(shouldActivate ? "מחזיר גישה..." : "חוסם גישה...", "loading");
 
@@ -10097,11 +11238,16 @@ async function deleteUserPermission(email) {
   const normalizedEmail = normalizeEmail(email);
 
   if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
-    alert("לא ניתן למחוק את הרשאת המנהל הנוכחי.");
+    setAdminStatus("לא ניתן למחוק את הרשאת המנהל הנוכחי.", "error");
     return;
   }
 
-  if (!confirm(`למחוק את הרשאת הכניסה של ${normalizedEmail} ואת הקישור למספר הטלפון שלו? חסימה עדיפה בדרך כלל, משום שמילוי טופס חדש עשוי ליצור הרשאה מחדש.`)) {
+  if (!await requestAdminConfirmation_({
+    title: "מחיקת הרשאת כניסה",
+    message: `הרשאת הכניסה של ${normalizedEmail} והקישור למספר הטלפון יימחקו. חסימה עדיפה בדרך כלל, משום שטופס חדש עשוי ליצור הרשאה מחדש.`,
+    confirmLabel: "מחיקת הרשאה",
+    tone: "danger"
+  })) {
     return;
   }
 
@@ -10222,6 +11368,7 @@ async function initializeFirebase() {
     deleteDoc: firestoreModule.deleteDoc,
     addDoc: firestoreModule.addDoc,
     writeBatch: firestoreModule.writeBatch,
+    runTransaction: firestoreModule.runTransaction,
     serverTimestamp: firestoreModule.serverTimestamp,
     increment: firestoreModule.increment,
     onSnapshot: firestoreModule.onSnapshot,

@@ -479,10 +479,16 @@
   <div class="adminHeader">
     <div class="adminHeaderTop">
       <div>
-        <h2 class="adminHeaderTitle">ניהול המערכת</h2>
-        <p class="adminHeaderSubtitle">בקשות, אנשים והגדרות במקום אחד</p>
+        <div class="adminHeaderTitleRow">
+          <h2 class="adminHeaderTitle">ניהול המערכת</h2>
+          <span id="adminHeaderPendingBadge" class="adminHeaderPendingBadge" hidden></span>
+        </div>
+        <p class="adminHeaderSubtitle">לטיפול, אנשים ומערכת במקום אחד</p>
       </div>
-      <button type="button" class="adminBackBtn" onclick="closeAdminPanel()">חזרה</button>
+      <button type="button" class="adminBackBtn" onclick="closeAdminPanel()" aria-label="חזרה לספר אנשי הקשר">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        <span>חזרה</span>
+      </button>
     </div>
 
   </div>
@@ -494,7 +500,7 @@
         <span id="adminAttentionPendingBadge" class="adminTabBadge" hidden></span>
       </button>
       <button type="button" role="tab" id="adminPeopleTab" class="adminTabBtn" onclick="setAdminTab('people')">אנשים</button>
-      <button type="button" role="tab" id="adminMoreTab" class="adminTabBtn" onclick="setAdminTab('more')">עוד</button>
+      <button type="button" role="tab" id="adminSystemTab" class="adminTabBtn" onclick="setAdminTab('system')">מערכת</button>
     </div>
 
     <div class="adminToolbar" id="adminToolbar">
@@ -504,15 +510,17 @@
       </div>
 
       <div id="adminAttentionFilters" class="adminFilterRow">
-        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-        <button type="button" class="adminFilterBtn" data-filter="access" onclick="setAdminFilter('access')">כניסה ואיפוס</button>
-        <button type="button" class="adminFilterBtn" data-filter="contacts" onclick="setAdminFilter('contacts')">אנשי קשר ודיווחים</button>
+        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול <span id="adminFilterCountAll"></span></button>
+        <button type="button" class="adminFilterBtn" data-filter="access" onclick="setAdminFilter('access')">כניסה <span id="adminFilterCountAccess"></span></button>
+        <button type="button" class="adminFilterBtn" data-filter="reset" onclick="setAdminFilter('reset')">איפוס <span id="adminFilterCountReset"></span></button>
+        <button type="button" class="adminFilterBtn" data-filter="contacts" onclick="setAdminFilter('contacts')">אנשי קשר <span id="adminFilterCountContacts"></span></button>
+        <button type="button" class="adminFilterBtn" data-filter="reports" onclick="setAdminFilter('reports')">דיווחים <span id="adminFilterCountReports"></span></button>
       </div>
 
       <div id="adminPeopleFilters" class="adminFilterRow" style="display:none;">
         <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-        <button type="button" class="adminFilterBtn" data-filter="access" onclick="setAdminFilter('access')">עם הרשאת כניסה</button>
-        <button type="button" class="adminFilterBtn" data-filter="restricted" onclick="setAdminFilter('restricted')">חסומים או הוסרו</button>
+        <button type="button" class="adminFilterBtn" data-filter="access" onclick="setAdminFilter('access')">גישה פעילה</button>
+        <button type="button" class="adminFilterBtn" data-filter="restricted" onclick="setAdminFilter('restricted')">חסומים / הוסרו</button>
       </div>
 
       <div class="adminToolbarTop">
@@ -523,6 +531,48 @@
 
   <div id="adminStatus" class="statusMessage"></div>
   <div id="adminList" aria-live="polite"></div>
+</div>
+
+<div id="adminFocusSheet" class="directorySheet adminFocusSheet" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="adminFocusTitle">
+  <button type="button" class="directorySheetBackdrop" onclick="closeAdminFocusSheet_()" aria-label="סגירת חלון הניהול"></button>
+  <div class="directorySheetPanel adminFocusSheetPanel">
+    <div class="directorySheetHandle" aria-hidden="true"></div>
+    <div class="directorySheetHeader adminFocusSheetHeader">
+      <div>
+        <div id="adminFocusEyebrow" class="adminFocusEyebrow"></div>
+        <h3 id="adminFocusTitle"></h3>
+        <p id="adminFocusSubtitle"></p>
+      </div>
+      <button type="button" class="directorySheetClose" onclick="closeAdminFocusSheet_()" aria-label="סגירה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+    </div>
+    <div id="adminFocusBody" class="adminFocusSheetBody"></div>
+  </div>
+</div>
+
+<div id="adminConfirmModal" class="adminModal adminConfirmModal" role="alertdialog" aria-modal="true" aria-hidden="true" aria-labelledby="adminConfirmTitle" aria-describedby="adminConfirmMessage">
+  <div class="adminModalCard adminConfirmCard">
+    <div id="adminConfirmIcon" class="adminConfirmIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4 3.5 20h17L12 4Zm0 5v5m0 3v.1"/></svg></div>
+    <h3 id="adminConfirmTitle" class="adminModalTitle"></h3>
+    <p id="adminConfirmMessage" class="adminConfirmMessage"></p>
+    <div class="adminModalActions">
+      <button type="button" class="adminActionBtn secondary" onclick="resolveAdminConfirmation_(false)">ביטול</button>
+      <button type="button" id="adminConfirmActionBtn" class="adminActionBtn danger" onclick="resolveAdminConfirmation_(true)">אישור</button>
+    </div>
+  </div>
+</div>
+
+<div id="monthlyInternsAdminModal" class="adminModal monthlyInternsAdminModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="monthlyInternsAdminTitle">
+  <div class="adminModalCard monthlyInternsAdminCard">
+    <div class="adminModalHeader">
+      <div>
+        <div class="adminModalEyebrow">מערכת</div>
+        <h3 id="monthlyInternsAdminTitle" class="adminModalTitle">סטאז׳רים החודש</h3>
+      </div>
+      <button type="button" class="adminModalClose" onclick="closeMonthlyInternsAdmin_()" aria-label="סגירה">×</button>
+    </div>
+    <input id="monthlyInternsWorkbookInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="handleMonthlyInternsWorkbookSelected_(event)">
+    <div id="monthlyInternsAdminBody" class="monthlyInternsAdminBody"></div>
+  </div>
 </div>
 
 
@@ -802,7 +852,8 @@
 </div>
 
 
-  <script src="app.js?v=20260813-home-refinement-v1"></script>
+  <script src="intern-import.js?v=20260813-admin-v2"></script>
+  <script src="app.js?v=20260813-admin-v2"></script>
 
 </body>
 </html>
