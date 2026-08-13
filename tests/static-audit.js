@@ -1163,8 +1163,8 @@ assert.strictEqual(
 );
 assert.match(
   appSource,
-  /function clearActiveDirectoryFilter_\(\)[\s\S]*?activeQuickFilter = "all";[\s\S]*?directoryBrowseActivated = true;[\s\S]*?renderCurrentSearchResults\(\)/,
-  "Clearing a category must return to the full directory without clearing the query"
+  /function returnToHome_\(\)[\s\S]*?activeQuickFilter = "all";[\s\S]*?directoryBrowseActivated = false;[\s\S]*?searchInput\.value = "";[\s\S]*?renderCurrentSearchResults\(\)/,
+  "Clearing a category must return to Home instead of rendering the full directory"
 );
 assert.match(
   appSource,
@@ -1173,12 +1173,13 @@ assert.match(
 );
 assert.doesNotMatch(indexSource, /id="allFilterBtn"/, "Quick Access must not show an All button");
 
+const quickFilterSearchInput = { value: "כהן" };
 const quickFilterStateSandbox = {
   activeQuickFilter: "all",
   directoryBrowseActivated: false,
   selectionMode: false,
   selectedContactIds: new Set(),
-  document: { getElementById: id => id === "searchInput" ? { value: "כהן" } : null },
+  document: { getElementById: id => id === "searchInput" ? quickFilterSearchInput : null },
   normalizeSearchText: value => String(value || "").trim().toLowerCase(),
   closeDepartmentBrowser_: () => {},
   updateQuickFilterButtons: () => {},
@@ -1193,6 +1194,7 @@ vm.runInContext(
   [
     extractCompleteFunction(appSource, "isDepartmentFilterActive_"),
     extractCompleteFunction(appSource, "toggleQuickFilter"),
+    extractCompleteFunction(appSource, "returnToHome_"),
     extractCompleteFunction(appSource, "clearActiveDirectoryFilter_"),
     extractCompleteFunction(appSource, "handleDepartmentsFilterClick_"),
     extractCompleteFunction(appSource, "selectDepartmentFilter_")
@@ -1209,8 +1211,11 @@ quickFilterStateSandbox.toggleQuickFilter("labs");
 assert.strictEqual(
   quickFilterStateSandbox.activeQuickFilter,
   "all",
-  "Tapping an active non-all filter must return to all"
+  "Tapping an active non-all filter must clear the filter"
 );
+assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, false, "Clearing a quick filter must restore Home");
+assert.strictEqual(quickFilterStateSandbox.document.getElementById("searchInput").value, "", "Returning Home must not leave an active search results view");
+quickFilterStateSandbox.document.getElementById("searchInput").value = "כהן";
 quickFilterStateSandbox.selectDepartmentFilter_("טיפול נמרץ ילדים");
 assert.strictEqual(
   quickFilterStateSandbox.activeQuickFilter,
@@ -1220,10 +1225,10 @@ quickFilterStateSandbox.handleDepartmentsFilterClick_();
 assert.strictEqual(
   quickFilterStateSandbox.activeQuickFilter,
   "all",
-  "Tapping an active department context must return to all"
+  "Tapping an active department context must clear the department"
 );
-assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, true);
-assert.strictEqual(quickFilterStateSandbox.document.getElementById("searchInput").value, "כהן", "Changing or clearing quick filters must preserve the typed search query");
+assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, false, "Clearing a department must restore Home");
+assert.strictEqual(quickFilterStateSandbox.document.getElementById("searchInput").value, "", "Returning from a department must not show the full directory");
 
 const quickFilterVisualElements = Object.fromEntries(
   [

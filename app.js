@@ -1063,10 +1063,26 @@ function updateQuickFilterButtons() {
 }
 
 function toggleQuickFilter(filterName) {
-  activeQuickFilter = activeQuickFilter === filterName ? "all" : filterName;
+  if (activeQuickFilter === filterName) {
+    returnToHome_();
+    return;
+  }
+  activeQuickFilter = filterName;
   directoryBrowseActivated = true;
   selectionMode = false;
   selectedContactIds.clear();
+  closeDepartmentBrowser_();
+  updateQuickFilterButtons();
+  renderCurrentSearchResults();
+}
+
+function returnToHome_() {
+  activeQuickFilter = "all";
+  directoryBrowseActivated = false;
+  selectionMode = false;
+  selectedContactIds.clear();
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) searchInput.value = "";
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
@@ -1086,13 +1102,7 @@ function getActiveDirectoryFilterLabel_() {
 }
 
 function clearActiveDirectoryFilter_() {
-  activeQuickFilter = "all";
-  directoryBrowseActivated = true;
-  selectionMode = false;
-  selectedContactIds.clear();
-  closeDepartmentBrowser_();
-  updateQuickFilterButtons();
-  renderCurrentSearchResults();
+  returnToHome_();
 }
 
 function getDepartmentOptions_() {
