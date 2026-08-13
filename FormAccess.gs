@@ -268,9 +268,16 @@ function clearPublicAuthRouteCache_(kind, value) {
       normalizedKind,
       normalizedValue
     );
+    const accountAwareKey = getPublicAuthRouteCacheKey_(
+      normalizedKind,
+      normalizedValue,
+      PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT
+    );
     CacheService.getScriptCache().removeAll([
       key,
-      key + ":busy"
+      key + ":busy",
+      accountAwareKey,
+      accountAwareKey + ":busy"
     ]);
   } catch (error) {
     console.warn("ניקוי מטמון מסלול הכניסה נכשל:", error);

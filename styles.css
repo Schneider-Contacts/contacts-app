@@ -841,6 +841,7 @@ select {
   }
 }
 
+
 /* ===== Final launch refinements: authentication ===== */
 
 #login {
@@ -973,18 +974,6 @@ select {
   background: #fcfffd;
 }
 
-#login .authInputShell.authInputShellDisabled {
-  border-color: #dfe9e4;
-  background: #f2f6f4;
-  box-shadow: none;
-  opacity: 0.68;
-}
-
-#login .authInputShell.authInputShellDisabled input,
-#login .authInputShell.authInputShellDisabled button {
-  cursor: not-allowed;
-}
-
 .authFieldIcon {
   position: absolute;
   right: 14px;
@@ -1048,31 +1037,6 @@ select {
   font-size: 12.5px;
   line-height: 1.55;
   text-align: center;
-}
-
-.authSecondaryLinks {
-  display: grid;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-#login .authLinkBtn {
-  width: 100%;
-  min-height: 42px;
-  margin: 0;
-  padding: 9px 40px 9px 12px;
-  border: 1px solid var(--green-200);
-  border-radius: 12px;
-  background: #ffffff;
-  color: var(--green-700);
-  box-shadow: none;
-  font-size: 13px;
-  font-weight: 800;
-  text-align: right;
-}
-
-#login .authLinkBtn:hover {
-  text-decoration: none;
 }
 
 #login #passwordResetBtn {
@@ -2022,55 +1986,6 @@ select {
   overflow-wrap: anywhere;
 }
 
-.authPathChoice {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 9px;
-  margin: 0 0 13px;
-}
-
-.authChoicePrompt {
-  margin: 0 0 9px;
-  color: #17352d;
-  font-size: 14px;
-  font-weight: 900;
-  text-align: right;
-}
-
-#login .authPathChoice button {
-  min-height: 86px;
-  margin: 0;
-  padding: 11px 10px;
-  border: 1px solid #d7ebe1;
-  border-radius: 14px;
-  background: #f7fcf9;
-  color: #3d5d51;
-  box-shadow: none;
-  text-align: right;
-}
-
-#login .authPathChoice button strong,
-#login .authPathChoice button span {
-  display: block;
-}
-
-#login .authPathChoice button strong {
-  margin-bottom: 4px;
-  color: #17352d;
-  font-size: 13.5px;
-}
-
-#login .authPathChoice button span {
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-#login .authPathChoice button.active {
-  border-color: var(--green-500);
-  background: var(--green-50);
-  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.11);
-}
-
 .verificationPanel {
   display: none;
   position: relative;
@@ -2102,46 +2017,6 @@ select {
   line-height: 1.55;
   font-weight: 850;
   text-align: right;
-}
-.authHelpHeading {
-  margin: 18px 0 10px;
-  color: #294f40;
-  font-size: 13.5px;
-  font-weight: 900;
-  text-align: right;
-}
-.authHelpStep {
-  position: relative;
-  border-radius: 14px;
-}
-.authHelpStepNumber {
-  position: absolute;
-  z-index: 1;
-  top: 10px;
-  right: 11px;
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #ffffff;
-  border: 1px solid #b9dccb;
-  color: var(--green-700);
-  font-size: 12px;
-  font-weight: 900;
-  pointer-events: none;
-}
-.authHelpStepNote {
-  margin: 5px 9px 0;
-  color: #60786e;
-  font-size: 11.5px;
-  line-height: 1.45;
-  text-align: right;
-}
-.authHelpStep.manager .authHelpStepNumber {
-  border-color: #f0c869;
-  color: #7a5714;
 }
 #login #passwordResetHelpBtn {
   border: 1px solid #f3d990;
@@ -2237,10 +2112,6 @@ select {
   line-height: 1.6;
 }
 
-.passwordRecoveryClock {
-  font-size: 28px;
-}
-
 .passwordRecoveryForm {
   margin-top: 13px;
 }
@@ -2297,9 +2168,6 @@ select {
 }
 #login .managerWhatsappLink.visible {
   display: flex;
-}
-#login .authHelpStep.whatsapp:has(.managerWhatsappLink:not(.visible)) {
-  display: none;
 }
 #login .verificationActions button { margin: 0; }
 #login .verificationSecondary {
@@ -3256,5 +3124,514 @@ select {
   .adminMoreRow,
   .adminMoreManager {
     align-items: flex-start;
+  }
+}
+/* ===== Login UX v2: focused, automatic authentication flow ===== */
+#login {
+  width: min(100%, 420px);
+  max-width: 420px;
+  margin-top: clamp(16px, 5vh, 48px);
+  padding: 28px 24px 24px;
+  overflow: visible;
+  border: 1px solid #e1e9e5;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(25, 47, 39, 0.09);
+  text-align: right;
+}
+
+#login::after {
+  display: none;
+}
+
+#login .authBrand,
+#login .authForm,
+#login #loginStatus,
+#login .verificationPanel,
+#login .verificationSuccessPanel,
+#login .passwordRecoveryPanel,
+#login .authRedirectPanel {
+  position: relative;
+  z-index: 1;
+}
+
+#login .authBrand {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+#login .authLogoBox {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 9px;
+}
+
+#login .authLogoBox img {
+  filter: drop-shadow(0 5px 9px rgba(15, 72, 50, 0.11));
+}
+
+#login .authBrand h1 {
+  margin: 0 0 3px;
+  color: #17352d;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+#login .authBrandSubtitle {
+  color: #718078;
+  font-size: 12.5px;
+}
+
+#login .securityBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6b7e75;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+#login .securityBadge svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#login .authProgress {
+  margin: 0 0 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--green-700);
+  font-size: 11.5px;
+  font-weight: 800;
+  text-align: right;
+}
+
+#login .authModeHeading,
+#login .verificationPanel h3,
+#login .passwordRecoveryPanel h3,
+#login .authRedirectPanel h3 {
+  margin: 0 0 7px;
+  color: #17352d;
+  font-size: 23px;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  text-align: right;
+}
+
+#login .authModeDescription,
+#login .verificationLead {
+  margin: 0 0 19px;
+  color: #687971;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+#login .authField {
+  margin-top: 15px;
+}
+
+#login .authField label {
+  margin: 0 2px 7px;
+  color: #38554a;
+  font-size: 12.5px;
+  font-weight: 750;
+}
+
+#login .authInputShell {
+  min-height: 52px;
+  border: 1px solid #d7e1dc;
+  border-radius: 13px;
+  background: #fbfcfc;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+#login .authInputShell:focus-within {
+  border-color: #56b88e;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.11);
+}
+
+#login .authFieldIcon {
+  right: 15px;
+  width: 18px;
+  height: 18px;
+  color: #72867c;
+}
+
+#login .authFieldIcon svg,
+#login .authNoticeIcon svg,
+#login .verificationSuccessIcon svg,
+#login .authRedirectIcon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#login .verificationSuccessIcon svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 2.2;
+}
+
+#login .authRedirectIcon svg {
+  width: 27px;
+  height: 27px;
+}
+
+#login .authInputShell input {
+  min-height: 50px;
+  padding: 12px 43px 12px 56px;
+  color: #1d3029;
+  font-size: 16px;
+  text-align: right;
+}
+
+#login #emailInput,
+#login #phoneInput,
+#login .selectedAuthEmail,
+#login .verificationEmail {
+  direction: ltr;
+  text-align: left;
+}
+
+#login #emailInput,
+#login #phoneInput {
+  unicode-bidi: plaintext;
+}
+
+#login .passwordToggle {
+  left: 8px;
+  min-width: 44px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: #eef5f1;
+  color: #315b4c;
+  box-shadow: none;
+}
+
+#login .primaryAuthBtn,
+#login #emailContinueBtn,
+#login #phoneContinueBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 20px;
+  padding: 13px 17px;
+  border-radius: 13px;
+  background: #087a58;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(6, 95, 70, 0.17);
+  font-size: 15.5px;
+  font-weight: 800;
+  transition: background 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+}
+
+#login .primaryAuthBtn:hover,
+#login #emailContinueBtn:hover,
+#login #phoneContinueBtn:hover {
+  background: #066b4d;
+  opacity: 1;
+}
+
+#login .primaryAuthBtn:focus-visible,
+#login button:focus-visible,
+#login a:focus-visible,
+#login summary:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.26);
+  outline-offset: 3px;
+}
+
+#login .authButtonBusy {
+  cursor: wait;
+}
+
+#login .authButtonBusy::before {
+  content: "";
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: authV2Spin 700ms linear infinite;
+}
+
+@keyframes authV2Spin {
+  to { transform: rotate(360deg); }
+}
+
+#login .selectedAuthEmail {
+  margin: 2px 0 17px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  border: 0;
+  border-radius: 11px;
+  background: #f2f6f4;
+  color: #40574e;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+#login .authPasswordSecondaryActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 14px;
+  color: #9aaba3;
+}
+
+#login .authTextAction,
+#login .authStageBack.bottom,
+#login .verificationTextBtn {
+  width: auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #39715e;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#login .authModeNote {
+  margin: 12px 0 0;
+  color: #6e7e77;
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: right;
+}
+
+#login .passwordRecoveryOptions .authModeDescription {
+  margin-bottom: 13px;
+}
+
+#login .authRecoverySecondary,
+#login .verificationSecondary,
+#login .manualApprovalRequestBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin: 10px 0 0;
+  padding: 11px 14px;
+  border: 1px solid #cfe0d8;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #2d6653;
+  box-shadow: none;
+  font-size: 13.5px;
+  font-weight: 750;
+}
+
+#login .authRecoverySecondary:hover,
+#login .verificationSecondary:hover,
+#login .manualApprovalRequestBtn:hover {
+  background: #f6faf8;
+}
+
+#login .passwordResetHelpStatus,
+#login #loginStatus,
+#login .manualApprovalRequestStatus {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: right;
+}
+
+#login .authRecoverySupport .managerWhatsappLink,
+#login .verificationHelpContent .managerWhatsappLink {
+  min-height: 44px;
+  padding: 10px 12px;
+  justify-content: center;
+  border-color: #cfe0d8;
+  font-size: 13px;
+  text-align: center;
+}
+
+#login .authNoticeStep {
+  text-align: right;
+}
+
+#login .authNoticeIcon {
+  width: 42px;
+  height: 42px;
+  margin: 0 0 16px auto;
+  padding: 9px;
+  border-radius: 12px;
+  background: #fff6e8;
+  color: #8a5b12;
+}
+
+#login .verificationEmail {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: #f2f6f4;
+  color: #40574e;
+  font-size: 13px;
+  text-align: center;
+}
+
+#login .verificationSpamNote {
+  margin: 0 0 15px;
+  padding: 11px 12px;
+  border: 1px solid #eadbb8;
+  border-radius: 11px;
+  background: #fffaf0;
+  color: #69562f;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+#login .verificationActions {
+  gap: 10px;
+}
+
+#login .verificationActions .primaryAuthBtn {
+  margin-top: 0;
+}
+
+#login .verificationActions .verificationSecondary {
+  margin-top: 0;
+}
+
+#login .verificationHelpDisclosure {
+  margin-top: 2px;
+  border-top: 1px solid #e5ece8;
+}
+
+#login .verificationHelpDisclosure summary {
+  min-height: 44px;
+  padding: 13px 2px 9px;
+  color: #39715e;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+  list-style-position: inside;
+}
+
+#login .verificationHelpContent {
+  display: grid;
+  gap: 9px;
+  padding: 3px 0 7px;
+}
+
+#login .verificationHelpContent .verificationSecondary,
+#login .verificationHelpContent .manualApprovalRequestBtn {
+  margin: 0;
+}
+
+#login .verificationUrgentHelp {
+  margin-top: 0;
+  padding: 10px 11px;
+  border: 0;
+  border-radius: 11px;
+  background: #f6f8f7;
+  color: #62736b;
+  text-align: center;
+}
+
+#login .passwordRecoveryWaiting {
+  border: 0;
+  background: #f4f8f6;
+}
+
+#login .passwordRecoveryPulse {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e7f4ed;
+}
+
+#login .passwordRecoveryPulse span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #16805c;
+  box-shadow: 0 0 0 0 rgba(22, 128, 92, 0.28);
+  animation: authV2Pulse 1.6s ease-out infinite;
+}
+
+@keyframes authV2Pulse {
+  70%, 100% { box-shadow: 0 0 0 12px rgba(22, 128, 92, 0); }
+}
+
+@media (max-width: 600px) {
+  #login {
+    margin-top: 10px;
+    padding: 22px 18px 20px;
+    border-radius: 21px;
+  }
+
+  #login .authBrand {
+    margin-bottom: 17px;
+  }
+
+  #login .authLogoBox {
+    width: 52px;
+    height: 52px;
+  }
+
+  #login .authModeHeading,
+  #login .verificationPanel h3,
+  #login .passwordRecoveryPanel h3,
+  #login .authRedirectPanel h3 {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 360px) {
+  body {
+    padding-inline: 9px;
+  }
+
+  #login {
+    padding-inline: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #login *,
+  #login *::before,
+  #login *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

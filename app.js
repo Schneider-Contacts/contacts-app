@@ -14,6 +14,7 @@ const PASSWORD_AUTH_RETURN_URL =
   "https://schneider-contacts.github.io/contacts-app/";
 const AUTH_ROUTER_URL =
   "https://script.google.com/macros/s/AKfycbwqwWDEUgxLRWIOEGX3TaK0tmdacrl-CG_kkdK01dlfAeGcDq3fXdHIjtSjQ2NwZvBK/exec";
+const AUTH_ROUTER_CLIENT = "login-ux-v2";
 const REGISTRATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
 const AUTH_ROUTE_TIMEOUT_MS = 20 * 1000;
@@ -86,7 +87,9 @@ let managerSupportContactPromise = null;
 let activeManagerSupportName = "";
 let pendingEmailAuthRouteEmail = "";
 let pendingEmailAuthRoutePromise = null;
-let authPathSelectionInProgress = false;
+let authEmailFlowToken = 0;
+let authAccountSetupEmail = "";
+let authReturningUser = false;
 
 let currentUserIsAdmin = false;
 let currentUserIsSuperAdmin = false;
@@ -526,6 +529,57 @@ function normalizePhone(p) {
   if (num.startsWith("0")) num = "972" + num.slice(1);
   if (!num.startsWith("972")) num = "972" + num;
   return "+" + num;
+}
+
+function formatIsraeliPhoneInput_(value) {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("972")) {
+    digits = "0" + digits.slice(3);
+  }
+  digits = digits.slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) {
+    return digits.slice(0, 3) + " " + digits.slice(3);
+  }
+  return (
+    digits.slice(0, 3) + " " +
+    digits.slice(3, 6) + " " +
+    digits.slice(6)
+  );
+}
+
+function initAuthInputEnhancements_() {
+  const phoneInput = document.getElementById("phoneInput");
+  if (phoneInput) {
+    phoneInput.addEventListener("input", () => {
+      const formatted = formatIsraeliPhoneInput_(phoneInput.value);
+      if (phoneInput.value !== formatted) phoneInput.value = formatted;
+    });
+  }
+
+  [
+    "emailInput",
+    "phoneInput",
+    "passwordInput",
+    "confirmPasswordInput"
+  ].forEach(inputId => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener("keydown", event => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      event.preventDefault();
+      if (authActionInProgress) return;
+
+      const activeButtonId = authStage === "email"
+        ? "emailContinueBtn"
+        : ["phone", "password_recovery_claim"].includes(authStage)
+          ? "phoneContinueBtn"
+          : "loginButton";
+      const activeButton = document.getElementById(activeButtonId);
+      if (activeButton && activeButton.disabled) return;
+      handlePrimaryAuthAction();
+    });
+  });
 }
 
 function formatPhoneForDisplay(phone) {
@@ -1281,133 +1335,110 @@ function getAuthErrorMessage(error) {
   return "לא הצלחנו להשלים את הפעולה. בדקו את הפרטים ונסו שוב.";
 }
 
+function setLoginButtonLabel_(label) {
+  const button = document.getElementById("loginButton");
+  if (!button) return;
+  button.dataset.idleLabel = label;
+  if (!button.classList.contains("authButtonBusy")) {
+    button.textContent = label;
+  }
+}
+
+function setLoginButtonBusy_(busy, busyLabel = "") {
+  const button = document.getElementById("loginButton");
+  if (!button) return;
+  button.disabled = Boolean(busy);
+  button.classList.toggle("authButtonBusy", Boolean(busy));
+  button.setAttribute("aria-busy", String(Boolean(busy)));
+  button.textContent = busy
+    ? busyLabel || "ממשיך..."
+    : button.dataset.idleLabel || button.textContent;
+}
+
+function invalidateEmailAuthFlow_() {
+  authEmailFlowToken += 1;
+  pendingEmailAuthRouteEmail = "";
+  pendingEmailAuthRoutePromise = null;
+  authAccountSetupEmail = "";
+}
+
 function setAuthMode(mode) {
-  authPurpose = ["login", "register", "verify_existing", "guided"].includes(mode)
+  const previousPurpose = authPurpose;
+  authPurpose = ["login", "register", "verify_existing"].includes(mode)
     ? mode
-    : "guided";
-  authMode = authPurpose === "register"
-    ? "register"
-    : authPurpose === "guided"
-      ? "guided"
-      : "login";
+    : "login";
+  authMode = authPurpose === "register" ? "register" : "login";
   setLoginStatus("", "");
 
   const title = document.getElementById("loginTitle");
   const description = document.getElementById("authModeDescription");
-  const button = document.getElementById("loginButton");
   const passwordInput = document.getElementById("passwordInput");
-  const passwordInputShell = passwordInput
-    ? passwordInput.closest(".authInputShell")
-    : null;
-  const passwordToggle = passwordInputShell
-    ? passwordInputShell.querySelector(".passwordToggle")
-    : null;
   const confirmGroup = document.getElementById("confirmPasswordGroup");
   const confirmInput = document.getElementById("confirmPasswordInput");
-  const passwordResetButton = document.getElementById("passwordResetBtn");
   const modeNote = document.getElementById("authModeNote");
-  const existingPathButton = document.getElementById(
-    "existingAccountPathBtn"
-  );
-  const newPathButton = document.getElementById("newAccountPathBtn");
-  const passwordPathSelected = authPurpose !== "guided";
+  const entryPanel = document.getElementById("authPasswordEntry");
+  const recoveryPanel = document.getElementById("passwordRecoveryOptions");
+  const secondaryActions = document.getElementById("authPasswordSecondaryActions");
 
+  if (entryPanel) entryPanel.style.display = "block";
+  if (recoveryPanel) recoveryPanel.style.display = "none";
   if (passwordInput) {
-    passwordInput.disabled = !passwordPathSelected;
-    passwordInput.setAttribute(
-      "aria-disabled",
-      String(!passwordPathSelected)
-    );
-    if (!passwordPathSelected) passwordInput.value = "";
+    passwordInput.disabled = false;
+    passwordInput.setAttribute("aria-disabled", "false");
+    passwordInput.type = "password";
   }
-  if (passwordToggle) passwordToggle.disabled = !passwordPathSelected;
-  if (passwordInputShell) {
-    passwordInputShell.classList.toggle(
-      "authInputShellDisabled",
-      !passwordPathSelected
-    );
-  }
-
-  if (existingPathButton) {
-    existingPathButton.classList.toggle(
-      "active",
-      authPurpose === "login" || authPurpose === "verify_existing"
-    );
-  }
-  if (newPathButton) {
-    newPathButton.classList.toggle(
-      "active",
-      authPurpose === "register"
-    );
-  }
-
-  [passwordInput, confirmInput].forEach(input => {
-    if (input) input.type = "password";
-  });
+  if (confirmInput) confirmInput.type = "password";
 
   document.querySelectorAll(".passwordToggle").forEach(toggle => {
     toggle.textContent = "הצג";
     toggle.setAttribute("aria-label", "הצגת הסיסמה");
   });
 
-  if (authPurpose === "guided") {
-    if (title) title.textContent = "כניסה או יצירת חשבון";
-    if (description) {
-      description.textContent = "בחרו אם כבר נכנסתם בעבר או שזו הכניסה הראשונה שלכם.";
-    }
-    if (button) button.textContent = "המשך";
-    if (passwordInput) passwordInput.autocomplete = "current-password";
-    if (confirmGroup) confirmGroup.style.display = "none";
-    if (confirmInput) confirmInput.value = "";
-    if (passwordResetButton) passwordResetButton.style.display = "inline-block";
-    if (modeNote) {
-      modeNote.style.display = "block";
-      modeNote.textContent =
-        "בחרו תחילה אם זו כניסה לחשבון קיים או כניסה ראשונה.";
-    }
-    setLoginButtonDisabled(true);
-    return;
-  }
-
   if (authPurpose === "register") {
-    if (title) title.textContent = "יצירת חשבון";
-    if (description) description.textContent = "בחרו סיסמה חדשה. לאחר מכן יישלח מייל אימות חד־פעמי.";
-    if (button) button.textContent = "יצירת חשבון";
+    authReturningUser = false;
+    if (previousPurpose !== "register") {
+      if (passwordInput) passwordInput.value = "";
+      if (confirmInput) confirmInput.value = "";
+    }
+    if (title) title.textContent = "כמעט סיימנו";
+    if (description) {
+      description.textContent =
+        "כדי להיכנס בפעמים הבאות, בחרו סיסמה.";
+    }
     if (passwordInput) passwordInput.autocomplete = "new-password";
     if (confirmGroup) confirmGroup.style.display = "block";
-    if (passwordResetButton) passwordResetButton.style.display = "none";
+    if (secondaryActions) secondaryActions.style.display = "none";
     if (modeNote) {
       modeNote.style.display = "block";
       modeNote.textContent =
         "לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.";
     }
-    setLoginButtonDisabled(false);
+    setLoginButtonLabel_("המשך");
+    setLoginButtonBusy_(false);
     return;
   }
 
   if (confirmGroup) confirmGroup.style.display = "none";
   if (confirmInput) confirmInput.value = "";
   if (passwordInput) passwordInput.autocomplete = "current-password";
-  if (passwordResetButton) passwordResetButton.style.display = "inline-block";
+  if (secondaryActions) secondaryActions.style.display = "flex";
   if (modeNote) modeNote.style.display = "none";
 
   if (authPurpose === "verify_existing") {
     if (title) title.textContent = "השלמת אימות החשבון";
-    if (description) description.textContent = "הזינו את הסיסמה שבחרתם כדי לקבל או להשלים את אימות המייל.";
-    if (button) button.textContent = "המשך לאימות";
+    if (description) {
+      description.textContent =
+        "הזינו את הסיסמה שבחרתם כדי להשלים את אימות המייל.";
+    }
+    setLoginButtonLabel_("המשך לאימות");
   } else {
-    if (title) title.textContent = "כניסה לחשבון";
+    if (title) {
+      title.textContent = authReturningUser ? "ברוך שובך" : "כניסה לחשבון";
+    }
     if (description) description.textContent = "הזינו את הסיסמה שלכם.";
-    if (button) button.textContent = "כניסה לחשבון";
+    setLoginButtonLabel_("כניסה");
   }
-  setLoginButtonDisabled(false);
-}
-
-function setAuthPathChoiceBusy_(busy) {
-  ["existingAccountPathBtn", "newAccountPathBtn"].forEach(buttonId => {
-    const button = document.getElementById(buttonId);
-    if (button) button.disabled = Boolean(busy);
-  });
+  setLoginButtonBusy_(false);
 }
 
 function getEmailAuthRoutePromise_(email, options = {}) {
@@ -1439,50 +1470,97 @@ function getCurrentAuthEmail_() {
   return normalizeEmail(input ? input.value : "");
 }
 
-function handleBackgroundEmailAuthRoute_(email, result) {
+function applyResolvedEmailAuthRoute_(email, result, options = {}) {
   const normalizedEmail = normalizeEmail(email);
+  const flowToken = Number(options.flowToken || authEmailFlowToken);
   if (
-    authStage !== "password" ||
+    flowToken !== authEmailFlowToken ||
     getCurrentAuthEmail_() !== normalizedEmail ||
-    authPathSelectionInProgress
+    (auth && auth.currentUser)
   ) {
-    return;
+    return false;
   }
 
   const route = String(result && result.route || "SYSTEM_ERROR");
   authRouteIsAdmin = Boolean(result && result.admin === true);
 
-  if (
-    route === "PASSWORD_RESET_READY" &&
-    authMode !== "register" &&
-    !authActionInProgress
-  ) {
+  if (route === "PASSWORD_RESET_READY") {
     showAuthPhoneStep_(normalizedEmail, "password_reset");
     setLoginStatus(
       "המנהל אישר איפוס סיסמה עד 23:59. לאחר התאמת מספר הטלפון תוכלו ליצור סיסמה חדשה.",
       "success"
     );
-    return;
+    return true;
   }
-
-  if (authMode !== "guided") return;
 
   if (route === "ASK_PHONE") {
     authRouteIsAdmin = false;
     showAuthPhoneStep_(normalizedEmail);
-    return;
+    return true;
   }
 
   if (route === "BLOCKED") {
-    showAuthEmailStep_({ preserveEmail: true, keepStatus: true });
+    showAuthNotice_(
+      "הגישה אינה פעילה",
+      "לא ניתן להיכנס עם כתובת המייל הזו. אפשר לפנות למנהל ספר אנשי הקשר."
+    );
+    return true;
+  }
+
+  if (route === "PASSWORD_SETUP") {
+    authAccountSetupEmail = normalizedEmail;
+    showAuthPasswordStep_(normalizedEmail, "register", {
+      preserveFlow: true
+    });
+    const passwordInput = document.getElementById("passwordInput");
+    if (passwordInput) passwordInput.focus();
+    return true;
+  }
+
+  if (route === "PASSWORD") {
+    if (authMode === "register") {
+      showAuthPasswordStep_(normalizedEmail, "login", {
+        preserveFlow: true,
+        returning: authReturningUser
+      });
+    }
+    if (options.afterPasswordFailure === true) {
+      setLoginStatus(
+        "הסיסמה אינה נכונה. נסו שוב או בחרו ב„שכחתי סיסמה”.",
+        "error"
+      );
+    }
+    return false;
+  }
+
+  if (options.afterPasswordFailure === true) {
     setLoginStatus(
-      "הגישה לכתובת המייל הזו אינה פעילה. יש לפנות למנהל ספר אנשי הקשר.",
+      "לא הצלחנו לבדוק כרגע את מסלול הכניסה. נסו שוב בעוד רגע.",
       "error"
     );
   }
+  return false;
+}
+
+function handleBackgroundEmailAuthRoute_(email, result, flowToken) {
+  const normalizedEmail = normalizeEmail(email);
+  if (
+    flowToken !== authEmailFlowToken ||
+    !["password", "password_recovery_options"].includes(authStage) ||
+    getCurrentAuthEmail_() !== normalizedEmail ||
+    authActionInProgress ||
+    (auth && auth.currentUser)
+  ) {
+    return;
+  }
+
+  applyResolvedEmailAuthRoute_(normalizedEmail, result, { flowToken });
 }
 
 async function selectAuthPasswordPath_(mode) {
+  const email = getCurrentAuthEmail_();
+  if (!isValidEmail(email)) return;
+
   if (mode !== "register") {
     setAuthMode("login");
     const passwordInput = document.getElementById("passwordInput");
@@ -1490,74 +1568,19 @@ async function selectAuthPasswordPath_(mode) {
     return;
   }
 
-  const email = getCurrentAuthEmail_();
-  if (!isValidEmail(email)) {
-    showAuthEmailStep_({ preserveEmail: true, keepStatus: true });
-    setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
-    return;
-  }
-
-  authPathSelectionInProgress = true;
-  setAuthPathChoiceBusy_(true);
-  setLoginStatus("בודק הרשאה לכניסה ראשונה...", "loading");
-  const slowNoticeTimer = setTimeout(() => {
-    if (authPathSelectionInProgress && authStage === "password") {
-      setLoginStatus(
-        "הבדיקה לוקחת מעט יותר מהרגיל. ממשיכים לבדוק...",
-        "loading"
-      );
-    }
-  }, AUTH_ROUTE_SLOW_NOTICE_MS);
-
+  const flowToken = authEmailFlowToken;
+  setLoginStatus("בודק את מסלול הכניסה...", "loading");
   try {
     const result = await getEmailAuthRoutePromise_(email);
-    const route = String(result && result.route || "SYSTEM_ERROR");
-    authRouteIsAdmin = Boolean(result && result.admin === true);
-
-    if (route === "PASSWORD") {
-      setAuthMode("register");
-      const passwordInput = document.getElementById("passwordInput");
-      if (passwordInput) passwordInput.focus();
-      return;
-    }
-
-    if (route === "PASSWORD_RESET_READY") {
-      showAuthPhoneStep_(email, "password_reset");
+    if (flowToken !== authEmailFlowToken) return;
+    applyResolvedEmailAuthRoute_(email, result, { flowToken });
+  } catch (error) {
+    if (flowToken === authEmailFlowToken) {
       setLoginStatus(
-        "המנהל אישר איפוס סיסמה עד 23:59. לאחר התאמת מספר הטלפון תוכלו ליצור סיסמה חדשה.",
-        "success"
-      );
-      return;
-    }
-
-    if (route === "ASK_PHONE") {
-      authRouteIsAdmin = false;
-      showAuthPhoneStep_(email);
-      return;
-    }
-
-    if (route === "BLOCKED") {
-      setLoginStatus(
-        "הגישה לכתובת המייל הזו אינה פעילה. יש לפנות למנהל ספר אנשי הקשר.",
+        "לא הצלחנו לבדוק כרגע את מסלול הכניסה. נסו שוב.",
         "error"
       );
-      return;
     }
-
-    setLoginStatus(
-      "לא הצלחנו לבדוק כרגע את הכניסה הראשונה. נסו שוב בעוד רגע.",
-      "error"
-    );
-  } catch (error) {
-    console.error("First-login route lookup failed", error);
-    setLoginStatus(
-      "בדיקת הכניסה הראשונה נמשכה זמן רב מהרגיל. נסו שוב; אם כבר נכנסתם בעבר, בחרו במסלול הכניסה הקיים.",
-      "error"
-    );
-  } finally {
-    clearTimeout(slowNoticeTimer);
-    authPathSelectionInProgress = false;
-    setAuthPathChoiceBusy_(false);
   }
 }
 
@@ -1597,6 +1620,22 @@ function clearPendingAuthEmail_() {
   }
 }
 
+function clearSavedLoginEmail_() {
+  try {
+    localStorage.removeItem(LAST_LOGIN_EMAIL_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Could not clear saved login email", error);
+  }
+}
+
+function forgetRememberedLoginIdentity_() {
+  clearSavedLoginEmail_();
+  clearPendingAuthEmail_();
+  const emailInput = document.getElementById("emailInput");
+  if (emailInput) emailInput.value = "";
+  showAuthEmailStep_({ forceEmailEntry: true });
+}
+
 function rememberSuccessfulEmail_(email) {
   const normalized = normalizeEmail(email);
   if (!isValidEmail(normalized)) return;
@@ -1623,14 +1662,17 @@ function updateAuthProgress_(stage) {
   const progress = document.getElementById("authProgress");
   const label = document.getElementById("authProgressText");
   const labels = {
-    email: "שלב 1 מתוך 3 — זיהוי באמצעות מייל",
-    phone: "שלב 2 מתוך 3 — התאמה למספר הטלפון",
-    password: "שלב 2 מתוך 3 — בחירת מסלול וסיסמה",
-    verification: "שלב 3 מתוך 3 — אימות או אישור מנהל",
-    verification_success: "האימות הושלם — אפשר להיכנס",
-    password_recovery: "איפוס סיסמה — ממתינים לאישור מנהל",
-    password_recovery_identity: "איפוס סיסמה — אימות מספר הטלפון",
-    password_recovery_new: "איפוס סיסמה — יצירת סיסמה חדשה"
+    email: "כניסה מאובטחת",
+    phone: "אימות זהות",
+    password: "כניסה עם סיסמה",
+    password_setup: "הגדרת סיסמה",
+    password_help: "עזרה בכניסה",
+    blocked: "מצב גישה",
+    verification: "אימות כתובת המייל",
+    verification_success: "האימות הושלם",
+    password_recovery: "איפוס סיסמה באישור מנהל",
+    password_recovery_identity: "אימות זהות לאיפוס",
+    password_recovery_new: "יצירת סיסמה חדשה"
   };
   if (progress) {
     progress.style.display = stage ? "block" : "none";
@@ -1643,6 +1685,7 @@ function setPasswordRecoveryPanelVisible_(visible) {
   const form = document.getElementById("authForm");
   if (panel) panel.classList.toggle("visible", Boolean(visible));
   if (visible) {
+    invalidateEmailAuthFlow_();
     if (form) form.style.display = "none";
     const verificationPanel = document.getElementById("verificationPanel");
     if (verificationPanel) verificationPanel.classList.remove("visible");
@@ -1658,6 +1701,7 @@ function setVerificationPanelVisible_(visible) {
   if (form) form.style.display = visible ? "none" : "block";
   if (panel) panel.classList.toggle("visible", Boolean(visible));
   if (visible) {
+    invalidateEmailAuthFlow_();
     setPasswordRecoveryPanelVisible_(false);
     setAuthRedirectPanelVisible_(false);
     setVerificationSuccessPanelVisible_(false);
@@ -1698,21 +1742,24 @@ async function continueAfterVerificationSuccess_() {
 }
 
 function hideAllAuthFormSteps_() {
-  ["authEmailStep", "authPhoneStep", "authPasswordStep"].forEach(id => {
+  [
+    "authEmailStep",
+    "authPhoneStep",
+    "authPasswordStep",
+    "authNoticeStep"
+  ].forEach(id => {
     const element = document.getElementById(id);
     if (element) element.style.display = "none";
   });
 }
 
 function showAuthEmailStep_(options = {}) {
+  invalidateEmailAuthFlow_();
   authStage = "email";
   authPurpose = "login";
   authMode = "login";
+  authReturningUser = false;
   authRouteIsAdmin = false;
-  pendingEmailAuthRouteEmail = "";
-  pendingEmailAuthRoutePromise = null;
-  authPathSelectionInProgress = false;
-  setAuthPathChoiceBusy_(false);
   managerPasswordResetEmail = "";
   forceEmailEntry = options.forceEmailEntry === true;
   setVerificationPanelVisible_(false);
@@ -1727,8 +1774,9 @@ function showAuthEmailStep_(options = {}) {
   if (emailStep) emailStep.style.display = "block";
   updateAuthProgress_("email");
 
-  if (!options.preserveEmail && forceEmailEntry && input) input.value = "";
-  if (input && !input.value) {
+  if (!options.preserveEmail && forceEmailEntry && input) {
+    input.value = "";
+  } else if (input && !input.value) {
     input.value = getPendingAuthEmail_() || getSavedLoginEmail_() || "";
   }
 
@@ -1739,6 +1787,7 @@ function showAuthEmailStep_(options = {}) {
 }
 
 function showAuthPhoneStep_(email, purpose = "email_update") {
+  invalidateEmailAuthFlow_();
   const normalizedEmail = normalizeEmail(email);
   const isPasswordReset = purpose === "password_reset";
   authStage = isPasswordReset ? "password_recovery_claim" : "phone";
@@ -1784,13 +1833,15 @@ function showAuthPhoneStep_(email, purpose = "email_update") {
   }, 0);
 }
 
-function showAuthPasswordStep_(email, mode = "login") {
+function showAuthPasswordStep_(email, mode = "login", options = {}) {
   const normalized = normalizeEmail(email);
   if (!isValidEmail(normalized)) {
     setLoginStatus("הכניסו כתובת מייל תקינה.", "error");
     return false;
   }
 
+  if (options.preserveFlow !== true) invalidateEmailAuthFlow_();
+  authReturningUser = options.returning === true;
   authStage = "password";
   forceEmailEntry = false;
   setVerificationPanelVisible_(false);
@@ -1802,20 +1853,42 @@ function showAuthPasswordStep_(email, mode = "login") {
   const form = document.getElementById("authForm");
   const passwordStep = document.getElementById("authPasswordStep");
   const selectedEmail = document.getElementById("selectedAuthEmail");
+  const selectedRecoveryEmail = document.getElementById(
+    "selectedRecoveryEmail"
+  );
   if (emailInput) emailInput.value = normalized;
   if (selectedEmail) selectedEmail.textContent = normalized;
+  if (selectedRecoveryEmail) selectedRecoveryEmail.textContent = normalized;
   if (form) form.style.display = "block";
   if (passwordStep) passwordStep.style.display = "block";
   setAuthMode(mode);
-  updateAuthProgress_("password");
+  updateAuthProgress_(mode === "register" ? "password_setup" : "password");
   setLoginStatus("", "");
   setTimeout(() => {
-    const focusTarget = authMode === "guided"
-      ? document.getElementById("existingAccountPathBtn")
-      : document.getElementById("passwordInput");
+    const focusTarget = document.getElementById("passwordInput");
     if (focusTarget) focusTarget.focus();
   }, 0);
   return true;
+}
+
+function showAuthNotice_(title, message) {
+  invalidateEmailAuthFlow_();
+  authStage = "notice";
+  setVerificationPanelVisible_(false);
+  setPasswordRecoveryPanelVisible_(false);
+  setAuthRedirectPanelVisible_(false);
+  hideAllAuthFormSteps_();
+
+  const form = document.getElementById("authForm");
+  const notice = document.getElementById("authNoticeStep");
+  const titleElement = document.getElementById("authNoticeTitle");
+  const messageElement = document.getElementById("authNoticeMessage");
+  if (form) form.style.display = "block";
+  if (notice) notice.style.display = "block";
+  if (titleElement) titleElement.textContent = title || "לא ניתן להמשיך";
+  if (messageElement) messageElement.textContent = message || "נסו שוב מאוחר יותר.";
+  updateAuthProgress_("blocked");
+  setLoginStatus("", "");
 }
 
 function getAuthRouteCacheKey_(kind, value) {
@@ -1838,7 +1911,12 @@ function getCachedAuthRoute_(kind, value) {
 }
 
 function saveAuthRouteCache_(kind, value, payload) {
-  if (!payload || ["SYSTEM_ERROR", "WAIT"].includes(payload.route)) return;
+  if (
+    !payload ||
+    ["SYSTEM_ERROR", "WAIT", "PASSWORD_SETUP"].includes(payload.route)
+  ) {
+    return;
+  }
   try {
     sessionStorage.setItem(
       getAuthRouteCacheKey_(kind, value),
@@ -1898,6 +1976,7 @@ function requestPublicAuthRoute_(kind, value, options = {}) {
       action: "authRoute",
       kind,
       value: normalizedValue,
+      client: AUTH_ROUTER_CLIENT,
       callback: callbackName,
       _: String(Date.now())
     });
@@ -2094,7 +2173,7 @@ async function updateManagerWhatsappLink_() {
     const approvalButton = document.getElementById("manualApprovalRequestBtn");
     if (approvalButton && !approvalButton.disabled && contact.name) {
       approvalButton.textContent =
-        `לא קיבלתי מייל אימות — בקשת אישור ממנהל (${contact.name})`;
+        `בקשת אישור מנהל (${contact.name})`;
     }
   } catch (error) {
     console.warn("Could not load active manager WhatsApp link", error);
@@ -2109,6 +2188,52 @@ function setPasswordResetHelpStatus_(message = "", isError = false) {
   status.style.borderColor = isError ? "#fecdd3" : "#d7ebe1";
   status.style.background = isError ? "#fff1f2" : "#f7fbf9";
   status.style.color = isError ? "#be123c" : "#49685c";
+}
+
+function showPasswordRecoveryOptions_() {
+  if (authMode === "register") return;
+  const entryPanel = document.getElementById("authPasswordEntry");
+  const recoveryPanel = document.getElementById("passwordRecoveryOptions");
+  if (entryPanel) entryPanel.style.display = "none";
+  if (recoveryPanel) recoveryPanel.style.display = "block";
+  authStage = "password_recovery_options";
+  setLoginStatus("", "");
+  setPasswordResetHelpStatus_("", false);
+  updateAuthProgress_("password_help");
+  const firstAction = document.getElementById("passwordResetBtn");
+  setTimeout(() => {
+    if (firstAction) firstAction.focus();
+  }, 0);
+}
+
+function showPasswordLoginOptions_() {
+  const entryPanel = document.getElementById("authPasswordEntry");
+  const recoveryPanel = document.getElementById("passwordRecoveryOptions");
+  if (entryPanel) entryPanel.style.display = "block";
+  if (recoveryPanel) recoveryPanel.style.display = "none";
+  authStage = "password";
+  updateAuthProgress_("password");
+  setLoginStatus("", "");
+  const passwordInput = document.getElementById("passwordInput");
+  setTimeout(() => {
+    if (passwordInput) passwordInput.focus();
+  }, 0);
+}
+
+function setPasswordRecoveryActionsBusy_(busy, activeButtonId = "") {
+  ["passwordResetBtn", "passwordResetHelpBtn"].forEach(buttonId => {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+    button.disabled = Boolean(busy);
+    button.classList.toggle(
+      "authButtonBusy",
+      Boolean(busy && buttonId === activeButtonId)
+    );
+    button.setAttribute(
+      "aria-busy",
+      String(Boolean(busy && buttonId === activeButtonId))
+    );
+  });
 }
 
 function submitAuthRouterForm_(action, fields, expectedSource) {
@@ -2620,13 +2745,15 @@ async function requestPasswordResetHelp_() {
   }
 
   const button = document.getElementById("passwordResetHelpBtn");
-  if (button) button.disabled = true;
+  let keepRequestDisabled = false;
+  setPasswordRecoveryActionsBusy_(true, "passwordResetHelpBtn");
   setPasswordResetHelpStatus_("שולח בקשת עזרה למנהל...", false);
 
   try {
     const result = await requestPasswordResetAssistance_(email);
     const managerName = String(result.managerName || "").trim();
     if (!result.requestId || !result.recoveryToken) {
+      keepRequestDisabled = result.duplicate === true;
       setPasswordResetHelpStatus_(
         result.duplicate
           ? "כבר קיימת בקשת איפוס פעילה למייל הזה. מטעמי אבטחה היא לא הוחלפה. אם זו אינה הבקשה שלך, יש לפנות למנהל כדי לסגור אותה."
@@ -2657,7 +2784,11 @@ async function requestPasswordResetHelp_() {
       console.warn("Password reset support link failed", linkError);
     });
   } finally {
-    if (button) button.disabled = false;
+    setPasswordRecoveryActionsBusy_(false);
+    if (button && keepRequestDisabled) {
+      button.disabled = true;
+      button.textContent = "בקשת איפוס כבר ממתינה לאישור";
+    }
   }
 }
 
@@ -2678,12 +2809,19 @@ async function continueFromEmailStep(options = {}) {
   }
 
   rememberPendingAuthEmail_(email);
-  showAuthPasswordStep_(email, "guided");
+  invalidateEmailAuthFlow_();
+  const flowToken = authEmailFlowToken;
+  showAuthPasswordStep_(email, "login", {
+    preserveFlow: true,
+    returning: options.returning === true
+  });
 
-  // משתמש קיים יכול לבחור מיד במסלול הסיסמה. בדיקת Apps Script
-  // ממשיכה ברקע ומשמשת רק למסלולים שדורשים מידע מהשרת.
+  // משתמש קיים יכול להזין סיסמה מיד. בדיקת Apps Script ממשיכה
+  // ברקע ורק מנתבת למצבים שדורשים פעולה אחרת.
   getEmailAuthRoutePromise_(email, options)
-    .then(result => handleBackgroundEmailAuthRoute_(email, result))
+    .then(result =>
+      handleBackgroundEmailAuthRoute_(email, result, flowToken)
+    )
     .catch(error => {
       // כשל בבדיקה הרקע אינו חוסם כניסה לחשבון Firebase קיים.
       console.warn("Background auth route lookup failed", error);
@@ -2881,6 +3019,12 @@ function stopVerificationAccessListener_() {
 function setManualApprovalRequestState_(state = "idle", message = "") {
   const button = document.getElementById("manualApprovalRequestBtn");
   const status = document.getElementById("manualApprovalRequestStatus");
+  const disclosure = document.querySelector(
+    ".verificationHelpDisclosure"
+  );
+  const disclosureSummary = disclosure
+    ? disclosure.querySelector("summary")
+    : null;
   const normalizedState = String(state || "idle");
   const managerSuffix = activeManagerSupportName
     ? ` (${activeManagerSupportName})`
@@ -2896,7 +3040,21 @@ function setManualApprovalRequestState_(state = "idle", message = "") {
           ? "שולח בקשה..."
           : normalizedState === "rejected"
             ? `שליחת בקשה חדשה למנהל${managerSuffix}`
-            : `לא קיבלתי מייל אימות — בקשת אישור ממנהל${managerSuffix}`;
+            : `בקשת אישור מנהל${managerSuffix}`;
+  }
+
+  if (disclosureSummary) {
+    disclosureSummary.textContent = normalizedState === "pending"
+      ? "ממתין לאישור מנהל"
+      : normalizedState === "approved"
+        ? "האישור התקבל"
+        : "המייל לא הגיע?";
+  }
+  if (
+    disclosure &&
+    ["pending", "approved", "rejected"].includes(normalizedState)
+  ) {
+    disclosure.open = true;
   }
 
   if (status) {
@@ -3522,6 +3680,8 @@ async function applySelectedAuthPersistence() {
 }
 
 async function handlePrimaryAuthAction() {
+  if (authActionInProgress) return;
+
   if (authStage === "email") {
     await continueFromEmailStep();
     return;
@@ -3535,30 +3695,23 @@ async function handlePrimaryAuthAction() {
     return;
   }
 
-  if (authStage === "password" && authMode === "guided") {
-    setLoginStatus(
-      "בחרו תחילה אם כבר נכנסתם בעבר או שזו הכניסה הראשונה שלכם.",
-      "error"
-    );
-    const firstChoice = document.getElementById(
-      "existingAccountPathBtn"
-    );
-    if (firstChoice) firstChoice.focus();
+  if (authStage === "password_recovery_options") {
     return;
   }
 
+  authActionInProgress = true;
   try {
     await applySelectedAuthPersistence();
   } catch (error) {
     console.error("Could not update authentication persistence", error);
     setLoginStatus("לא הצלחנו לשמור את ההתחברות במכשיר. נסו שוב.", "error");
     return;
+  } finally {
+    authActionInProgress = false;
   }
 
   if (authMode === "register") {
     await registerWithPassword();
-  } else if (authMode === "guided") {
-    await loginOrCreateWithPassword();
   } else {
     await loginWithPassword();
   }
@@ -3762,6 +3915,17 @@ async function registerWithPassword() {
     return;
   }
 
+  if (
+    authPurpose !== "register" ||
+    authAccountSetupEmail !== email
+  ) {
+    setLoginStatus(
+      "מסלול יצירת הסיסמה אינו זמין עוד. חזרו למסך המייל ונסו שוב.",
+      "error"
+    );
+    return;
+  }
+
   if (!password) {
     setLoginStatus("הכניסו סיסמה.", "error");
     return;
@@ -3781,7 +3945,7 @@ async function registerWithPassword() {
     return;
   }
 
-  setLoginButtonDisabled(true);
+  setLoginButtonBusy_(true, "יוצר חשבון...");
   setLoginStatus("בודק הרשאה ויוצר חשבון...", "loading");
   authActionInProgress = true;
 
@@ -3789,6 +3953,16 @@ async function registerWithPassword() {
   let verificationSent = false;
 
   try {
+    const eligibility = await getEmailEntryEligibility_(email);
+
+    if (!eligibility.allowed) {
+      setLoginStatus(
+        "לא נמצאה התאמה פעילה בין המייל למספר הטלפון. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
+        "error"
+      );
+      return;
+    }
+
     const credential = await firebaseApi.createUserWithEmailAndPassword(
       auth,
       email,
@@ -3797,19 +3971,6 @@ async function registerWithPassword() {
 
     createdUser = credential.user;
 
-    const eligibility = await getEmailEntryEligibility_(email);
-
-    if (!eligibility.allowed) {
-      await deleteNewAuthUserSafely(createdUser);
-      createdUser = null;
-
-      setLoginStatus(
-        "לא נמצאה התאמה פעילה בין המייל למספר הטלפון. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
-        "error"
-      );
-      return;
-    }
-
     auth.languageCode = "he";
 
     await firebaseApi.sendEmailVerification(createdUser, {
@@ -3817,6 +3978,8 @@ async function registerWithPassword() {
     });
 
     verificationSent = true;
+    authAccountSetupEmail = "";
+    clearCachedAuthRoute_("email", email);
     startAuthEmailCooldown("verification", email);
     recordOwnAuthState_("verification_sent");
 
@@ -3846,7 +4009,7 @@ async function registerWithPassword() {
     }
   } finally {
     authActionInProgress = false;
-    setLoginButtonDisabled(false);
+    setLoginButtonBusy_(false);
   }
 }
 
@@ -3868,7 +4031,7 @@ async function loginWithPassword() {
     return;
   }
 
-  setLoginButtonDisabled(true);
+  setLoginButtonBusy_(true, "מתחבר...");
   setLoginStatus("מתחבר...", "loading");
   authActionInProgress = true;
 
@@ -3916,16 +4079,41 @@ async function loginWithPassword() {
     console.error("Password sign-in failed", error);
     const code = error && error.code ? error.code : "";
     if (["auth/invalid-credential", "auth/invalid-login-credentials", "auth/wrong-password", "auth/user-not-found"].includes(code)) {
-      setLoginStatus(
-        "כתובת המייל או הסיסמה אינן נכונות. בדקו את הסיסמה או השתמשו ב„שכחתי סיסמה”.",
-        "error"
-      );
+      const flowToken = authEmailFlowToken;
+      setLoginStatus("בודק את מסלול הכניסה...", "loading");
+      try {
+        const result = await getEmailAuthRoutePromise_(email, {
+          forceFresh: code === "auth/user-not-found"
+        });
+        if (
+          flowToken === authEmailFlowToken &&
+          !(auth && auth.currentUser)
+        ) {
+          const changedState = applyResolvedEmailAuthRoute_(email, result, {
+            flowToken,
+            afterPasswordFailure: true
+          });
+          if (!changedState && String(result && result.route) !== "PASSWORD") {
+            setLoginStatus(
+              "לא הצלחנו להשלים את הכניסה. נסו שוב בעוד רגע.",
+              "error"
+            );
+          }
+        }
+      } catch (routeError) {
+        if (flowToken === authEmailFlowToken) {
+          setLoginStatus(
+            "הסיסמה אינה נכונה או שהחשבון עדיין לא הוגדר. בדקו את הסיסמה ונסו שוב.",
+            "error"
+          );
+        }
+      }
     } else {
       setLoginStatus(getAuthErrorMessage(error), "error");
     }
   } finally {
     authActionInProgress = false;
-    setLoginButtonDisabled(false);
+    setLoginButtonBusy_(false);
   }
 }
 
@@ -3951,8 +4139,11 @@ async function sendPasswordReset() {
     return;
   }
 
-  setLoginButtonDisabled(true);
-  setLoginStatus("שולח קישור לקביעת סיסמה...", "loading");
+  const resetButton = document.getElementById("passwordResetBtn");
+  const resetLabel = resetButton ? resetButton.textContent : "";
+  setPasswordRecoveryActionsBusy_(true, "passwordResetBtn");
+  if (resetButton) resetButton.textContent = "שולח קישור...";
+  setPasswordResetHelpStatus_("שולח קישור לאיפוס סיסמה...", false);
 
   try {
     auth.languageCode = "he";
@@ -3963,15 +4154,16 @@ async function sendPasswordReset() {
 
     startAuthEmailCooldown("password-reset", email);
 
-    setLoginStatus(
-      "אם קיים חשבון עבור כתובת המייל הזו, נשלח אליו עכשיו קישור לאיפוס הסיסמה. המייל עם הקישור הוא אישור שהאיפוס זמין; לאחר בחירת סיסמה חדשה חוזרים לאפליקציה ונכנסים. חשוב לבדוק גם בספאם ובדואר זבל.",
-      "success"
+    setPasswordResetHelpStatus_(
+      "אם קיים חשבון עבור כתובת המייל הזו, נשלח קישור. בדקו גם בספאם ובדואר זבל.",
+      false
     );
   } catch (error) {
     console.error("Password reset failed", error);
-    setLoginStatus(getAuthErrorMessage(error), "error");
+    setPasswordResetHelpStatus_(getAuthErrorMessage(error), true);
   } finally {
-    setLoginButtonDisabled(false);
+    setPasswordRecoveryActionsBusy_(false);
+    if (resetButton) resetButton.textContent = resetLabel;
   }
 }
 
@@ -4470,8 +4662,15 @@ async function logout() {
     updateQuickFilterButtons();
     document.getElementById("list").innerHTML = "";
     showLoginScreen();
-    showAuthEmailStep_({ keepStatus: true });
-    setLoginStatus("התנתקת מהמערכת.", "empty");
+    const savedEmail = getSavedLoginEmail_();
+    const emailInput = document.getElementById("emailInput");
+    if (savedEmail && emailInput) {
+      emailInput.value = savedEmail;
+      await continueFromEmailStep({ returning: true });
+    } else {
+      showAuthEmailStep_({ keepStatus: true });
+    }
+    setLoginStatus("התנתקת מהמערכת. אפשר להתחבר שוב.", "empty");
   } catch (error) {
     console.error(error);
     alert("לא הצלחנו להתנתק. נסו שוב.");
@@ -10610,6 +10809,7 @@ function initHiddenGreenSignature_() {
 
 function init() {
   initHiddenGreenSignature_();
+  initAuthInputEnhancements_();
   cleanupOldImportPayloads();
 
   const params = new URLSearchParams(window.location.search);
@@ -10628,9 +10828,16 @@ function init() {
     pendingManualApprovalIntentHandled = false;
   }
   const pendingEmail = getPendingAuthEmail_();
+  const savedEmail = getSavedLoginEmail_();
   const autoRouteEmail = isValidEmail(requestedEmail)
     ? requestedEmail
-    : pendingEmail;
+    : pendingEmail || savedEmail;
+  const isReturningEmail = Boolean(
+    !requestedEmail &&
+    !pendingEmail &&
+    savedEmail &&
+    autoRouteEmail === savedEmail
+  );
 
   loadPendingUsage_();
   showAuthEmailStep_({ keepStatus: true });
@@ -10682,13 +10889,20 @@ function init() {
       }
 
       setLoginStatus("", "");
+      showLoginScreen();
       if (autoRouteEmail) {
-        await continueFromEmailStep({ forceFresh: forceFreshRoute });
+        await continueFromEmailStep({
+          forceFresh: forceFreshRoute,
+          returning: isReturningEmail
+        });
+      } else {
+        showAuthEmailStep_({ forceEmailEntry: true });
       }
     })
     .catch(error => {
       authActionInProgress = false;
       console.error("Firebase initialization failed", error);
+      showLoginScreen();
       setLoginButtonDisabled(false);
       setStepButtonBusy_("emailContinueBtn", false, "טוען...", "המשך");
       setLoginStatus(

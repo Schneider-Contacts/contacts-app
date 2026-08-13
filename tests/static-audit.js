@@ -116,6 +116,63 @@ assert.strictEqual(
   "INVALID_PHONE"
 );
 
+const accountRouteState = { firebaseUser: null };
+const accountRouteSandbox = {
+  PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT: "login-ux-v2",
+  cleanSheetValue_: value => String(value || "").trim(),
+  findFirebaseUserByEmailAdmin_: () => accountRouteState.firebaseUser
+};
+vm.createContext(accountRouteSandbox);
+vm.runInContext(
+  extractAppsScriptFunction(
+    webEndpointsSource,
+    "getPublicEmailAccountRoute_"
+  ),
+  accountRouteSandbox
+);
+assert.strictEqual(
+  accountRouteSandbox.getPublicEmailAccountRoute_(
+    "new@example.com",
+    "PASSWORD",
+    ""
+  ),
+  "PASSWORD",
+  "Legacy clients must keep the existing public-router contract"
+);
+assert.strictEqual(
+  accountRouteSandbox.getPublicEmailAccountRoute_(
+    "new@example.com",
+    "PASSWORD",
+    "login-ux-v2"
+  ),
+  "PASSWORD_SETUP",
+  "An authorized user without Firebase credentials must reach setup"
+);
+accountRouteState.firebaseUser = {
+  localId: "firebase-user",
+  disabled: false
+};
+assert.strictEqual(
+  accountRouteSandbox.getPublicEmailAccountRoute_(
+    "active@example.com",
+    "PASSWORD",
+    "login-ux-v2"
+  ),
+  "PASSWORD"
+);
+accountRouteState.firebaseUser = {
+  localId: "disabled-user",
+  disabled: true
+};
+assert.strictEqual(
+  accountRouteSandbox.getPublicEmailAccountRoute_(
+    "blocked@example.com",
+    "PASSWORD",
+    "login-ux-v2"
+  ),
+  "BLOCKED"
+);
+
 let capturedAuthFetchRequests = [];
 const authPrefetchPayloads = [
   { decoded: { active: true }, updateTime: "admin-time" },
@@ -192,13 +249,38 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function continueFromEmailStep\([\s\S]*?showAuthPasswordStep_\(email, "guided"\)[\s\S]*?getEmailAuthRoutePromise_\(email, options\)/,
-  "Existing users must reach the password choice before the server route finishes"
+  /async function continueFromEmailStep\([\s\S]*?showAuthPasswordStep_\(email, "login", \{[\s\S]*?getEmailAuthRoutePromise_\(email, options\)/,
+  "Existing users must reach password entry before the server route finishes"
 );
 assert.match(
   appSource,
-  /async function selectAuthPasswordPath_\(mode\)[\s\S]*?mode !== "register"[\s\S]*?setAuthMode\("login"\)[\s\S]*?return;[\s\S]*?getEmailAuthRoutePromise_\(email\)/,
-  "The existing-account path must bypass Apps Script while first login still checks it"
+  /async function loginWithPassword\(\)[\s\S]*?signInWithEmailAndPassword\([\s\S]*?getEmailAuthRoutePromise_\(email/,
+  "A normal password login must try Firebase first and consult routing only after failure"
+);
+assert.strictEqual(
+  (appSource.match(/\bloginOrCreateWithPassword\s*\(/g) || []).length,
+  1,
+  "The legacy login-or-create helper must not be called by Login UX v2"
+);
+assert.match(
+  appSource,
+  /async function registerWithPassword\(\)[\s\S]*?authPurpose !== "register"[\s\S]*?authAccountSetupEmail !== email[\s\S]*?getEmailEntryEligibility_\(email\)[\s\S]*?if \(!eligibility\.allowed\)[\s\S]*?createUserWithEmailAndPassword\(/,
+  "Firebase account creation must require a server-approved setup state and a fresh authorization check"
+);
+assert.match(
+  appSource,
+  /function handleBackgroundEmailAuthRoute_\([\s\S]*?flowToken !== authEmailFlowToken[\s\S]*?authActionInProgress[\s\S]*?auth\.currentUser/,
+  "Stale router responses must not overwrite a newer or authenticated UI state"
+);
+assert.match(
+  appSource,
+  /function initAuthInputEnhancements_\(\)[\s\S]*?"emailInput"[\s\S]*?"confirmPasswordInput"[\s\S]*?event\.key !== "Enter"[\s\S]*?handlePrimaryAuthAction\(\)/,
+  "Enter must submit the current logical login action"
+);
+assert.match(
+  appSource,
+  /async function handlePrimaryAuthAction\(\) \{[\s\S]*?if \(authActionInProgress\) return;[\s\S]*?authActionInProgress = true;[\s\S]*?applySelectedAuthPersistence\(\)[\s\S]*?finally \{[\s\S]*?authActionInProgress = false/,
+  "Password submission must stay single-flight while persistence is confirmed"
 );
 assert.match(
   appSource,
@@ -210,15 +292,10 @@ assert.match(
   /continueFromPhoneStep\([\s\S]*?requestPublicAuthRouteWithRetry_\([\s\S]*?"phone"/,
   "Phone routing must use the retrying auth helper"
 );
-assert.match(
-  appSource,
-  /passwordPathSelected = authPurpose !== "guided"[\s\S]*?passwordInput\.disabled = !passwordPathSelected[\s\S]*?passwordToggle\.disabled = !passwordPathSelected/,
-  "Password entry must remain disabled until an authentication path is selected"
-);
-assert.match(
-  appSource,
-  /authStage === "password" && authMode === "guided"[\s\S]*?בחרו תחילה אם כבר נכנסתם בעבר/,
-  "Password submission must reject an unselected authentication path"
+assert.doesNotMatch(
+  indexSource,
+  /כבר נכנסתי בעבר|זו הכניסה הראשונה שלי|שלב\s+\d+\s+מתוך/,
+  "Login UX v2 must not ask users to classify their technical account state"
 );
 assert.match(
   emailUpdateLogicSource,
@@ -251,6 +328,38 @@ assert.match(
   /<script[^>]+src="app\.js\?[^"]+"/,
   "index.html must load app.js"
 );
+assert.match(
+  indexSource,
+  /id="login"[^>]*style="display:none;"/,
+  "The login card must remain hidden until Firebase session restoration finishes"
+);
+assert.match(
+  appSource,
+  /const savedEmail = getSavedLoginEmail_\(\)[\s\S]*?pendingEmail \|\| savedEmail[\s\S]*?if \(initialUser\) \{[\s\S]*?handleAuthenticatedUser\(initialUser\)[\s\S]*?continueFromEmailStep\(\{[\s\S]*?returning: isReturningEmail/,
+  "Initialization must bypass login for a valid session and reuse remembered email otherwise"
+);
+assert.match(
+  appSource,
+  /function forgetRememberedLoginIdentity_\(\)[\s\S]*?clearSavedLoginEmail_\(\)[\s\S]*?clearPendingAuthEmail_\(\)[\s\S]*?showAuthEmailStep_\(\{ forceEmailEntry: true \}\)/,
+  "The not-me action must clear only remembered login identity"
+);
+const duplicateIds = [...indexSource.matchAll(/\bid="([^"]+)"/g)]
+  .map(match => match[1])
+  .filter((id, index, ids) => ids.indexOf(id) !== index);
+assert.deepStrictEqual(
+  duplicateIds,
+  [],
+  `index.html contains duplicate IDs: ${duplicateIds.join(", ")}`
+);
+const localImageSources = [
+  ...indexSource.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)
+].map(match => match[1].split("?")[0]);
+localImageSources.forEach(source => {
+  assert(
+    fs.existsSync(path.join(root, source)),
+    `Missing local image referenced by index.html: ${source}`
+  );
+});
 assert(
   appSource.includes(activeAuthRouterId) &&
     emailUpdateSource.includes(activeAuthRouterId),
@@ -295,7 +404,18 @@ const extractCompleteFunction = (source, functionName) => {
   const start = source.indexOf(`function ${functionName}(`);
   assert(start >= 0, `Could not find function: ${functionName}`);
 
-  const bodyStart = source.indexOf("{", start);
+  const parametersStart = source.indexOf("(", start);
+  let parameterDepth = 0;
+  let parametersEnd = -1;
+  for (let index = parametersStart; index < source.length; index += 1) {
+    if (source[index] === "(") parameterDepth += 1;
+    if (source[index] === ")") parameterDepth -= 1;
+    if (parameterDepth === 0) {
+      parametersEnd = index;
+      break;
+    }
+  }
+  const bodyStart = source.indexOf("{", parametersEnd + 1);
   let depth = 0;
   for (let index = bodyStart; index < source.length; index += 1) {
     if (source[index] === "{") depth += 1;
@@ -318,33 +438,23 @@ const createTestClassList = () => {
     }
   };
 };
-const authPasswordToggle = {
-  disabled: false,
-  textContent: "הצג",
-  setAttribute() {}
-};
-const authConfirmToggle = {
-  disabled: false,
-  textContent: "הצג",
-  setAttribute() {}
-};
-const authPasswordShell = {
-  classList: createTestClassList(),
-  querySelector: selector =>
-    selector === ".passwordToggle" ? authPasswordToggle : null
-};
+const authPasswordToggle = { textContent: "", setAttribute() {} };
+const authConfirmToggle = { textContent: "", setAttribute() {} };
 const authPasswordElements = {
   loginTitle: { textContent: "" },
   authModeDescription: { textContent: "" },
-  loginButton: { textContent: "", disabled: false },
+  loginButton: {
+    textContent: "",
+    disabled: false,
+    dataset: {},
+    classList: createTestClassList(),
+    setAttribute() {}
+  },
   passwordInput: {
     autocomplete: "",
     disabled: false,
-    focused: false,
     type: "password",
     value: "temporary",
-    closest: () => authPasswordShell,
-    focus() { this.focused = true; },
     setAttribute(name, value) { this[name] = value; }
   },
   confirmPasswordGroup: { style: { display: "" } },
@@ -354,61 +464,182 @@ const authPasswordElements = {
     value: "",
     setAttribute() {}
   },
-  passwordResetBtn: { style: { display: "" } },
   authModeNote: { style: { display: "" }, textContent: "" },
-  existingAccountPathBtn: {
-    classList: createTestClassList(),
-    focused: false,
-    focus() { this.focused = true; }
-  },
-  newAccountPathBtn: { classList: createTestClassList() }
+  authPasswordEntry: { style: { display: "" } },
+  passwordRecoveryOptions: { style: { display: "" } },
+  authPasswordSecondaryActions: { style: { display: "" } }
 };
 const authPasswordSandbox = {
   authPurpose: "login",
   authMode: "login",
+  authReturningUser: false,
   document: {
     getElementById: id => authPasswordElements[id] || null,
     querySelectorAll: selector =>
       selector === ".passwordToggle"
         ? [authPasswordToggle, authConfirmToggle]
         : []
-  },
-  setLoginStatus() {},
-  setLoginButtonDisabled(disabled) {
-    authPasswordElements.loginButton.disabled = disabled;
   }
+  ,
+  setLoginStatus() {}
 };
 vm.createContext(authPasswordSandbox);
 vm.runInContext(
-  extractCompleteFunction(appSource, "setAuthMode"),
+  [
+    extractCompleteFunction(appSource, "setLoginButtonLabel_"),
+    extractCompleteFunction(appSource, "setLoginButtonBusy_"),
+    extractCompleteFunction(appSource, "setAuthMode")
+  ].join("\n"),
   authPasswordSandbox
 );
 
-authPasswordSandbox.setAuthMode("guided");
-assert(authPasswordElements.passwordInput.disabled);
-assert(authPasswordToggle.disabled);
-assert(authPasswordElements.loginButton.disabled);
-assert(
-  authPasswordShell.classList.contains("authInputShellDisabled")
-);
-
 authPasswordSandbox.setAuthMode("login");
-assert(!authPasswordElements.passwordInput.disabled);
-assert(!authPasswordToggle.disabled);
-assert(!authPasswordElements.loginButton.disabled);
-assert(!authPasswordShell.classList.contains("authInputShellDisabled"));
+assert.strictEqual(authPasswordElements.loginTitle.textContent, "כניסה לחשבון");
+assert.strictEqual(authPasswordElements.loginButton.textContent, "כניסה");
+assert.strictEqual(authPasswordElements.passwordInput.autocomplete, "current-password");
+assert.strictEqual(authPasswordElements.confirmPasswordGroup.style.display, "none");
+assert.strictEqual(authPasswordElements.authPasswordSecondaryActions.style.display, "flex");
 
-authPasswordSandbox.setAuthMode("guided");
+authPasswordSandbox.authReturningUser = true;
+authPasswordSandbox.setAuthMode("login");
+assert.strictEqual(authPasswordElements.loginTitle.textContent, "ברוך שובך");
+
 authPasswordSandbox.setAuthMode("register");
-assert(!authPasswordElements.passwordInput.disabled);
+assert.strictEqual(authPasswordElements.loginTitle.textContent, "כמעט סיימנו");
 assert.strictEqual(
   authPasswordElements.confirmPasswordGroup.style.display,
   "block"
 );
 assert.strictEqual(
   authPasswordElements.loginButton.textContent,
-  "יצירת חשבון"
+  "המשך"
 );
+assert.strictEqual(
+  authPasswordElements.authPasswordSecondaryActions.style.display,
+  "none"
+);
+
+authPasswordSandbox.setAuthMode("guided");
+assert.strictEqual(
+  authPasswordElements.loginButton.textContent,
+  "כניסה",
+  "Unknown legacy mode values must degrade safely to normal login"
+);
+
+const phoneFormatSandbox = {};
+vm.createContext(phoneFormatSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "formatIsraeliPhoneInput_"),
+  phoneFormatSandbox
+);
+assert.strictEqual(
+  phoneFormatSandbox.formatIsraeliPhoneInput_("0501234567"),
+  "050 123 4567"
+);
+assert.strictEqual(
+  phoneFormatSandbox.formatIsraeliPhoneInput_("+972501234567"),
+  "050 123 4567"
+);
+
+const authRouteTransitionCalls = [];
+const authRouteTransitionSandbox = {
+  authEmailFlowToken: 7,
+  auth: null,
+  authRouteIsAdmin: false,
+  authAccountSetupEmail: "",
+  authMode: "login",
+  authReturningUser: false,
+  normalizeEmail: value => String(value || "").trim().toLowerCase(),
+  getCurrentAuthEmail_: () => "person@example.com",
+  showAuthPhoneStep_: (...args) =>
+    authRouteTransitionCalls.push(["phone", ...args]),
+  showAuthNotice_: (...args) =>
+    authRouteTransitionCalls.push(["notice", ...args]),
+  showAuthPasswordStep_: (...args) =>
+    authRouteTransitionCalls.push(["password", ...args]),
+  setLoginStatus: (...args) =>
+    authRouteTransitionCalls.push(["status", ...args]),
+  document: {
+    getElementById: () => ({ focus() {} })
+  }
+};
+vm.createContext(authRouteTransitionSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "applyResolvedEmailAuthRoute_"),
+  authRouteTransitionSandbox
+);
+assert.strictEqual(
+  authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+    "person@example.com",
+    { route: "PASSWORD_SETUP" },
+    { flowToken: 6 }
+  ),
+  false,
+  "A stale router result must be ignored"
+);
+assert.strictEqual(authRouteTransitionCalls.length, 0);
+assert.strictEqual(
+  authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+    "person@example.com",
+    { route: "PASSWORD_SETUP" },
+    { flowToken: 7 }
+  ),
+  true
+);
+assert.strictEqual(
+  authRouteTransitionSandbox.authAccountSetupEmail,
+  "person@example.com"
+);
+assert.strictEqual(authRouteTransitionCalls[0][0], "password");
+assert.strictEqual(authRouteTransitionCalls[0][2], "register");
+
+authRouteTransitionCalls.length = 0;
+authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+  "person@example.com",
+  { route: "PASSWORD_RESET_READY" },
+  { flowToken: 7 }
+);
+assert.deepStrictEqual(
+  authRouteTransitionCalls[0].slice(0, 3),
+  ["phone", "person@example.com", "password_reset"]
+);
+
+authRouteTransitionCalls.length = 0;
+authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+  "person@example.com",
+  { route: "ASK_PHONE" },
+  { flowToken: 7 }
+);
+assert.strictEqual(authRouteTransitionCalls[0][0], "phone");
+
+authRouteTransitionCalls.length = 0;
+authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+  "person@example.com",
+  { route: "BLOCKED" },
+  { flowToken: 7 }
+);
+assert.strictEqual(authRouteTransitionCalls[0][0], "notice");
+
+authRouteTransitionCalls.length = 0;
+authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+  "person@example.com",
+  { route: "PASSWORD" },
+  { flowToken: 7, afterPasswordFailure: true }
+);
+assert.strictEqual(authRouteTransitionCalls[0][0], "status");
+
+authRouteTransitionCalls.length = 0;
+authRouteTransitionSandbox.auth = { currentUser: { uid: "signed-in" } };
+assert.strictEqual(
+  authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+    "person@example.com",
+    { route: "BLOCKED" },
+    { flowToken: 7 }
+  ),
+  false,
+  "A late router response must never replace a successful Firebase login"
+);
+assert.strictEqual(authRouteTransitionCalls.length, 0);
 
 const mainSearchElements = {
   searchInput: { value: "" },
@@ -1173,6 +1404,31 @@ assert.match(
   "Stable authentication routes must be cached for ten minutes"
 );
 assert.match(
+  codeSource,
+  /const PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT = "login-ux-v2";/,
+  "Account-aware routing must be explicitly versioned for backward compatibility"
+);
+assert.match(
+  appSource,
+  /const AUTH_ROUTER_CLIENT = "login-ux-v2";[\s\S]*?client: AUTH_ROUTER_CLIENT/,
+  "Login UX v2 must identify its account-aware router contract"
+);
+assert.match(
+  webEndpointsSource,
+  /function getPublicEmailAccountRoute_\([\s\S]*?findFirebaseUserByEmailAdmin_\(email\)[\s\S]*?return "PASSWORD_SETUP"/,
+  "The router must distinguish authorized first-time users using Firebase Admin lookup"
+);
+assert.match(
+  webEndpointsSource,
+  /if \(!\["SYSTEM_ERROR", "WAIT", "PASSWORD_SETUP"\]\.includes\(route\)\) \{[\s\S]*?cache\.put/,
+  "Transient no-account results must not be cached after account creation"
+);
+assert.match(
+  webEndpointsSource,
+  /\["EMAIL_NOT_FOUND", "USER_NOT_FOUND"\]\.includes\(apiMessage\)[\s\S]*?return null/,
+  "Firebase Admin must treat an explicit missing-account response as a setup state"
+);
+assert.match(
   webEndpointsSource,
   /action === "invalidateAuthRouteCache"[\s\S]*?createAuthRouteCacheInvalidationPostResponse_\(e\)/,
   "Authenticated admin changes must be able to invalidate the public auth cache"
@@ -1231,7 +1487,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /route === "PASSWORD_RESET_READY"[\s\S]*?showAuthPhoneStep_\(email,\s*"password_reset"\)/,
+  /route === "PASSWORD_RESET_READY"[\s\S]*?showAuthPhoneStep_\(normalizedEmail,\s*"password_reset"\)/,
   "The next login after manager approval must open the password-reset identity step"
 );
 assert.match(
@@ -1241,13 +1497,23 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /authChoicePrompt">נא לבחור את האפשרות המתאימה:/,
-  "The account-path choice must have an explicit instruction"
+  /id="authEmailStep"[\s\S]*?כניסה לספר אנשי הקשר[\s\S]*?id="emailInput"[\s\S]*?id="emailContinueBtn"/,
+  "Unknown devices must start with one focused email action"
 );
 assert.match(
   indexSource,
-  /authHelpStep regular[\s\S]*?passwordResetBtn[\s\S]*?authHelpStep manager[\s\S]*?passwordResetHelpBtn[\s\S]*?authHelpStep whatsapp/,
-  "Password help actions must appear in chronological order"
+  /id="authPasswordSecondaryActions"[\s\S]*?שכחתי סיסמה[\s\S]*?זה לא אני/,
+  "The returning-user screen must keep recovery and identity change quiet"
+);
+assert.match(
+  indexSource,
+  /id="passwordRecoveryOptions"[\s\S]*?id="passwordResetBtn"[\s\S]*?id="passwordResetHelpBtn"[\s\S]*?showPasswordLoginOptions_\(\)/,
+  "Password recovery capabilities must remain available through progressive disclosure"
+);
+assert.match(
+  indexSource,
+  /<details class="verificationHelpDisclosure">[\s\S]*?id="manualApprovalRequestBtn"[\s\S]*?id="managerWhatsappLink"/,
+  "Email-verification admin approval and manager support must remain contextually available"
 );
 assert.match(
   webEndpointsSource,

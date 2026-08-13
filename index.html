@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260811-auth-path-required">
+<link rel="stylesheet" href="styles.css?v=20260813-login-ux-v2">
 
 
 
@@ -82,107 +82,107 @@
   </div>
 </div>
 
-<div id="login">
+<div id="login" style="display:none;">
   <div class="authBrand">
     <div class="authLogoBox">
       <img src="app-logo.png?v=20260722-v16" alt="לוגו ספר אנשי הקשר">
     </div>
     <h1>ספר אנשי קשר</h1>
-    <p class="authBrandSubtitle">גישה מאובטחת לעובדים מורשים</p>
-    <div class="securityBadge">🔒 כניסה מאובטחת</div>
+    <p class="authBrandSubtitle">מרכז שניידר לרפואת ילדים</p>
+    <div class="securityBadge">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/></svg>
+      <span>כניסה מאובטחת</span>
+    </div>
   </div>
 
   <div id="authProgress" class="authProgress" aria-live="polite">
-    <span id="authProgressText">שלב 1 מתוך 3 — זיהוי באמצעות מייל</span>
+    <span id="authProgressText">כניסה מאובטחת</span>
   </div>
 
   <form class="authForm" id="authForm" onsubmit="event.preventDefault(); handlePrimaryAuthAction();">
     <div id="authEmailStep">
-      <h3 class="authModeHeading">כניסה לאפליקציה</h3>
-      <p class="authModeDescription">הזינו את כתובת המייל שבה אתם רשומים בספר אנשי הקשר.</p>
+      <h3 class="authModeHeading">כניסה לספר אנשי הקשר</h3>
+      <p class="authModeDescription">הזינו את כתובת המייל שלכם כדי להמשיך.</p>
 
       <div class="authField">
         <label for="emailInput">כתובת מייל</label>
         <div class="authInputShell">
-          <span class="authFieldIcon" aria-hidden="true">✉</span>
-          <input type="email" id="emailInput" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email">
+          <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6.5h16v11H4zM4.5 7l7.5 6 7.5-6"/></svg></span>
+          <input type="email" id="emailInput" name="email" placeholder="name@example.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" dir="ltr">
         </div>
       </div>
 
-      <button type="button" id="emailContinueBtn" class="primaryAuthBtn" onclick="continueFromEmailStep()">המשך</button>
+      <button type="submit" id="emailContinueBtn" class="primaryAuthBtn">המשך</button>
     </div>
 
     <div id="authPhoneStep" style="display:none;">
-      <h3 id="authPhoneTitle" class="authModeHeading">בדיקת מספר הטלפון</h3>
-      <p id="authPhoneDescription" class="authModeDescription">כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
+      <h3 id="authPhoneTitle" class="authModeHeading">אימות קצר</h3>
+      <p id="authPhoneDescription" class="authModeDescription">הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.</p>
 
       <div class="authField">
         <label for="phoneInput">מספר טלפון</label>
         <div class="authInputShell">
-          <span class="authFieldIcon" aria-hidden="true">☎</span>
-          <input type="tel" id="phoneInput" name="phone" placeholder="למשל 050-123-4567" autocomplete="tel" inputmode="tel">
+          <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.2 3.5 9.5 8l-2 1.6a15 15 0 0 0 6.9 6.9l1.6-2 4.5 2.3-.7 3a2 2 0 0 1-2 1.6C9.4 20.7 3.3 14.6 2.6 6.2a2 2 0 0 1 1.6-2z"/></svg></span>
+          <input type="tel" id="phoneInput" name="phone" placeholder="050 123 4567" autocomplete="tel-national" inputmode="tel" dir="ltr" maxlength="14">
         </div>
       </div>
 
-      <button type="button" id="phoneContinueBtn" class="primaryAuthBtn" onclick="continueFromPhoneStep()">המשך</button>
-      <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
+      <button type="submit" id="phoneContinueBtn" class="primaryAuthBtn">המשך</button>
+      <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">שימוש במייל אחר</button>
     </div>
 
     <div id="authPasswordStep" style="display:none;">
-      <h3 id="loginTitle" class="authModeHeading">כניסה או יצירת חשבון</h3>
-      <p id="authModeDescription" class="authModeDescription">בחרו את מסלול הכניסה המתאים.</p>
-      <div class="authChoicePrompt">נא לבחור את האפשרות המתאימה:</div>
-      <div class="authPathChoice" aria-label="בחירת מסלול כניסה">
-        <button type="button" id="existingAccountPathBtn" onclick="selectAuthPasswordPath_('login')">
-          <strong>כבר נכנסתי בעבר</strong>
-          <span>כניסה עם הסיסמה הקיימת</span>
-        </button>
-        <button type="button" id="newAccountPathBtn" onclick="selectAuthPasswordPath_('register')">
-          <strong>זו הכניסה הראשונה שלי</strong>
-          <span>יצירת סיסמה חדשה ואימות החשבון</span>
-        </button>
-      </div>
-      <div id="selectedAuthEmail" class="selectedAuthEmail"></div>
+      <div id="authPasswordEntry">
+        <h3 id="loginTitle" class="authModeHeading">כניסה לחשבון</h3>
+        <p id="authModeDescription" class="authModeDescription">הזינו את הסיסמה שלכם.</p>
+        <div id="selectedAuthEmail" class="selectedAuthEmail"></div>
 
-      <div class="authField">
-        <label for="passwordInput">סיסמה</label>
-        <div class="authInputShell">
-          <span class="authFieldIcon" aria-hidden="true">●</span>
-          <input type="password" id="passwordInput" name="password" placeholder="הזינו סיסמה" autocomplete="current-password">
-          <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
+        <div class="authField">
+          <label for="passwordInput">סיסמה</label>
+          <div class="authInputShell">
+            <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/></svg></span>
+            <input type="password" id="passwordInput" name="password" placeholder="הזינו סיסמה" autocomplete="current-password">
+            <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
+          </div>
         </div>
+
+        <div class="authField" id="confirmPasswordGroup" style="display:none;">
+          <label for="confirmPasswordInput">אימות סיסמה</label>
+          <div class="authInputShell">
+            <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/></svg></span>
+            <input type="password" id="confirmPasswordInput" name="confirm_password" placeholder="הזינו שוב את הסיסמה" autocomplete="new-password">
+            <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
+          </div>
+        </div>
+
+        <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה</button>
+        <div id="authPasswordSecondaryActions" class="authPasswordSecondaryActions">
+          <button type="button" class="authTextAction" onclick="showPasswordRecoveryOptions_()">שכחתי סיסמה</button>
+          <span aria-hidden="true">·</span>
+          <button type="button" class="authTextAction" onclick="forgetRememberedLoginIdentity_()">זה לא אני</button>
+        </div>
+        <div id="authModeNote" class="authModeNote"></div>
       </div>
 
-      <div class="authField" id="confirmPasswordGroup" style="display:none;">
-        <label for="confirmPasswordInput">אימות סיסמה</label>
-        <div class="authInputShell">
-          <span class="authFieldIcon" aria-hidden="true">●</span>
-          <input type="password" id="confirmPasswordInput" name="confirm_password" placeholder="הזינו את הסיסמה פעם נוספת" autocomplete="new-password">
-          <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
+      <div id="passwordRecoveryOptions" class="passwordRecoveryOptions" style="display:none;">
+        <h3 class="authModeHeading">איפוס סיסמה</h3>
+        <p class="authModeDescription">תחילה נסו לקבל קישור למייל. אם הקישור לא מגיע, אפשר לבקש אישור ממנהל.</p>
+        <div id="selectedRecoveryEmail" class="selectedAuthEmail"></div>
+        <button type="button" class="primaryAuthBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שליחת קישור למייל</button>
+        <button type="button" class="authRecoverySecondary" id="passwordResetHelpBtn" onclick="requestPasswordResetHelp_()">בקשת אישור לאיפוס סיסמה</button>
+        <div id="passwordResetHelpStatus" class="passwordResetHelpStatus" aria-live="polite"></div>
+        <div class="authRecoverySupport">
+          <a id="passwordResetSupportLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">פנייה למנהל ב־WhatsApp</a>
         </div>
+        <button type="button" class="authStageBack bottom" onclick="showPasswordLoginOptions_()">חזרה לכניסה</button>
       </div>
+    </div>
 
-      <button type="submit" id="loginButton" class="primaryAuthBtn">כניסה לחשבון</button>
-      <div class="authHelpHeading">לא מצליחים להיכנס? פעלו לפי הסדר:</div>
-      <div class="authSecondaryLinks">
-        <div class="authHelpStep regular">
-          <span class="authHelpStepNumber">1</span>
-          <button type="button" class="authLinkBtn" id="passwordResetBtn" onclick="sendPasswordReset()">שליחת קישור לאיפוס סיסמה</button>
-          <div class="authHelpStepNote">לאחר השליחה יש לבדוק גם בספאם ובדואר זבל.</div>
-        </div>
-        <div class="authHelpStep manager">
-          <span class="authHelpStepNumber">2</span>
-          <button type="button" class="authLinkBtn" id="passwordResetHelpBtn" onclick="requestPasswordResetHelp_()">הקישור לא הגיע — בקשת אישור ממנהל</button>
-          <div class="authHelpStepNote">יש להשתמש באפשרות זו רק אחרי שניסיתם לקבל קישור במייל.</div>
-        </div>
-      </div>
-      <div id="passwordResetHelpStatus" class="passwordResetHelpStatus" aria-live="polite"></div>
-      <div class="authHelpStep whatsapp">
-        <span class="authHelpStepNumber">3</span>
-        <a id="passwordResetSupportLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">כבר שלחתם בקשה? פנייה למנהל ב־WhatsApp</a>
-      </div>
-      <div id="authModeNote" class="authModeNote">לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.</div>
-      <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">← חזרה למסך הראשי</button>
+    <div id="authNoticeStep" class="authNoticeStep" style="display:none;">
+      <div class="authNoticeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2.8 20h18.4zM12 9v5m0 3v.1"/></svg></div>
+      <h3 id="authNoticeTitle" class="authModeHeading">לא ניתן להמשיך</h3>
+      <p id="authNoticeMessage" class="authModeDescription"></p>
+      <button type="button" class="primaryAuthBtn" onclick="forgetRememberedLoginIdentity_()">חזרה למסך הכניסה</button>
     </div>
   </form>
 
@@ -190,23 +190,28 @@
     <h3>נשאר רק לאמת את כתובת המייל</h3>
     <p class="verificationLead">שלחנו מייל אימות חד־פעמי לכתובת:</p>
     <div id="verificationEmail" class="verificationEmail"></div>
-    <div class="verificationSpamNote">⚠️ <b>חשוב:</b> הודעת האימות מגיעה לעיתים לתיקיית <b>ספאם / דואר זבל</b>. יש לבדוק שם לפני שמנסים שוב.</div>
+    <div class="verificationSpamNote"><b>לא רואים את ההודעה?</b> מומלץ לבדוק גם בתיקיות ספאם ודואר זבל.</div>
     <div class="verificationActions">
       <button type="button" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
       <button type="button" class="verificationSecondary" onclick="openGmailInbox()">פתיחת Gmail</button>
-      <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
-      <button type="button" id="manualApprovalRequestBtn" class="manualApprovalRequestBtn" onclick="requestManualApproval_()">לא קיבלתי מייל אימות — בקשת אישור ממנהל</button>
-      <div id="manualApprovalRequestStatus" class="manualApprovalRequestStatus" aria-live="polite"></div>
-      <div id="verificationUrgentHelp" class="verificationUrgentHelp">
-        <strong>האישור דחוף?</strong> לאחר שליחת הבקשה ניתן ליצור קשר ישירות עם המנהל הפעיל.
-        <a id="managerWhatsappLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">שליחת WhatsApp למנהל הפעיל</a>
-      </div>
-      <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">← חזרה למסך הראשי</button>
+      <details class="verificationHelpDisclosure">
+        <summary>המייל לא הגיע?</summary>
+        <div class="verificationHelpContent">
+          <button type="button" class="verificationSecondary" onclick="resendVerificationFromPanel()">שליחת מייל אימות חדש</button>
+          <button type="button" id="manualApprovalRequestBtn" class="manualApprovalRequestBtn" onclick="requestManualApproval_()">בקשת אישור מנהל</button>
+          <div id="manualApprovalRequestStatus" class="manualApprovalRequestStatus" aria-live="polite"></div>
+          <div id="verificationUrgentHelp" class="verificationUrgentHelp">
+            לאחר שליחת בקשה אפשר לפנות למנהל הפעיל.
+            <a id="managerWhatsappLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">שליחת WhatsApp למנהל הפעיל</a>
+          </div>
+        </div>
+      </details>
+      <button type="button" class="verificationTextBtn" onclick="useDifferentAccount()">שימוש בחשבון אחר</button>
     </div>
   </div>
 
   <div id="verificationSuccessPanel" class="verificationSuccessPanel">
-    <div class="verificationSuccessIcon">✓</div>
+    <div class="verificationSuccessIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"/></svg></div>
     <h3>כתובת המייל אומתה בהצלחה</h3>
     <p>האימות נקלט. אפשר להיכנס עכשיו לספר אנשי הקשר.</p>
     <button type="button" class="primaryAuthBtn" onclick="continueAfterVerificationSuccess_()">כניסה לאפליקציה</button>
@@ -222,7 +227,7 @@
     <div id="passwordRecoveryStatus" class="passwordResetHelpStatus visible" aria-live="polite"></div>
 
     <div id="passwordRecoveryWaiting" class="passwordRecoveryWaiting">
-      <div class="passwordRecoveryClock" aria-hidden="true">⌛</div>
+      <div class="passwordRecoveryPulse" aria-hidden="true"><span></span></div>
       <p>אין צורך לרענן. כשהמנהל יאשר, מסך בחירת הסיסמה ייפתח כאן אוטומטית. המנהל עשוי לבקש את מזהה הבקשה כדי לוודא שהוא מאשר את הבקשה הנכונה.</p>
       <a id="passwordRecoveryWhatsappLink" class="managerWhatsappLink" href="#" target="_blank" rel="noopener">פנייה למנהל ב־WhatsApp</a>
     </div>
@@ -231,7 +236,7 @@
       <div class="authField">
         <label for="recoveryPasswordInput">סיסמה חדשה</label>
         <div class="authInputShell">
-          <span class="authFieldIcon" aria-hidden="true">●</span>
+          <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/></svg></span>
           <input type="password" id="recoveryPasswordInput" autocomplete="new-password" placeholder="לפחות 8 תווים">
           <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('recoveryPasswordInput', this)" aria-label="הצגת הסיסמה">הצג</button>
         </div>
@@ -239,7 +244,7 @@
       <div class="authField">
         <label for="recoveryPasswordConfirmInput">אימות הסיסמה החדשה</label>
         <div class="authInputShell">
-          <span class="authFieldIcon" aria-hidden="true">●</span>
+          <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/></svg></span>
           <input type="password" id="recoveryPasswordConfirmInput" autocomplete="new-password" placeholder="הקלידו שוב את הסיסמה">
           <button type="button" class="passwordToggle" onclick="togglePasswordVisibility('recoveryPasswordConfirmInput', this)" aria-label="הצגת אימות הסיסמה">הצג</button>
         </div>
@@ -251,7 +256,7 @@
   </div>
 
   <div id="authRedirectPanel" class="authRedirectPanel">
-    <div class="authRedirectIcon">↗</div>
+    <div class="authRedirectIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 16 16 8m-7 0h7v7"/></svg></div>
     <h3 id="authRedirectTitle">מעביר לטופס המתאים</h3>
     <p id="authRedirectMessage"></p>
     <a id="authRedirectLink" class="primaryAuthBtn authRedirectLink" href="#">המשך</a>
@@ -684,7 +689,7 @@
 </div>
 
 
-  <script src="app.js?v=20260812-auth-speed-v1"></script>
+  <script src="app.js?v=20260813-login-ux-v2"></script>
 
 </body>
 </html>

@@ -394,10 +394,12 @@ function createEmailUpdateResultPage_(success, result, errorMessage) {
     '</main></body></html>';
 }
 
-function getPublicAuthRouteCacheKey_(kind, normalizedValue) {
+function getPublicAuthRouteCacheKey_(kind, normalizedValue, clientVariant) {
+  const variant = cleanSheetValue_(clientVariant);
   const digest = Utilities.computeDigest(
     Utilities.DigestAlgorithm.SHA_256,
-    String(kind || "") + ":" + String(normalizedValue || ""),
+    String(kind || "") + ":" + String(normalizedValue || "") +
+      (variant ? ":" + variant : ""),
     Utilities.Charset.UTF_8
   );
 
@@ -569,6 +571,22 @@ function getPublicEmailAuthRoute_(email, prefetchedState) {
   return managerResetReady ? "PASSWORD_RESET_READY" : "PASSWORD";
 }
 
+function getPublicEmailAccountRoute_(email, route, clientVersion) {
+  const normalizedRoute = cleanSheetValue_(route);
+  const supportsAccountRouting =
+    cleanSheetValue_(clientVersion) ===
+    PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT;
+
+  if (!supportsAccountRouting || normalizedRoute !== "PASSWORD") {
+    return normalizedRoute;
+  }
+
+  const firebaseUser = findFirebaseUserByEmailAdmin_(email);
+  if (!firebaseUser) return "PASSWORD_SETUP";
+  if (firebaseUser.disabled === true) return "BLOCKED";
+  return "PASSWORD";
+}
+
 function getPublicPhoneAuthRoute_(phone) {
   const normalizedPhone = normalizeIsraeliPhone(phone);
 
@@ -580,13 +598,22 @@ function getPublicPhoneAuthRoute_(phone) {
   return matches.length ? "UPDATE_EMAIL" : "OPEN_FORM";
 }
 
-function getPublicAuthRoute_(kind, value, forceFresh) {
+function getPublicAuthRoute_(kind, value, forceFresh, clientVersion) {
   const normalizedKind = cleanSheetValue_(kind).toLowerCase();
   const normalizedValue = normalizedKind === "email"
     ? normalizeEmail_(value)
     : normalizeIsraeliPhone(value);
+  const normalizedClientVersion = cleanSheetValue_(clientVersion);
+  const cacheVariant = normalizedClientVersion ===
+    PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT
+    ? PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT
+    : "";
   const cache = CacheService.getScriptCache();
-  const cacheKey = getPublicAuthRouteCacheKey_(normalizedKind, normalizedValue);
+  const cacheKey = getPublicAuthRouteCacheKey_(
+    normalizedKind,
+    normalizedValue,
+    cacheVariant
+  );
 
   if (!forceFresh) {
     const cached = cache.get(cacheKey);
@@ -617,6 +644,11 @@ function getPublicAuthRoute_(kind, value, forceFresh) {
     ) {
       route = "PASSWORD";
     }
+    route = getPublicEmailAccountRoute_(
+      normalizedValue,
+      route,
+      normalizedClientVersion
+    );
   } else if (normalizedKind === "phone") {
     route = getPublicPhoneAuthRoute_(normalizedValue);
   }
@@ -628,7 +660,9 @@ function getPublicAuthRoute_(kind, value, forceFresh) {
     admin: isAdminEmail
   };
 
-  if (!["SYSTEM_ERROR", "WAIT"].includes(route)) {
+  // PASSWORD_SETUP is intentionally transient. Once Firebase creates the
+  // account, the next lookup must observe PASSWORD immediately.
+  if (!["SYSTEM_ERROR", "WAIT", "PASSWORD_SETUP"].includes(route)) {
     cache.put(cacheKey, JSON.stringify(result), PUBLIC_AUTH_ROUTE_CACHE_SECONDS);
   }
 
@@ -650,7 +684,8 @@ function createPublicAuthRouteJsonp_(e) {
     payload = getPublicAuthRoute_(
       e && e.parameter ? e.parameter.kind : "",
       e && e.parameter ? e.parameter.value : "",
-      Boolean(e && e.parameter && e.parameter.fresh === "1")
+      Boolean(e && e.parameter && e.parameter.fresh === "1"),
+      e && e.parameter ? e.parameter.client : ""
     );
   } catch (error) {
     console.error("Public auth routing failed:", error);
@@ -1337,7 +1372,7 @@ function createTemporaryAccessPostResponse_(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function getFirebaseUserByEmailAdmin_(email) {
+function findFirebaseUserByEmailAdmin_(email) {
   const normalizedEmail = normalizeEmail_(email);
   const response = UrlFetchApp.fetch(
     "https://identitytoolkit.googleapis.com/v1/projects/" +
@@ -1366,6 +1401,9 @@ function getFirebaseUserByEmailAdmin_(email) {
     } catch (error) {
       apiMessage = "";
     }
+    if (["EMAIL_NOT_FOUND", "USER_NOT_FOUND"].includes(apiMessage)) {
+      return null;
+    }
     console.error(
       "Firebase Authentication lookup failed:",
       response.getResponseCode(),
@@ -1384,7 +1422,12 @@ function getFirebaseUserByEmailAdmin_(email) {
   const user = users.find(item =>
     normalizeEmail_(item && item.email) === normalizedEmail
   );
-  if (!user || !cleanSheetValue_(user.localId)) {
+  return user && cleanSheetValue_(user.localId) ? user : null;
+}
+
+function getFirebaseUserByEmailAdmin_(email) {
+  const user = findFirebaseUserByEmailAdmin_(email);
+  if (!user) {
     throw new Error(
       "לא נמצא חשבון Firebase עבור כתובת המייל הזו."
     );
@@ -1446,9 +1489,18 @@ function updateFirebasePasswordAdmin_(localId, password) {
 function invalidatePublicEmailAuthRouteCache_(email) {
   const normalizedEmail = normalizeEmail_(email);
   if (!normalizedEmail) return;
-  CacheService.getScriptCache().remove(
-    getPublicAuthRouteCacheKey_("email", normalizedEmail)
+  const baseKey = getPublicAuthRouteCacheKey_("email", normalizedEmail);
+  const accountAwareKey = getPublicAuthRouteCacheKey_(
+    "email",
+    normalizedEmail,
+    PUBLIC_AUTH_ACCOUNT_ROUTING_CLIENT
   );
+  CacheService.getScriptCache().removeAll([
+    baseKey,
+    baseKey + ":busy",
+    accountAwareKey,
+    accountAwareKey + ":busy"
+  ]);
 }
 
 function preparePasswordRecoveryFromWeb_(parameters) {
