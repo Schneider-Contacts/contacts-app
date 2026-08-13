@@ -84,6 +84,7 @@ let monthlyInternsState = {
 };
 let monthlyInternsLoadPromise = null;
 let monthlyInternsLoadToken = 0;
+let monthlyInternsHomeScrollY = 0;
 
 let authMode = "login";
 let authPurpose = "login";
@@ -1343,14 +1344,14 @@ function getMonthlyInternsDescriptorFromData_(data, fallbackDescriptor) {
 }
 
 function renderMonthlyInterns_() {
-  const section = document.getElementById("monthlyInternsSection");
+  const view = document.getElementById("monthlyInternsView");
   const monthLabel = document.getElementById("monthlyInternsMonthLabel");
   const countElement = document.getElementById("monthlyInternsCount");
   const statusElement = document.getElementById("monthlyInternsStatus");
   const listElement = document.getElementById("monthlyInternsList");
   const quickMonthLabel = document.getElementById("monthlyInternsQuickMonthLabel");
   const quickCount = document.getElementById("monthlyInternsQuickCount");
-  if (!section || !monthLabel || !countElement || !statusElement || !listElement) {
+  if (!view || !monthLabel || !countElement || !statusElement || !listElement) {
     return;
   }
 
@@ -1373,12 +1374,12 @@ function renderMonthlyInterns_() {
   }
 
   if (monthlyInternsState.status === "missing") {
-    statusElement.textContent = "עדיין לא הוזנה רשימת סטאז׳רים לחודש זה";
+    statusElement.textContent = "אין כרגע רשימת סטאז׳רים פעילה";
     return;
   }
 
   if (monthlyInternsState.status === "unavailable") {
-    statusElement.textContent = "רשימת הסטאז׳רים אינה זמינה כרגע";
+    statusElement.textContent = "אין כרגע רשימת סטאז׳רים פעילה";
     return;
   }
 
@@ -1386,7 +1387,7 @@ function renderMonthlyInterns_() {
     ? monthlyInternsState.entries
     : [];
   if (!entries.length) {
-    statusElement.textContent = "עדיין לא הוזנו סטאז׳רים לחודש זה";
+    statusElement.textContent = "אין כרגע רשימת סטאז׳רים פעילה";
     return;
   }
 
@@ -1397,49 +1398,91 @@ function renderMonthlyInterns_() {
     quickCount.textContent = String(entries.length);
     quickCount.hidden = false;
   }
-  listElement.innerHTML = entries.map(entry => {
-    const name = entry.name || "סטאז׳ר/ית";
-    const department = entry.department || "";
-    const displayPhone = formatPhoneForDisplay(entry.phone);
-    const cleanPhone = normalizePhone(entry.phone).replace(/\D/g, "");
+  const departmentGroups = new Map();
+  const noDepartmentEntries = [];
+  entries.forEach(entry => {
+    const department = String(entry.department || "").trim();
+    if (!department) {
+      noDepartmentEntries.push(entry);
+      return;
+    }
+    const key = normalizeSearchText(department) || department;
+    if (!departmentGroups.has(key)) {
+      departmentGroups.set(key, { label: department, entries: [] });
+    }
+    departmentGroups.get(key).entries.push(entry);
+  });
+
+  const groups = [...departmentGroups.values()];
+  if (noDepartmentEntries.length) {
+    groups.push({ label: "ללא מחלקה", entries: noDepartmentEntries });
+  }
+
+  const hebrewNameSort = (left, right) => String(left.name || "").localeCompare(
+    String(right.name || ""),
+    "he",
+    { sensitivity: "base" }
+  );
+  listElement.innerHTML = groups.map(group => {
+    const sortedEntries = [...group.entries].sort(hebrewNameSort);
+    const rows = sortedEntries.map(entry => {
+      const name = entry.name || "סטאז׳ר/ית";
+      const displayPhone = formatPhoneForDisplay(entry.phone);
+      const cleanPhone = normalizePhone(entry.phone).replace(/\D/g, "");
+      return `
+        <article class="monthlyInternItem">
+          <span class="monthlyInternContent">
+            <strong>${escapeHtml(name)}</strong>
+            <span class="monthlyInternPhone" dir="ltr">${escapeHtml(displayPhone)}</span>
+          </span>
+          <span class="monthlyInternActions">
+            <a href="tel:${escapeHtml(entry.phone)}" aria-label="חיוג אל ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'call')">${getDirectoryIconSvg_("phone")}</a>
+            <a href="https://wa.me/${escapeHtml(cleanPhone)}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>
+          </span>
+        </article>
+      `;
+    }).join("");
     return `
-      <article class="monthlyInternItem">
-      <span class="monthlyInternContent">
-        <strong>${escapeHtml(name)}</strong>
-        ${department ? `<span>${escapeHtml(department)}</span>` : ""}
-        <span class="monthlyInternPhone" dir="ltr">${escapeHtml(displayPhone)}</span>
-      </span>
-        <span class="monthlyInternActions">
-          <a href="tel:${escapeHtml(entry.phone)}" aria-label="חיוג אל ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'call')">${getDirectoryIconSvg_("phone")}</a>
-          <a href="https://wa.me/${escapeHtml(cleanPhone)}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>
-        </span>
-      </article>
+      <section class="monthlyInternDepartment" aria-label="${escapeHtml(group.label)}">
+        <header class="monthlyInternDepartmentHeader">
+          <h3>${escapeHtml(group.label)}</h3>
+          <span>${sortedEntries.length}</span>
+        </header>
+        <div class="monthlyInternDepartmentList">${rows}</div>
+      </section>
     `;
   }).join("");
 }
 
-function openMonthlyInternsSheet_() {
+function openMonthlyInternsView_() {
   closeAllDirectoryMenus_();
   closeDepartmentBrowser_();
-  const sheet = document.getElementById("monthlyInternsSheet");
-  if (!sheet) return;
-  sheet.classList.add("visible");
-  sheet.setAttribute("aria-hidden", "false");
-  document.body.classList.add("directorySheetOpen");
+  const appElement = document.getElementById("app");
+  const view = document.getElementById("monthlyInternsView");
+  if (!appElement || !view || appElement.classList.contains("internsViewActive")) {
+    return;
+  }
+  monthlyInternsHomeScrollY = window.scrollY;
+  view.hidden = false;
+  appElement.classList.add("internsViewActive");
+  window.scrollTo({ top: 0, behavior: "auto" });
   window.setTimeout(() => {
-    const backButton = sheet.querySelector(".directorySheetBack");
+    const backButton = view.querySelector(".monthlyInternsViewBack");
     if (backButton) backButton.focus();
   }, 0);
 }
 
-function closeMonthlyInternsSheet_() {
-  const sheet = document.getElementById("monthlyInternsSheet");
-  if (!sheet) return;
-  sheet.classList.remove("visible");
-  sheet.setAttribute("aria-hidden", "true");
-  if (!document.querySelector(".directorySheet.visible")) {
-    document.body.classList.remove("directorySheetOpen");
+function closeMonthlyInternsView_() {
+  const appElement = document.getElementById("app");
+  const view = document.getElementById("monthlyInternsView");
+  if (!appElement || !view || !appElement.classList.contains("internsViewActive")) {
+    return;
   }
+  appElement.classList.remove("internsViewActive");
+  view.hidden = true;
+  window.scrollTo({ top: monthlyInternsHomeScrollY, behavior: "auto" });
+  const quickEntry = document.getElementById("monthlyInternsQuickEntry");
+  if (quickEntry) quickEntry.focus();
 }
 
 async function loadCurrentMonthInterns_(options = {}) {
@@ -5007,7 +5050,7 @@ function showAppForUser(user) {
   closeAllDirectoryMenus_();
   closeContactDetail_();
   closeDepartmentBrowser_();
-  closeMonthlyInternsSheet_();
+  closeMonthlyInternsView_();
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("adminPanel").style.display = "none";
@@ -5334,7 +5377,7 @@ async function logout() {
     closeAllDirectoryMenus_();
     closeContactDetail_();
     closeDepartmentBrowser_();
-    closeMonthlyInternsSheet_();
+    closeMonthlyInternsView_();
     updateQuickFilterButtons();
     document.getElementById("list").innerHTML = "";
     showLoginScreen();
@@ -11482,16 +11525,6 @@ function initMainDirectoryUx_() {
     });
   }
 
-  const monthlyInternsList = document.getElementById("monthlyInternsList");
-  if (monthlyInternsList) {
-    monthlyInternsList.addEventListener("click", event => {
-      const button = event.target.closest("[data-monthly-intern-contact-id]");
-      if (!button) return;
-      const contactId = Number(button.dataset.monthlyInternContactId);
-      if (Number.isInteger(contactId)) openContactDetail_(contactId);
-    });
-  }
-
   document.addEventListener("click", event => {
     if (!event.target.closest(".directoryMenuHost")) {
       closeAllDirectoryMenus_();
@@ -11509,8 +11542,8 @@ function initMainDirectoryUx_() {
       closeDepartmentBrowser_();
       return;
     }
-    if (document.getElementById("monthlyInternsSheet")?.classList.contains("visible")) {
-      closeMonthlyInternsSheet_();
+    if (document.getElementById("app")?.classList.contains("internsViewActive")) {
+      closeMonthlyInternsView_();
     }
   });
 }

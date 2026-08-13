@@ -4612,7 +4612,7 @@ body.directorySheetOpen {
 
 #app .monthlyInternsQuickIcon svg,
 #app .monthlyInternsQuickArrow,
-.directorySheetBack svg {
+#app .monthlyInternsViewBack svg {
   width: 20px;
   height: 20px;
   fill: none;
@@ -4628,25 +4628,125 @@ body.directorySheetOpen {
 #app .monthlyInternsQuickCount { display: grid; place-items: center; min-width: 26px; height: 24px; padding: 0 7px; border-radius: 999px; background: #e8f5ee; color: #176b4e; font-size: 11px; font-weight: 800; }
 #app .monthlyInternsQuickCount[hidden] { display: none; }
 #app .monthlyInternsQuickArrow { flex: 0 0 auto; color: #70827a; }
-.monthlyInternsSheetPanel { max-height: min(82vh, 720px); }
-.monthlyInternsSheetHeader { align-items: center; }
-.directorySheetBack { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; margin: 0; padding: 8px 10px; border: 1px solid #dbe7e1; border-radius: 12px; background: #f7faf8; color: #315e4e; box-shadow: none; font-size: 12px; font-weight: 780; }
-.monthlyInternsModule { overflow-y: auto; padding: 2px 1px max(14px, env(safe-area-inset-bottom)); }
+
+#app.internsViewActive > :not(#monthlyInternsView) {
+  display: none !important;
+}
+
+#app .monthlyInternsView[hidden] {
+  display: none !important;
+}
+
+#app .monthlyInternsView {
+  min-height: calc(100dvh - 28px);
+  padding: 0 0 max(28px, env(safe-area-inset-bottom));
+  color: #203e34;
+  text-align: right;
+}
+
+#app .monthlyInternsViewHeader {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  padding: 9px 0 11px;
+  border-bottom: 1px solid rgba(209, 224, 217, 0.9);
+  background: rgba(247, 250, 248, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#app .monthlyInternsViewBack {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #dbe7e1;
+  border-radius: 13px;
+  background: #ffffff;
+  color: #315e4e;
+  box-shadow: none;
+}
+
+#app .monthlyInternsViewBack:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.22);
+  outline-offset: 2px;
+}
+
+#app .monthlyInternsViewHeading { min-width: 0; }
+
+#app .monthlyInternsViewHeading h2 {
+  margin: 0;
+  color: #1e4336;
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+#app .monthlyInternsViewHeading p {
+  margin: 2px 0 0;
+  color: #73857d;
+  font-size: 12px;
+}
 
 #app .monthlyInternsStatus {
-  padding: 10px 11px;
-  border-radius: 11px;
-  background: #f5f8f6;
+  padding: 54px 16px;
   color: #718078;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   text-align: center;
 }
 
 #app .monthlyInternsList {
   display: grid;
-  gap: 4px;
+  gap: 22px;
+  padding: 18px 0 0;
 }
+
+#app .monthlyInternDepartment { min-width: 0; }
+
+#app .monthlyInternDepartmentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid #dfe9e4;
+}
+
+#app .monthlyInternDepartmentHeader h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #275343;
+  font-size: 14px;
+  font-weight: 830;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app .monthlyInternDepartmentHeader span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 25px;
+  height: 23px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #edf5f1;
+  color: #537467;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+#app .monthlyInternDepartmentList { display: grid; }
 
 #app .monthlyInternItem {
   display: flex;
@@ -4654,19 +4754,20 @@ body.directorySheetOpen {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  min-height: 54px;
+  min-height: 62px;
   margin: 0;
-  padding: 8px 9px;
+  padding: 8px 4px;
   border: 0;
-  border-radius: 11px;
-  background: #f9fbfa;
+  border-bottom: 1px solid #e6eeea;
+  border-radius: 0;
+  background: transparent;
   color: #294d40;
   box-shadow: none;
   text-align: right;
 }
 
-#app button.monthlyInternItem:hover {
-  background: #eef7f2;
+#app .monthlyInternItem:last-child {
+  border-bottom: 0;
 }
 
 #app .monthlyInternContent {

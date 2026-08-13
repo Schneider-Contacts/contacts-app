@@ -831,8 +831,13 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="monthlyInternsQuickEntry"[\s\S]*?סטאז׳רים החודש[\s\S]*?id="monthlyInternsSheet"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsSection"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
-  "Quick Access must open the current-month interns list in a separate sheet"
+  /id="monthlyInternsQuickEntry"[\s\S]*?סטאז׳רים החודש[\s\S]*?id="monthlyInternsView"[\s\S]*?id="monthlyInternsTitle"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
+  "Quick Access must open the current-month interns list in a dedicated app view"
+);
+assert.doesNotMatch(
+  indexSource,
+  /id="monthlyInternsSheet"|class="[^"]*monthlyInternsSheet/,
+  "The interns directory must not use a bottom sheet"
 );
 assert.doesNotMatch(
   indexSource.match(/id="homeDashboard"[\s\S]*?<!-- PROTECTED_EASTER_EGG_START -->/)?.[0] || "",
@@ -866,8 +871,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function renderMonthlyInterns_\([\s\S]*?עדיין לא הוזנה רשימת סטאז׳רים לחודש זה[\s\S]*?monthlyInternPhone[\s\S]*?monthlyInternActions[\s\S]*?tel:[\s\S]*?wa\.me/,
-  "A missing month must stay quiet and every intern must expose only direct call and WhatsApp actions"
+  /function renderMonthlyInterns_\([\s\S]*?אין כרגע רשימת סטאז׳רים פעילה[\s\S]*?ללא מחלקה[\s\S]*?localeCompare[\s\S]*?monthlyInternPhone[\s\S]*?monthlyInternActions[\s\S]*?tel:[\s\S]*?wa\.me[\s\S]*?monthlyInternDepartment/,
+  "Interns must be grouped by department, Hebrew-sorted, and expose only direct call and WhatsApp actions"
 );
 assert.doesNotMatch(
   extractCompleteFunction(appSource, "renderMonthlyInterns_"),
