@@ -1040,13 +1040,6 @@ function updateQuickFilterButtons() {
     labs: document.getElementById("labsFilterBtn")
   };
 
-  const allButton = document.getElementById("allFilterBtn");
-  if (allButton) {
-    const isActive = activeQuickFilter === "all";
-    allButton.classList.toggle("active", isActive);
-    allButton.setAttribute("aria-pressed", String(isActive));
-  }
-
   Object.entries(buttons).forEach(([filterName, button]) => {
     if (!button) return;
     const isActive = activeQuickFilter === filterName;
@@ -1355,6 +1348,8 @@ function renderMonthlyInterns_() {
   const countElement = document.getElementById("monthlyInternsCount");
   const statusElement = document.getElementById("monthlyInternsStatus");
   const listElement = document.getElementById("monthlyInternsList");
+  const quickMonthLabel = document.getElementById("monthlyInternsQuickMonthLabel");
+  const quickCount = document.getElementById("monthlyInternsQuickCount");
   if (!section || !monthLabel || !countElement || !statusElement || !listElement) {
     return;
   }
@@ -1362,6 +1357,11 @@ function renderMonthlyInterns_() {
   const descriptor = monthlyInternsState.descriptor ||
     getCurrentMonthlyInternsDescriptor_();
   monthLabel.textContent = descriptor.label;
+  if (quickMonthLabel) quickMonthLabel.textContent = descriptor.label;
+  if (quickCount) {
+    quickCount.hidden = true;
+    quickCount.textContent = "";
+  }
   countElement.hidden = true;
   countElement.textContent = "";
   listElement.innerHTML = "";
@@ -1393,6 +1393,10 @@ function renderMonthlyInterns_() {
   statusElement.hidden = true;
   countElement.textContent = String(entries.length);
   countElement.hidden = false;
+  if (quickCount) {
+    quickCount.textContent = String(entries.length);
+    quickCount.hidden = false;
+  }
   listElement.innerHTML = entries.map(entry => {
     const name = entry.name || "סטאז׳ר/ית";
     const department = entry.department || "";
@@ -1412,6 +1416,30 @@ function renderMonthlyInterns_() {
       </article>
     `;
   }).join("");
+}
+
+function openMonthlyInternsSheet_() {
+  closeAllDirectoryMenus_();
+  closeDepartmentBrowser_();
+  const sheet = document.getElementById("monthlyInternsSheet");
+  if (!sheet) return;
+  sheet.classList.add("visible");
+  sheet.setAttribute("aria-hidden", "false");
+  document.body.classList.add("directorySheetOpen");
+  window.setTimeout(() => {
+    const backButton = sheet.querySelector(".directorySheetBack");
+    if (backButton) backButton.focus();
+  }, 0);
+}
+
+function closeMonthlyInternsSheet_() {
+  const sheet = document.getElementById("monthlyInternsSheet");
+  if (!sheet) return;
+  sheet.classList.remove("visible");
+  sheet.setAttribute("aria-hidden", "true");
+  if (!document.querySelector(".directorySheet.visible")) {
+    document.body.classList.remove("directorySheetOpen");
+  }
 }
 
 async function loadCurrentMonthInterns_(options = {}) {
@@ -4973,19 +5001,13 @@ function updateAdminEntryVisibility_() {
     menuButton.classList.toggle("visible", currentUserIsAdmin);
   }
 
-  const homeButton = document.getElementById("homeAdminToolBtn");
-  if (homeButton) homeButton.hidden = !currentUserIsAdmin;
-
-  const toolsGrid = document.getElementById("homeToolsGrid");
-  if (toolsGrid) {
-    toolsGrid.classList.toggle("hasAdmin", currentUserIsAdmin);
-  }
 }
 
 function showAppForUser(user) {
   closeAllDirectoryMenus_();
   closeContactDetail_();
   closeDepartmentBrowser_();
+  closeMonthlyInternsSheet_();
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("adminPanel").style.display = "none";
@@ -5312,6 +5334,7 @@ async function logout() {
     closeAllDirectoryMenus_();
     closeContactDetail_();
     closeDepartmentBrowser_();
+    closeMonthlyInternsSheet_();
     updateQuickFilterButtons();
     document.getElementById("list").innerHTML = "";
     showLoginScreen();
@@ -11484,6 +11507,10 @@ function initMainDirectoryUx_() {
     }
     if (document.getElementById("departmentSheet")?.classList.contains("visible")) {
       closeDepartmentBrowser_();
+      return;
+    }
+    if (document.getElementById("monthlyInternsSheet")?.classList.contains("visible")) {
+      closeMonthlyInternsSheet_();
     }
   });
 }

@@ -811,8 +811,13 @@ assert.doesNotMatch(
 );
 assert.match(
   indexSource,
-  /id="homeDashboard"[\s\S]*?כלים שימושיים[\s\S]*?id="suggestContactBtn"[\s\S]*?id="importAllBtn"[\s\S]*?id="recentContactsBtn"[\s\S]*?id="homeSelectionModeBtn"[\s\S]*?id="homeProfileBtn"[\s\S]*?id="homeAdminToolBtn"/,
-  "The home dashboard must expose every existing global tool with clear labels"
+  /id="homeDashboard"[\s\S]*?כלים שימושיים[\s\S]*?id="suggestContactBtn"[\s\S]*?id="importAllBtn"[\s\S]*?id="recentContactsBtn"[\s\S]*?id="homeProfileBtn"/,
+  "The home dashboard must expose the focused useful tools with clear labels"
+);
+assert.doesNotMatch(
+  indexSource,
+  /id="homeSelectionModeBtn"|id="homeAdminToolBtn"/,
+  "Admin and multi-selection must not be duplicated in Useful Tools"
 );
 assert.match(
   indexSource,
@@ -826,8 +831,13 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="monthlyInternsSection"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
-  "The home dashboard must contain a non-blocking current-month interns module"
+  /id="monthlyInternsQuickEntry"[\s\S]*?סטאז׳רים החודש[\s\S]*?id="monthlyInternsSheet"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsSection"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
+  "Quick Access must open the current-month interns list in a separate sheet"
+);
+assert.doesNotMatch(
+  indexSource.match(/id="homeDashboard"[\s\S]*?<!-- PROTECTED_EASTER_EGG_START -->/)?.[0] || "",
+  /id="monthlyInternsList"/,
+  "Intern rows must not be displayed directly on Home"
 );
 assert.match(
   codeSource,
@@ -1153,15 +1163,17 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function updateQuickFilterButtons\(\)[\s\S]*?const isActive = activeQuickFilter === "all";[\s\S]*?activeQuickFilter === filterName[\s\S]*?isDepartmentFilterActive_\(\)/,
+  /function updateQuickFilterButtons\(\)[\s\S]*?activeQuickFilter === filterName[\s\S]*?isDepartmentFilterActive_\(\)/,
   "Quick-filter visual state must derive from one exclusive active filter"
 );
+assert.doesNotMatch(indexSource, /id="allFilterBtn"/, "Quick Access must not show an All button");
 
 const quickFilterStateSandbox = {
   activeQuickFilter: "all",
   directoryBrowseActivated: false,
   selectionMode: false,
   selectedContactIds: new Set(),
+  document: { getElementById: id => id === "searchInput" ? { value: "כהן" } : null },
   normalizeSearchText: value => String(value || "").trim().toLowerCase(),
   closeDepartmentBrowser_: () => {},
   updateQuickFilterButtons: () => {},
@@ -1206,10 +1218,10 @@ assert.strictEqual(
   "Tapping an active department context must return to all"
 );
 assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, true);
+assert.strictEqual(quickFilterStateSandbox.document.getElementById("searchInput").value, "כהן", "Changing or clearing quick filters must preserve the typed search query");
 
 const quickFilterVisualElements = Object.fromEntries(
   [
-    "allFilterBtn",
     "vpnFilterBtn",
     "institutesFilterBtn",
     "labsFilterBtn",
@@ -1240,7 +1252,6 @@ vm.runInContext(
 );
 const activeVisualFilterCount = () =>
   [
-    "allFilterBtn",
     "vpnFilterBtn",
     "institutesFilterBtn",
     "labsFilterBtn",
@@ -1248,7 +1259,7 @@ const activeVisualFilterCount = () =>
   ].filter(id => quickFilterVisualElements[id].classList.contains("active"))
     .length;
 quickFilterVisualSandbox.updateQuickFilterButtons();
-assert.strictEqual(activeVisualFilterCount(), 1);
+assert.strictEqual(activeVisualFilterCount(), 0);
 quickFilterVisualSandbox.activeQuickFilter = "vpn";
 quickFilterVisualSandbox.updateQuickFilterButtons();
 assert.strictEqual(activeVisualFilterCount(), 1);

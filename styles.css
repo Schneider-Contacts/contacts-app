@@ -4459,7 +4459,6 @@ body.directorySheetOpen {
 
 #app .directoryListToolbar[hidden],
 #app .homeDashboard[hidden],
-#app .homeAdminTool[hidden],
 #app .monthlyInternsStatus[hidden],
 #app .monthlyInternsCount[hidden] {
   display: none !important;
@@ -4564,15 +4563,7 @@ body.directorySheetOpen {
 }
 
 #app .homeToolsGrid .homeProfileTool {
-  grid-column: 1 / -1;
-}
-
-#app .homeToolsGrid.hasAdmin .homeProfileTool {
   grid-column: auto;
-}
-
-#app .homeAdminTool {
-  color: #245d49;
 }
 
 #app .monthlyInternsCount {
@@ -4588,6 +4579,59 @@ body.directorySheetOpen {
   font-size: 11px;
   font-weight: 800;
 }
+
+#app .monthlyInternsQuickEntry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border: 1px solid #dce9e3;
+  border-radius: 14px;
+  background: #f8fbf9;
+  color: #244b3d;
+  box-shadow: none;
+  text-align: right;
+}
+
+#app .monthlyInternsQuickEntry:hover { border-color: #b8d8ca; background: #f0f8f4; }
+#app .monthlyInternsQuickEntry:focus-visible { outline: 3px solid rgba(16, 185, 129, 0.22); outline-offset: 2px; }
+
+#app .monthlyInternsQuickIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #e8f5ee;
+  color: #176b4e;
+}
+
+#app .monthlyInternsQuickIcon svg,
+#app .monthlyInternsQuickArrow,
+.directorySheetBack svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app .monthlyInternsQuickText { display: grid; flex: 1; min-width: 0; gap: 2px; }
+#app .monthlyInternsQuickText strong { font-size: 13.5px; font-weight: 820; }
+#app .monthlyInternsQuickText small { color: #74857d; font-size: 11.5px; }
+#app .monthlyInternsQuickCount { display: grid; place-items: center; min-width: 26px; height: 24px; padding: 0 7px; border-radius: 999px; background: #e8f5ee; color: #176b4e; font-size: 11px; font-weight: 800; }
+#app .monthlyInternsQuickCount[hidden] { display: none; }
+#app .monthlyInternsQuickArrow { flex: 0 0 auto; color: #70827a; }
+.monthlyInternsSheetPanel { max-height: min(82vh, 720px); }
+.monthlyInternsSheetHeader { align-items: center; }
+.directorySheetBack { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; margin: 0; padding: 8px 10px; border: 1px solid #dbe7e1; border-radius: 12px; background: #f7faf8; color: #315e4e; box-shadow: none; font-size: 12px; font-weight: 780; }
+.monthlyInternsModule { overflow-y: auto; padding: 2px 1px max(14px, env(safe-area-inset-bottom)); }
 
 #app .monthlyInternsStatus {
   padding: 10px 11px;

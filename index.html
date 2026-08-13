@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260813-home-refinement-v1">
+<link rel="stylesheet" href="styles.css?v=20260813-home-quick-v2">
 
 
 
@@ -332,12 +332,18 @@
 
   <div class="quickAccessLabel">גישה מהירה</div>
   <div class="quickFilters" aria-label="רשימות מהירות">
-    <button type="button" id="allFilterBtn" class="quickFilterBtn" onclick="clearActiveDirectoryFilter_()" aria-pressed="false">הכול</button>
     <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')" aria-pressed="false">VPN</button>
     <button type="button" id="institutesFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('institutes')" aria-pressed="false">מכונים</button>
     <button type="button" id="labsFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('labs')" aria-pressed="false">מעבדות</button>
     <button type="button" id="departmentsFilterBtn" class="quickFilterBtn" onclick="handleDepartmentsFilterClick_()" aria-pressed="false">מחלקות</button>
   </div>
+
+  <button type="button" id="monthlyInternsQuickEntry" class="monthlyInternsQuickEntry" onclick="openMonthlyInternsSheet_()">
+    <span class="monthlyInternsQuickIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 20v-1.5a5 5 0 0 1 10 0V20M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
+    <span class="monthlyInternsQuickText"><strong>סטאז׳רים החודש</strong><small id="monthlyInternsQuickMonthLabel"></small></span>
+    <span id="monthlyInternsQuickCount" class="monthlyInternsQuickCount" hidden></span>
+    <svg class="monthlyInternsQuickArrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+  </button>
 
   <div id="activeDirectoryFilter" class="activeDirectoryFilter" hidden>
     <span id="activeDirectoryFilterText"></span>
@@ -370,28 +376,11 @@
           <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2M5.4 5.4A9 9 0 1 1 3 12"/><path d="M3 5v5h5"/></svg></span>
           <span>הורדת אנשי קשר חדשים</span>
         </button>
-        <button type="button" id="homeSelectionModeBtn" class="homeToolButton" onclick="openSelectionModeFromHome_()">
-          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="m15 17 2 2 3-4"/></svg></span>
-          <span>בחירת כמה אנשי קשר</span>
-        </button>
         <button type="button" id="homeProfileBtn" class="homeToolButton homeProfileTool" onclick="openMyProfileModal()">
           <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="m17.6 5.4 1-1a1.4 1.4 0 0 1 2 2l-1 1-2-2Z"/></svg></span>
           <span>הפרטים שלי</span>
         </button>
-        <button type="button" id="homeAdminToolBtn" class="homeToolButton homeAdminTool" onclick="openAdminPanel()" hidden>
-          <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg></span>
-          <span>ניהול המערכת</span>
-        </button>
       </div>
-    </section>
-
-    <section id="monthlyInternsSection" class="homeModule monthlyInternsModule" aria-labelledby="monthlyInternsTitle">
-      <div class="homeModuleHeader monthlyInternsHeader">
-        <h3 id="monthlyInternsTitle">סטאז׳רים — <span id="monthlyInternsMonthLabel"></span></h3>
-        <span id="monthlyInternsCount" class="monthlyInternsCount" hidden></span>
-      </div>
-      <div id="monthlyInternsStatus" class="monthlyInternsStatus" role="status" aria-live="polite">טוען את הרשימה…</div>
-      <div id="monthlyInternsList" class="monthlyInternsList"></div>
     </section>
   </div>
 
@@ -471,6 +460,24 @@
       <button type="button" class="directorySheetClose" onclick="closeDepartmentBrowser_()" aria-label="סגירה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
     </div>
     <div id="departmentList" class="departmentList"></div>
+  </div>
+</div>
+
+<div id="monthlyInternsSheet" class="directorySheet" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="monthlyInternsTitle">
+  <button type="button" class="directorySheetBackdrop" onclick="closeMonthlyInternsSheet_()" aria-label="חזרה למסך הבית"></button>
+  <div class="directorySheetPanel monthlyInternsSheetPanel">
+    <div class="directorySheetHandle" aria-hidden="true"></div>
+    <div class="directorySheetHeader monthlyInternsSheetHeader">
+      <div><h3 id="monthlyInternsTitle">סטאז׳רים — <span id="monthlyInternsMonthLabel"></span></h3><p>חיוג ו־WhatsApp לסטאז׳רים של החודש</p></div>
+      <button type="button" class="directorySheetBack" onclick="closeMonthlyInternsSheet_()" aria-label="חזרה למסך הבית">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>חזרה</span>
+      </button>
+    </div>
+    <section id="monthlyInternsSection" class="monthlyInternsModule" aria-labelledby="monthlyInternsTitle">
+      <span id="monthlyInternsCount" class="monthlyInternsCount" hidden></span>
+      <div id="monthlyInternsStatus" class="monthlyInternsStatus" role="status" aria-live="polite">טוען את הרשימה…</div>
+      <div id="monthlyInternsList" class="monthlyInternsList"></div>
+    </section>
   </div>
 </div>
 
@@ -853,7 +860,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260813-admin-v2"></script>
+  <script src="app.js?v=20260813-home-quick-v2"></script>
 
 </body>
 </html>
