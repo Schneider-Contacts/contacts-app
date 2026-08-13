@@ -284,13 +284,62 @@ assert.match(
 );
 assert.match(
   appSource,
-  /const AUTH_ROUTE_TIMEOUT_MS = 20 \* 1000;[\s\S]*?const AUTH_ROUTE_SLOW_NOTICE_MS = 7 \* 1000;/,
-  "Authentication routing must allow slow Apps Script starts and show an earlier notice"
+  /const AUTH_ROUTE_TIMEOUT_MS = 20 \* 1000;/,
+  "Authentication routing must continue to tolerate slow Apps Script starts"
+);
+assert.doesNotMatch(
+  appSource,
+  /AUTH_ROUTE_SLOW_NOTICE_MS|בודק את מסלול הכניסה|הבדיקה לוקחת מעט יותר מהרגיל\. ממשיכים לבדוק/,
+  "The routing transition must not show technical loading copy or a delayed slow notice"
 );
 assert.match(
   appSource,
   /continueFromPhoneStep\([\s\S]*?requestPublicAuthRouteWithRetry_\([\s\S]*?"phone"/,
   "Phone routing must use the retrying auth helper"
+);
+const authRoutingMarkup = indexSource.match(
+  /<div id="authRoutingStep"[\s\S]*?<\/div>/
+);
+assert(authRoutingMarkup, "The login must include a dedicated routing transition state");
+assert.match(
+  authRoutingMarkup[0],
+  /<img class="authRoutingLogo" src="app-logo\.png\?v=20260722-v16"/,
+  "The routing transition must reuse the existing Contacts App logo"
+);
+assert.doesNotMatch(
+  authRoutingMarkup[0],
+  /בודק|טוען|spinner|progress|\.\.\./i,
+  "The routing transition must contain no visible loading UI"
+);
+assert.match(
+  stylesSource,
+  /#login\.authRoutingActive \.authBrand,[\s\S]*?#login\.authRoutingActive \.authProgress,[\s\S]*?#login \.authRoutingStep \{[\s\S]*?place-items: center;[\s\S]*?#login \.authRoutingLogo \{[\s\S]*?width: clamp\(/,
+  "The routing transition must be minimal, centered, and larger than normal branding"
+);
+assert.match(
+  appSource,
+  /function showAuthRoutingStep_\(\) \{[\s\S]*?authStage = "routing";[\s\S]*?updateAuthProgress_\(""\);[\s\S]*?setLoginStatus\("", ""\);/,
+  "The routing transition must hide progress and status copy"
+);
+assert.match(
+  appSource,
+  /async function loginWithPassword\(\)[\s\S]*?showAuthRoutingStep_\(\);[\s\S]*?getEmailAuthRoutePromise_\(email/,
+  "A failed password sign-in must use the branded transition while routing resolves"
+);
+assert.match(
+  appSource,
+  /async function continueFromPhoneStep\(\)[\s\S]*?showAuthRoutingStep_\(\);[\s\S]*?requestPublicAuthRouteWithRetry_\(\s*"phone"/,
+  "Phone routing must use the branded transition while routing resolves"
+);
+assert.match(
+  appSource,
+  /publicErrorMessage && !publicErrorMessage\.startsWith\("AUTH_ROUTE_"\)[\s\S]*?בדיקת מספר הטלפון נכשלה זמנית/,
+  "Router timeout codes must not be exposed to users"
+);
+assert.match(
+  appSource,
+  /async function handlePrimaryAuthAction\(\) \{[\s\S]*?if \(authStage === "routing"\) return;/,
+  "The routing transition must ignore duplicate form submissions"
 );
 assert.doesNotMatch(
   indexSource,
@@ -548,6 +597,7 @@ const authRouteTransitionSandbox = {
   authRouteIsAdmin: false,
   authAccountSetupEmail: "",
   authMode: "login",
+  authStage: "password",
   authReturningUser: false,
   normalizeEmail: value => String(value || "").trim().toLowerCase(),
   getCurrentAuthEmail_: () => "person@example.com",
@@ -629,6 +679,16 @@ authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
 assert.strictEqual(authRouteTransitionCalls[0][0], "status");
 
 authRouteTransitionCalls.length = 0;
+authRouteTransitionSandbox.authStage = "routing";
+authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
+  "person@example.com",
+  { route: "PASSWORD" },
+  { flowToken: 7, afterPasswordFailure: true }
+);
+assert.strictEqual(authRouteTransitionCalls[0][0], "password");
+assert.strictEqual(authRouteTransitionCalls[1][0], "status");
+
+authRouteTransitionCalls.length = 0;
 authRouteTransitionSandbox.auth = { currentUser: { uid: "signed-in" } };
 assert.strictEqual(
   authRouteTransitionSandbox.applyResolvedEmailAuthRoute_(
@@ -643,65 +703,218 @@ assert.strictEqual(authRouteTransitionCalls.length, 0);
 
 const mainSearchElements = {
   searchInput: { value: "" },
-  suggestContactBtn: { hidden: false },
-  importAllBtn: { hidden: false },
-  recentContactsBtn: { hidden: false }
+  directoryToolsMenuBtn: { hidden: true }
 };
 const mainSearchSandbox = {
-  activeQuickFilter: "",
   document: {
     getElementById: id => mainSearchElements[id] || null
-  },
-  normalizeSearchText: value =>
-    String(value || "").trim().toLowerCase()
+  }
 };
 vm.createContext(mainSearchSandbox);
 vm.runInContext(
-  [
-    extractCompleteFunction(appSource, "isSearchActive"),
-    extractCompleteFunction(appSource, "isQuickFilterActive"),
-    extractCompleteFunction(
-      appSource,
-      "updateMainSearchActionVisibility_"
-    )
-  ].join("\n"),
+  extractCompleteFunction(
+    appSource,
+    "updateMainSearchActionVisibility_"
+  ),
   mainSearchSandbox
 );
 
 mainSearchSandbox.updateMainSearchActionVisibility_();
 assert(
-  !mainSearchElements.suggestContactBtn.hidden &&
-    !mainSearchElements.importAllBtn.hidden &&
-    !mainSearchElements.recentContactsBtn.hidden,
-  "General contact actions must remain visible on the idle screen"
+  !mainSearchElements.directoryToolsMenuBtn.hidden,
+  "The compact tools entry must remain available on the idle screen"
 );
 
 mainSearchElements.searchInput.value = "05";
 mainSearchSandbox.updateMainSearchActionVisibility_();
 assert(
-  mainSearchElements.suggestContactBtn.hidden &&
-    mainSearchElements.importAllBtn.hidden &&
-    mainSearchElements.recentContactsBtn.hidden,
-  "General contact actions must hide during an active search"
+  !mainSearchElements.directoryToolsMenuBtn.hidden,
+  "Global contact tools must remain available without competing with search"
 );
 
-mainSearchElements.searchInput.value = "";
-mainSearchSandbox.activeQuickFilter = "labs";
-mainSearchSandbox.updateMainSearchActionVisibility_();
-assert(
-  mainSearchElements.suggestContactBtn.hidden &&
-    mainSearchElements.importAllBtn.hidden &&
-    mainSearchElements.recentContactsBtn.hidden,
-  "General contact actions must hide for quick contact lists"
+assert.match(
+  indexSource,
+  /id="directoryToolsMenu"[\s\S]*?id="suggestContactBtn"[\s\S]*?id="importAllBtn"[\s\S]*?id="recentContactsBtn"/,
+  "Add-contact, download-all, and recent-contact tools must remain in the compact tools menu"
+);
+assert.match(
+  indexSource,
+  /id="accountMenu"[\s\S]*?id="myProfileBtn"[\s\S]*?id="adminOpenBtn"[\s\S]*?logout\(\)/,
+  "Profile editing, admin access, and logout must remain in the account menu"
 );
 
-mainSearchSandbox.activeQuickFilter = "";
-mainSearchSandbox.updateMainSearchActionVisibility_();
+const directorySearchSandbox = {};
+vm.createContext(directorySearchSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "normalizePhone"),
+    extractCompleteFunction(appSource, "formatPhoneForDisplay"),
+    extractCompleteFunction(appSource, "getPhoneSearchValue"),
+    extractCompleteFunction(appSource, "normalizeSearchText"),
+    extractCompleteFunction(appSource, "buildContactSearchIndex_"),
+    extractCompleteFunction(appSource, "getContactSearchIndex_"),
+    extractCompleteFunction(appSource, "getSearchTokenPriority_"),
+    extractCompleteFunction(appSource, "getSearchPriority")
+  ].join("\n"),
+  directorySearchSandbox
+);
+
+const indexedContact = {
+  first: "ישראל",
+  last: "כהן",
+  firstEn: "Israel",
+  lastEn: "Cohen",
+  title: "ד״ר",
+  role: "קרדיולוג",
+  dept: "קרדיולוגיה ילדים",
+  hospital: "שניידר",
+  phone: "0501234567",
+  email: "israel@example.com"
+};
+indexedContact._search = directorySearchSandbox.buildContactSearchIndex_(
+  indexedContact
+);
+const metadataOnlyContact = {
+  first: "דנה",
+  last: "לוי",
+  role: "רכזת כהן",
+  dept: "שירות מטופלים",
+  phone: "0507654321"
+};
+metadataOnlyContact._search = directorySearchSandbox.buildContactSearchIndex_(
+  metadataOnlyContact
+);
+const priorityFor = (contact, query) =>
+  directorySearchSandbox.getSearchPriority(
+    contact,
+    directorySearchSandbox.normalizeSearchText(query),
+    String(query).replace(/\D/g, "")
+  );
+
+assert.strictEqual(priorityFor(indexedContact, "ישראל כהן"), 1);
+assert.strictEqual(priorityFor(indexedContact, "ISRAEL COHEN"), 1);
+assert.notStrictEqual(priorityFor(indexedContact, "קרדיולוג"), null);
+assert.notStrictEqual(priorityFor(indexedContact, "קרדיולוגיה"), null);
+assert.notStrictEqual(priorityFor(indexedContact, "כהן קרדיולוגיה"), null);
+assert.notStrictEqual(priorityFor(indexedContact, "0501234567"), null);
 assert(
-  !mainSearchElements.suggestContactBtn.hidden &&
-    !mainSearchElements.importAllBtn.hidden &&
-    !mainSearchElements.recentContactsBtn.hidden,
-  "General contact actions must return after clearing search and filters"
+  priorityFor(indexedContact, "כהן") <
+    priorityFor(metadataOnlyContact, "כהן"),
+  "A name match must rank above the same text in role metadata"
+);
+assert.strictEqual(priorityFor(indexedContact, "אונקולוגיה"), null);
+assert.match(
+  appSource,
+  /function applyRawContacts_\([\s\S]*?_search: buildContactSearchIndex_\(contact\)/,
+  "Every normalized contact must receive a precomputed in-memory search index"
+);
+assert.match(
+  indexSource,
+  /id="contactDetailSheet"[\s\S]*?id="contactDetailCall"[\s\S]*?id="contactDetailWhatsapp"[\s\S]*?id="contactDetailEmail"[\s\S]*?downloadActiveContact_\(\)[\s\S]*?reportActiveContact_\(\)/,
+  "The contact detail sheet must preserve all secondary contact actions"
+);
+assert.match(
+  indexSource,
+  /id="departmentsFilterBtn"[\s\S]*?id="departmentSheet"[\s\S]*?id="departmentList"/,
+  "A dynamic department browser must remain available from quick access"
+);
+
+const directoryFilterSandbox = {
+  contacts: [
+    { dept: "VPN", phone: "0501234567" },
+    { dept: "VPN מכון דימות", phone: "039999991" },
+    { dept: "מעבדת המטולוגיה", phone: "0507654321" },
+    { dept: "טיפול נמרץ ילדים", phone: "0501112233" },
+    { dept: "טיפול נמרץ ילדים", phone: "0502223344" },
+    { dept: "", phone: "0503334455" }
+  ]
+};
+vm.createContext(directoryFilterSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "normalizePhone"),
+    extractCompleteFunction(appSource, "formatPhoneForDisplay"),
+    extractCompleteFunction(appSource, "normalizeSearchText"),
+    extractCompleteFunction(appSource, "getLocalPhoneDigits"),
+    extractCompleteFunction(appSource, "isMobilePhone"),
+    extractCompleteFunction(appSource, "isInstituteLandline"),
+    extractCompleteFunction(appSource, "contactMatchesQuickFilter"),
+    extractCompleteFunction(appSource, "getDepartmentOptions_")
+  ].join("\n"),
+  directoryFilterSandbox
+);
+
+assert.strictEqual(
+  directoryFilterSandbox.contacts.filter(contact =>
+    directoryFilterSandbox.contactMatchesQuickFilter(contact, "vpn")
+  ).length,
+  1,
+  "The VPN quick filter must retain its existing mobile-phone semantics"
+);
+assert.strictEqual(
+  directoryFilterSandbox.contacts.filter(contact =>
+    directoryFilterSandbox.contactMatchesQuickFilter(contact, "institutes")
+  ).length,
+  1,
+  "The institutes quick filter must retain its existing landline semantics"
+);
+assert.strictEqual(
+  directoryFilterSandbox.contacts.filter(contact =>
+    directoryFilterSandbox.contactMatchesQuickFilter(contact, "labs")
+  ).length,
+  1,
+  "The laboratories quick filter must retain its existing department semantics"
+);
+assert.strictEqual(
+  directoryFilterSandbox.contacts.filter(contact =>
+    directoryFilterSandbox.contactMatchesQuickFilter(contact, "all")
+  ).length,
+  directoryFilterSandbox.contacts.length,
+  "The explicit all-contacts filter must display the full directory"
+);
+assert.strictEqual(
+  directoryFilterSandbox.getDepartmentOptions_().length,
+  4,
+  "The department browser must deduplicate departments and ignore empty values"
+);
+assert.strictEqual(
+  directoryFilterSandbox.contacts.filter(contact =>
+    directoryFilterSandbox.contactMatchesQuickFilter(
+      contact,
+      "department:טיפול נמרץ ילדים"
+    )
+  ).length,
+  2,
+  "An exact dynamic department filter must include every contact in that department"
+);
+assert.match(
+  appSource,
+  /function clearActiveDirectoryFilter_\(\)[\s\S]*?activeQuickFilter = "all";[\s\S]*?renderCurrentSearchResults\(\)/,
+  "Clearing a category must return to the full directory without clearing the query"
+);
+
+[
+  "buildContactVCard",
+  "downloadContact",
+  "downloadSelectedContacts",
+  "downloadAllContacts",
+  "downloadRecentContacts",
+  "openContactReportModal",
+  "openContactAddModal_",
+  "openMyProfileModal",
+  "openAdminPanel",
+  "logout"
+].forEach(functionName => {
+  assert.match(
+    appSource,
+    new RegExp(`\\bfunction\\s+${functionName}\\s*\\(`),
+    `Main-screen redesign must preserve ${functionName}()`
+  );
+});
+assert.match(
+  appSource,
+  /const rowAction = selectionMode[\s\S]*?openContactDetail_[\s\S]*?<button type="button" class="contactRowMain"[\s\S]*?class="contactIconAction call"[\s\S]*?class="contactIconAction whatsapp"/,
+  "Contact rows must open details while call and WhatsApp remain separate explicit actions"
 );
 
 const createClassList = () => {
