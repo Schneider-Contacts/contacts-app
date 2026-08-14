@@ -831,7 +831,7 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="monthlyInternsQuickEntry"[\s\S]*?סטאז׳רים החודש[\s\S]*?id="monthlyInternsView"[\s\S]*?id="monthlyInternsTitle"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
+  /id="monthlyInternsQuickEntry"[\s\S]*?סטאז׳רים החודש[\s\S]*?id="monthlyInternsView"[\s\S]*?id="monthlyInternsTitle"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsSearchInput"[\s\S]*?id="monthlyInternsSearchClear"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
   "Quick Access must open the current-month interns list in a dedicated app view"
 );
 assert.doesNotMatch(
@@ -874,6 +874,38 @@ assert.match(
   /function renderMonthlyInterns_\([\s\S]*?אין כרגע רשימת סטאז׳רים פעילה[\s\S]*?ללא מחלקה[\s\S]*?localeCompare[\s\S]*?monthlyInternPhone[\s\S]*?monthlyInternActions[\s\S]*?tel:[\s\S]*?wa\.me[\s\S]*?monthlyInternDepartment/,
   "Interns must be grouped by department, Hebrew-sorted, and expose only direct call and WhatsApp actions"
 );
+assert.match(
+  appSource,
+  /function monthlyInternMatchesSearch_[\s\S]*?normalizeSearchText[\s\S]*?normalizePhone[\s\S]*?function handleMonthlyInternsSearch_[\s\S]*?renderMonthlyInterns_[\s\S]*?לא נמצאו סטאז׳רים[\s\S]*?נסה שם, מחלקה או מספר טלפון/,
+  "Monthly interns search must filter locally by normalized text and phone with a clear empty state"
+);
+const monthlyInternSearchSandbox = {
+  normalizeSearchText: value => String(value || "")
+    .replace(/[״"'׳]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase(),
+  normalizePhone: value => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.startsWith("0")) digits = `972${digits.slice(1)}`;
+    if (!digits.startsWith("972")) digits = `972${digits}`;
+    return `+${digits}`;
+  }
+};
+vm.createContext(monthlyInternSearchSandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "monthlyInternMatchesSearch_"),
+  monthlyInternSearchSandbox
+);
+const monthlyInternSearchEntry = {
+  name: "Gal Cohen",
+  phone: "050-123-4567",
+  department: "ילדים א׳"
+};
+assert(monthlyInternSearchSandbox.monthlyInternMatchesSearch_(monthlyInternSearchEntry, "cohen"));
+assert(monthlyInternSearchSandbox.monthlyInternMatchesSearch_(monthlyInternSearchEntry, "ילדים א"));
+assert(monthlyInternSearchSandbox.monthlyInternMatchesSearch_(monthlyInternSearchEntry, "050"));
+assert(!monthlyInternSearchSandbox.monthlyInternMatchesSearch_(monthlyInternSearchEntry, "כירורגיה"));
 assert.doesNotMatch(
   extractCompleteFunction(appSource, "renderMonthlyInterns_"),
   /openContactDetail_|data-monthly-intern-contact-id|downloadActiveContact_|reportActiveContact_/,

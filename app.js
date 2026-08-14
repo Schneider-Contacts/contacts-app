@@ -1353,6 +1353,40 @@ function getMonthlyInternContact_(entry) {
   return contacts.find(contact => normalizePhone(contact.phone) === phone) || null;
 }
 
+function monthlyInternMatchesSearch_(entry, query) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const textMatches = [entry && entry.name, entry && entry.department]
+    .some(value => normalizeSearchText(value).includes(normalizedQuery));
+  const queryDigits = String(query || "").replace(/\D/g, "");
+  if (!queryDigits) return textMatches;
+
+  const internationalPhone = normalizePhone(entry && entry.phone)
+    .replace(/\D/g, "");
+  const localPhone = internationalPhone.startsWith("972")
+    ? `0${internationalPhone.slice(3)}`
+    : internationalPhone;
+  const normalizedQueryPhone = normalizePhone(query).replace(/\D/g, "");
+  return textMatches || [internationalPhone, localPhone]
+    .some(phone => phone.includes(queryDigits) || phone.includes(normalizedQueryPhone));
+}
+
+function handleMonthlyInternsSearch_() {
+  const input = document.getElementById("monthlyInternsSearchInput");
+  const clearButton = document.getElementById("monthlyInternsSearchClear");
+  const hasQuery = Boolean(input && input.value.trim());
+  if (clearButton) clearButton.classList.toggle("visible", hasQuery);
+  renderMonthlyInterns_();
+}
+
+function clearMonthlyInternsSearch_() {
+  const input = document.getElementById("monthlyInternsSearchInput");
+  if (input) input.value = "";
+  handleMonthlyInternsSearch_();
+  if (input) input.focus();
+}
+
 function getMonthlyInternsDescriptorFromData_(data, fallbackDescriptor) {
   const source = data && typeof data === "object" ? data : {};
   const monthKey = String(source.monthKey || "");
@@ -1379,6 +1413,7 @@ function renderMonthlyInterns_() {
   const countElement = document.getElementById("monthlyInternsCount");
   const statusElement = document.getElementById("monthlyInternsStatus");
   const listElement = document.getElementById("monthlyInternsList");
+  const searchInput = document.getElementById("monthlyInternsSearchInput");
   const quickMonthLabel = document.getElementById("monthlyInternsQuickMonthLabel");
   const quickCount = document.getElementById("monthlyInternsQuickCount");
   if (!view || !monthLabel || !countElement || !statusElement || !listElement) {
@@ -1397,6 +1432,7 @@ function renderMonthlyInterns_() {
   countElement.textContent = "";
   listElement.innerHTML = "";
   statusElement.hidden = false;
+  statusElement.classList.remove("empty");
 
   if (["idle", "loading"].includes(monthlyInternsState.status)) {
     statusElement.textContent = "טוען את הרשימה…";
@@ -1421,8 +1457,24 @@ function renderMonthlyInterns_() {
     return;
   }
 
+  const query = searchInput ? searchInput.value.trim() : "";
+  const filteredEntries = query
+    ? entries.filter(entry => monthlyInternMatchesSearch_(entry, query))
+    : entries;
+  if (!filteredEntries.length) {
+    statusElement.classList.add("empty");
+    statusElement.innerHTML = "<strong>לא נמצאו סטאז׳רים</strong><span>נסה שם, מחלקה או מספר טלפון</span>";
+    countElement.textContent = "0";
+    countElement.hidden = false;
+    if (quickCount) {
+      quickCount.textContent = String(entries.length);
+      quickCount.hidden = false;
+    }
+    return;
+  }
+
   statusElement.hidden = true;
-  countElement.textContent = String(entries.length);
+  countElement.textContent = String(filteredEntries.length);
   countElement.hidden = false;
   if (quickCount) {
     quickCount.textContent = String(entries.length);
@@ -1430,7 +1482,7 @@ function renderMonthlyInterns_() {
   }
   const departmentGroups = new Map();
   const noDepartmentEntries = [];
-  entries.forEach(entry => {
+  filteredEntries.forEach(entry => {
     const department = String(entry.department || "").trim();
     if (!department) {
       noDepartmentEntries.push(entry);

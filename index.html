@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260813-intern-management-v1">
+<link rel="stylesheet" href="styles.css?v=20260814-intern-search-v1">
 
 
 
@@ -424,6 +424,12 @@
       </div>
       <span id="monthlyInternsCount" class="monthlyInternsCount" hidden></span>
     </header>
+    <div class="monthlyInternsSearch searchWrap">
+      <label class="srOnly" for="monthlyInternsSearchInput">חיפוש ברשימת הסטאז׳רים</label>
+      <span class="searchIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></svg></span>
+      <input type="search" id="monthlyInternsSearchInput" placeholder="שם, מחלקה או טלפון" autocomplete="off" enterkeyhint="search" oninput="handleMonthlyInternsSearch_()">
+      <button type="button" class="clearSearchBtn" id="monthlyInternsSearchClear" onclick="clearMonthlyInternsSearch_()" aria-label="ניקוי חיפוש הסטאז׳רים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+    </div>
     <div id="monthlyInternsStatus" class="monthlyInternsStatus" role="status" aria-live="polite">טוען את הרשימה…</div>
     <div id="monthlyInternsList" class="monthlyInternsList"></div>
   </section>
@@ -856,7 +862,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260813-intern-management-v1"></script>
+  <script src="app.js?v=20260814-intern-search-v1"></script>
 
 </body>
 </html>

@@ -4695,12 +4695,48 @@ body.directorySheetOpen {
   font-size: 12px;
 }
 
+#app .monthlyInternsSearch {
+  margin: 14px 0 2px;
+}
+
+#app .monthlyInternsSearch input {
+  min-height: 50px;
+  background: #ffffff;
+}
+
+#app .monthlyInternsSearch .searchIcon svg,
+#app .monthlyInternsSearch .clearSearchBtn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 #app .monthlyInternsStatus {
   padding: 54px 16px;
   color: #718078;
   font-size: 13px;
   line-height: 1.5;
   text-align: center;
+}
+
+#app .monthlyInternsStatus.empty {
+  display: grid;
+  gap: 4px;
+}
+
+#app .monthlyInternsStatus.empty strong {
+  color: #38594d;
+  font-size: 14px;
+  font-weight: 820;
+}
+
+#app .monthlyInternsStatus.empty span {
+  color: #7a8982;
+  font-size: 12px;
 }
 
 #app .monthlyInternsList {
