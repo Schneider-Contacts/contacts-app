@@ -2169,6 +2169,8 @@ function getContactApprovalValues_(parameters) {
 }
 
 function upsertApprovedContactInContactsSheet_(values) {
+  const matchPhone = arguments[1];
+  const replaceExistingFields = arguments[2] === true;
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName(CONTACTS_OLD_SHEET_NAME);
 
@@ -2206,10 +2208,11 @@ function upsertApprovedContactInContactsSheet_(values) {
     ? sheet.getRange(2, 1, lastRow - 1, lastColumn).getDisplayValues()
     : [];
   const matches = [];
+  const normalizedMatchPhone = normalizeIsraeliPhone(matchPhone || values.phone);
 
   existingRows.forEach((row, index) => {
     const phone = normalizeIsraeliPhone(row[headerIndexes.phone]);
-    if (phone === values.phone) {
+    if (phone === normalizedMatchPhone) {
       matches.push({
         rowNumber: index + 2,
         values: row
@@ -2223,7 +2226,30 @@ function upsertApprovedContactInContactsSheet_(values) {
     );
   }
 
-  const existingMatch = matches[0] || null;
+  let existingMatch = matches[0] || null;
+  if (normalizedMatchPhone !== values.phone) {
+    const newPhoneMatches = existingRows
+      .map((row, index) => ({ rowNumber: index + 2, values: row }))
+      .filter(candidate =>
+        candidate.rowNumber !== (existingMatch && existingMatch.rowNumber) &&
+        normalizeIsraeliPhone(candidate.values[headerIndexes.phone]) === values.phone
+      );
+    if (newPhoneMatches.length > 1) {
+      throw new Error("מספר הטלפון החדש מופיע ביותר מרשומה אחת.");
+    }
+    if (newPhoneMatches.length === 1) {
+      const candidate = newPhoneMatches[0];
+      const sameRequestedName =
+        cleanSheetValue_(candidate.values[headerIndexes.first_name_he]) === values.firstName &&
+        cleanSheetValue_(candidate.values[headerIndexes.last_name_he]) === values.lastName;
+      if (!existingMatch && sameRequestedName) {
+        // ניסיון חוזר אחרי שהשורה כבר עודכנה אך שלב מאוחר יותר נכשל.
+        existingMatch = candidate;
+      } else {
+        throw new Error("מספר הטלפון החדש כבר משויך לאיש קשר אחר.");
+      }
+    }
+  }
   const existingContact = {};
   sourceFields.forEach(field => {
     existingContact[field] = existingMatch
@@ -2236,18 +2262,23 @@ function upsertApprovedContactInContactsSheet_(values) {
   const now = new Date().toISOString();
   const choose = (nextValue, currentValue) =>
     cleanSheetValue_(nextValue) || cleanSheetValue_(currentValue);
+  const editable = (nextValue, currentValue) => replaceExistingFields
+    ? cleanSheetValue_(nextValue)
+    : choose(nextValue, currentValue);
   const contact = {
     id: existingContact.id || "",
-    first_name_he: choose(values.firstName, existingContact.first_name_he),
-    last_name_he: choose(values.lastName, existingContact.last_name_he),
+    first_name_he: editable(values.firstName, existingContact.first_name_he),
+    last_name_he: editable(values.lastName, existingContact.last_name_he),
     first_name_en: existingContact.first_name_en || "",
     last_name_en: existingContact.last_name_en || "",
-    title_prefix: choose(values.titlePrefix, existingContact.title_prefix),
-    role: choose(values.role, existingContact.role),
-    department: choose(values.department, existingContact.department),
+    title_prefix: editable(values.titlePrefix, existingContact.title_prefix),
+    role: editable(values.role, existingContact.role),
+    department: editable(values.department, existingContact.department),
     hospital: existingContact.hospital || "",
     phone: values.phone,
-    email: values.email || existingContact.email || "",
+    email: replaceExistingFields
+      ? values.email
+      : values.email || existingContact.email || "",
     source: existingMatch
       ? "admin-approved-update"
       : "user-submission-approved",
@@ -2273,6 +2304,32 @@ function upsertApprovedContactInContactsSheet_(values) {
     row: targetRow,
     created: !existingMatch
   };
+}
+
+function deleteMovedContactDocuments_(oldPhone, newPhone) {
+  const oldDocumentId = normalizeIsraeliPhone(oldPhone).replace(/\D/g, "");
+  const newDocumentId = normalizeIsraeliPhone(newPhone).replace(/\D/g, "");
+  if (!oldDocumentId || oldDocumentId === newDocumentId) return;
+
+  const token = ScriptApp.getOAuthToken();
+  ["contacts", CONTACT_OVERRIDES_COLLECTION_NAME].forEach(collectionName => {
+    const url =
+      "https://firestore.googleapis.com/v1/projects/" +
+      FIREBASE_PROJECT_ID +
+      "/databases/(default)/documents/" +
+      collectionName +
+      "/" +
+      encodeURIComponent(oldDocumentId);
+    const response = UrlFetchApp.fetch(url, {
+      method: "delete",
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true
+    });
+    const code = response.getResponseCode();
+    if (!((code >= 200 && code < 300) || code === 404)) {
+      throw new Error("ניקוי הרשומה הישנה לאחר שינוי מספר נכשל. HTTP " + code);
+    }
+  });
 }
 
 function writeApprovedContactOverride_(contact, adminEmail, isNewContact) {
@@ -2364,7 +2421,9 @@ function completeApprovedContactRequest_(
     action: {
       stringValue: grantsFormAccess
         ? "form_access_request_approved"
-        : "contact_add_request_approved"
+        : request.data.requestType === "contact_update"
+          ? "contact_update_request_approved"
+          : "contact_add_request_approved"
     },
     targetId: { stringValue: documentId },
     targetEmail: { stringValue: contact.email || "" },
@@ -2421,15 +2480,29 @@ function approveContactAddRequestFromWeb_(parameters) {
     const request = readContactAddRequestForApproval_(
       parameters && parameters.requestId
     );
+    const isContactUpdate = request.data.requestType === "contact_update";
     if (
       request.data.status !== "pending" ||
-      request.data.requestType !== "contact_add"
+      !["contact_add", "contact_update"].includes(request.data.requestType)
     ) {
-      throw new Error("הבקשה כבר טופלה או שאינה בקשת הוספת איש קשר.");
+      throw new Error("הבקשה כבר טופלה או שאינה בקשת איש קשר נתמכת.");
     }
 
     const values = getContactApprovalValues_(parameters);
-    const sheetResult = upsertApprovedContactInContactsSheet_(values);
+    const originalPhone = isContactUpdate
+      ? normalizeIsraeliPhone(request.data.originalPhone)
+      : values.phone;
+    if (isContactUpdate && !isValidNormalizedIsraeliPhone_(originalPhone)) {
+      throw new Error("לא נמצא מספר הטלפון המקורי של איש הקשר לעדכון.");
+    }
+    const sheetResult = upsertApprovedContactInContactsSheet_(
+      values,
+      originalPhone,
+      isContactUpdate
+    );
+    if (isContactUpdate && sheetResult.created) {
+      throw new Error("איש הקשר המקורי לא נמצא ולכן העדכון לא פורסם.");
+    }
     const contact = {
       ...sheetResult.contact,
       first_seen_at: sheetResult.created
@@ -2445,6 +2518,9 @@ function approveContactAddRequestFromWeb_(parameters) {
       sheetResult.created
     );
     upsertContact_(contact);
+    if (isContactUpdate) {
+      deleteMovedContactDocuments_(originalPhone, contact.phone);
+    }
 
     const contacts = readAndDeduplicateContacts_();
     const effectiveContacts = buildEffectiveDirectoryContacts_(contacts);

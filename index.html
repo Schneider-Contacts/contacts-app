@@ -467,8 +467,10 @@
     </dl>
     <div class="contactDetailSecondaryActions">
       <button type="button" onclick="downloadActiveContact_()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 19h14"/></svg><span>הוספה לאנשי הקשר בטלפון</span></button>
+      <button type="button" onclick="updateActiveContact_()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4Zm9.5-13.5 4 4"/></svg><span>עדכון פרטים</span></button>
       <button type="button" onclick="reportActiveContact_()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 3.5 20h17L12 4Zm0 5v5m0 3v.1"/></svg><span>דיווח על פרטים שגויים</span></button>
     </div>
+    <div id="contactDetailRequestStatus" class="userRequestStatus" hidden aria-live="polite"></div>
   </div>
 </div>
 
@@ -586,7 +588,7 @@
 
 
 <div id="recentContactsModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="recentContactsModalTitle">
-  <div class="adminModalCard">
+  <div class="adminModalCard usefulToolSurfaceCard">
     <div class="adminModalHeader">
       <h3 id="recentContactsModalTitle" class="adminModalTitle">אנשי קשר שנוספו לאחרונה</h3>
       <button type="button" class="adminModalClose" onclick="closeRecentContactsModal()" aria-label="סגירה">×</button>
@@ -608,7 +610,7 @@
 
 
 <div id="myProfileModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="myProfileModalTitle">
-  <div class="adminModalCard">
+  <div class="adminModalCard usefulToolSurfaceCard">
     <div class="adminModalHeader">
       <h3 id="myProfileModalTitle" class="adminModalTitle">הפרטים שלי</h3>
       <button type="button" class="adminModalClose" onclick="closeMyProfileModal()" aria-label="סגירה">×</button>
@@ -665,7 +667,7 @@
 </div>
 
 <div id="contactAddModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="contactAddModalTitle">
-  <div class="adminModalCard">
+  <div class="adminModalCard usefulToolSurfaceCard">
     <div class="adminModalHeader">
       <h3 id="contactAddModalTitle" class="adminModalTitle">הוספת איש קשר</h3>
       <button type="button" class="adminModalClose" onclick="closeContactAddModal_()" aria-label="סגירה">×</button>
@@ -677,6 +679,8 @@
     </div>
 
     <p id="contactAddIntro" class="contactAddNote">לא חייבים למלא את כל השדות. יש להזין לפחות פרט אחד, והמנהל יבדוק את הבקשה לפני הפרסום.</p>
+
+    <div id="contactAddDuplicateWarning" class="contactDuplicateWarning" hidden aria-live="polite"></div>
 
     <div class="adminFormGrid">
       <div class="adminFormField">
@@ -862,7 +866,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260814-intern-search-v1"></script>
+  <script src="app.js?v=20260816-request-ux-v1"></script>
 
 </body>
 </html>

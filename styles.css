@@ -3044,6 +3044,7 @@ body.directorySheetOpen {
   background: #f7fbf9;
   color: #216a50;
   text-decoration: none;
+  padding: 0;
   transition: background 160ms ease, border-color 160ms ease, transform 100ms ease;
 }
 
@@ -5960,19 +5961,23 @@ body.directorySheetOpen {
   gap: 6px;
 }
 
-#app .monthlyInternActions a {
+#app .monthlyInternActions a,
+#app .monthlyInternActions button {
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
+  margin: 0;
+  padding: 0;
   border: 1px solid #d9e8e1;
   border-radius: 11px;
   background: #ffffff;
   color: #176b4e;
+  box-shadow: none;
   text-decoration: none;
 }
 
-#app .monthlyInternActions a:last-child {
+#app .monthlyInternActions a:nth-child(2) {
   border-color: #bfe2d0;
   background: #eef9f3;
 }
@@ -5985,6 +5990,93 @@ body.directorySheetOpen {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.userRequestStatus {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #fff7df;
+  color: #805d17;
+  font-size: 11px;
+  font-weight: 780;
+}
+
+.userRequestStatus[hidden] {
+  display: none;
+}
+
+.userRequestStatus.approved,
+.userRequestStatus.resolved {
+  background: #eaf7f0;
+  color: #176b4e;
+}
+
+.userRequestStatus.rejected {
+  background: #f8eeee;
+  color: #8c3c3c;
+}
+
+#app .monthlyInternItem > .userRequestStatus {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.contactDuplicateWarning {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 13px;
+  padding: 11px 12px;
+  border: 1px solid #efd492;
+  border-radius: 13px;
+  background: #fffaf0;
+  color: #75551b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.contactDuplicateWarning[hidden] {
+  display: none;
+}
+
+.contactDuplicateWarning strong {
+  color: #654711;
+  font-size: 13px;
+}
+
+.contactDuplicateWarning small {
+  color: #8a7348;
+}
+
+.usefulToolSurfaceCard {
+  border-color: #e1eae5;
+  border-radius: 20px;
+  box-shadow: 0 18px 48px rgba(22, 53, 43, 0.16);
+}
+
+.usefulToolSurfaceCard .adminModalHeader {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.usefulToolSurfaceCard .adminFormField input,
+.usefulToolSurfaceCard .adminFormField select,
+.usefulToolSurfaceCard .adminFormField textarea {
+  border-color: #dce7e1;
+  border-radius: 12px;
+  background: #fbfcfc;
+  box-shadow: none;
+}
+
+.usefulToolSurfaceCard .adminFormField input:focus,
+.usefulToolSurfaceCard .adminFormField select:focus,
+.usefulToolSurfaceCard .adminFormField textarea:focus {
+  border-color: #56b88e;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 @media (max-width: 520px) {
