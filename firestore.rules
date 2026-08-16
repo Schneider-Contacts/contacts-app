@@ -643,9 +643,7 @@ service cloud.firestore {
           )
         );
 
-      allow read: if isAdmin()
-        || ((isAllowed() || isAdmin())
-          && resource.data.reporterEmail == request.auth.token.email);
+      allow read: if isAdmin();
 
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -708,22 +706,14 @@ service cloud.firestore {
         && request.resource.data.email.size() <= 320
         && request.resource.data.reporterEmail == request.auth.token.email
         && request.resource.data.reporterEmail.size() <= 320
-        && request.resource.data.source in ["manual", "device_picker", "self_profile", "contact_detail"]
-        && request.resource.data.requestType in ["contact_add", "self_update", "contact_update"]
+        && request.resource.data.source in ["manual", "device_picker", "self_profile"]
+        && request.resource.data.requestType in ["contact_add", "self_update"]
         && request.resource.data.originalContactId is string
         && request.resource.data.originalContactId.size() <= 160
         && request.resource.data.originalPhone is string
         && request.resource.data.originalPhone.size() <= 30
         && request.resource.data.originalEmail is string
         && request.resource.data.originalEmail.size() <= 320
-        && (
-          request.resource.data.requestType != "contact_update"
-          || (
-            request.resource.data.source == "contact_detail"
-            && request.resource.data.originalContactId.size() > 0
-            && request.resource.data.originalPhone.size() > 0
-          )
-        )
         && request.resource.data.status == "pending"
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
@@ -740,9 +730,7 @@ service cloud.firestore {
           || request.resource.data.email.size() > 0
         );
 
-      allow read: if isAdmin()
-        || ((isAllowed() || isAdmin())
-          && resource.data.reporterEmail == request.auth.token.email);
+      allow read: if isAdmin();
 
       allow update: if isAdmin()
         && resource.data.status == "pending"

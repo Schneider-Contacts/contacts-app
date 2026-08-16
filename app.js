@@ -152,14 +152,6 @@ let activeReportContact = null;
 let contactAddModalMode = "user";
 let activeContactAddRequestId = "";
 let contactAddSource = "manual";
-let activeContactUpdate = null;
-let contactAddDuplicateConfirmed = false;
-let userRequestState = {
-  loadedAt: 0,
-  loading: null,
-  contactRequests: [],
-  reports: []
-};
 let adminDataLoading = false;
 const ADMIN_LIST_PAGE_SIZE = 25;
 const ADMIN_PENDING_SUMMARY_CACHE_MS = 2 * 60 * 1000;
@@ -226,119 +218,6 @@ function getCooldownSubmissionDocumentId_(type, user) {
   const bucket = Math.floor(Date.now() / USER_SUBMISSION_COOLDOWN_MS)
     .toString(36);
   return `${type}_${uid}_${bucket}`;
-}
-
-function resetUserRequestState_() {
-  userRequestState = {
-    loadedAt: 0,
-    loading: null,
-    contactRequests: [],
-    reports: []
-  };
-}
-
-function getUserRequestStatusPresentation_(status, kind = "request") {
-  const normalized = String(status || "").toLowerCase();
-  if (normalized === "approved") return { label: "אושר", tone: "approved" };
-  if (normalized === "rejected") return { label: "נדחה", tone: "rejected" };
-  if (normalized === "resolved") return { label: "טופל", tone: "resolved" };
-  if (normalized === "open" && kind === "report") {
-    return { label: "ממתין לטיפול", tone: "pending" };
-  }
-  return { label: "ממתין לאישור", tone: "pending" };
-}
-
-async function loadUserRequestStatuses_(options = {}) {
-  const user = auth && auth.currentUser;
-  const reporterEmail = normalizeEmail(user && user.email || "");
-  if (!user || !reporterEmail || !firebaseApi || !db) return userRequestState;
-
-  const force = options.force === true;
-  if (!force && userRequestState.loadedAt && Date.now() - userRequestState.loadedAt < 60000) {
-    return userRequestState;
-  }
-  if (userRequestState.loading) return userRequestState.loading;
-
-  const loadPromise = Promise.all([
-    firebaseApi.getDocs(firebaseApi.query(
-      firebaseApi.collection(db, "contactAddRequests"),
-      firebaseApi.where("reporterEmail", "==", reporterEmail)
-    )),
-    firebaseApi.getDocs(firebaseApi.query(
-      firebaseApi.collection(db, "contactReports"),
-      firebaseApi.where("reporterEmail", "==", reporterEmail)
-    ))
-  ]).then(([contactSnapshot, reportSnapshot]) => {
-    userRequestState.contactRequests = contactSnapshot.docs.map(document => ({
-      docId: document.id,
-      ...(document.data() || {})
-    }));
-    userRequestState.reports = reportSnapshot.docs.map(document => ({
-      docId: document.id,
-      ...(document.data() || {})
-    }));
-    userRequestState.loadedAt = Date.now();
-    return userRequestState;
-  }).catch(error => {
-    console.warn("Could not load submitted-request statuses", error);
-    return userRequestState;
-  }).finally(() => {
-    userRequestState.loading = null;
-  });
-
-  userRequestState.loading = loadPromise;
-  return loadPromise;
-}
-
-function findLatestUserContactRequest_(contact, statuses = null) {
-  if (!contact) return null;
-  const contactId = String(contact.docId || "");
-  const phone = normalizePhone(contact.phone || "");
-  const allowedStatuses = Array.isArray(statuses) ? new Set(statuses) : null;
-  return userRequestState.contactRequests
-    .filter(request => {
-      if (allowedStatuses && !allowedStatuses.has(String(request.status || "pending"))) return false;
-      return request.requestType === "contact_update" && (
-        (contactId && String(request.originalContactId || "") === contactId) ||
-        (phone && normalizePhone(request.originalPhone || "") === phone)
-      );
-    })
-    .sort((left, right) => getTimestampMillis_(right.updatedAt || right.createdAt) - getTimestampMillis_(left.updatedAt || left.createdAt))[0] || null;
-}
-
-function findEquivalentPendingContactRequest_(values, context = {}) {
-  const requestType = context.requestType || "contact_add";
-  const originalContactId = String(context.originalContactId || "");
-  const phone = normalizePhone(values && values.phone || "");
-  const email = normalizeEmail(values && values.email || "");
-  return userRequestState.contactRequests.find(request => {
-    if (String(request.status || "pending") !== "pending") return false;
-    if (String(request.requestType || "contact_add") !== requestType) return false;
-    if (requestType === "contact_update") {
-      return Boolean(originalContactId && String(request.originalContactId || "") === originalContactId);
-    }
-    return Boolean(
-      (phone && normalizePhone(request.phone || "") === phone) ||
-      (email && normalizeEmail(request.email || "") === email)
-    );
-  }) || null;
-}
-
-function findEquivalentOpenReport_(subject) {
-  const isIntern = subject && subject.reportSubject === "intern";
-  return userRequestState.reports.find(report => {
-    if (String(report.status || "open") !== "open") return false;
-    if (subject.issueType && String(report.issueType || "") !== String(subject.issueType)) return false;
-    if (isIntern) {
-      return report.subjectType === "intern" &&
-        String(report.internId || "") === String(subject.id || "") &&
-        (!report.internVersion || String(report.internVersion) === String(monthlyInternsState.version || ""));
-    }
-    return report.subjectType !== "intern" && (
-      (subject.docId && String(report.contactDocId || "") === String(subject.docId)) ||
-      normalizePhone(report.contactPhone || "") === normalizePhone(subject.phone || "")
-    );
-  }) || null;
 }
 
 function formatUsageDate_(dateKey) {
@@ -1632,14 +1511,6 @@ function renderMonthlyInterns_() {
       const name = entry.name || "סטאז׳ר/ית";
       const displayPhone = formatPhoneForDisplay(entry.phone);
       const cleanPhone = normalizePhone(entry.phone).replace(/\D/g, "");
-      const report = userRequestState.reports.find(item =>
-        item.subjectType === "intern" &&
-        String(item.internId || "") === String(entry.id || "") &&
-        (!item.internVersion || String(item.internVersion) === String(monthlyInternsState.version || ""))
-      );
-      const reportStatus = report
-        ? getUserRequestStatusPresentation_(report.status || "open", "report")
-        : null;
       return `
         <article class="monthlyInternItem">
           <span class="monthlyInternContent">
@@ -1649,7 +1520,6 @@ function renderMonthlyInterns_() {
           <span class="monthlyInternActions">
             <a href="tel:${escapeHtml(entry.phone)}" aria-label="חיוג אל ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'call')">${getDirectoryIconSvg_("phone")}</a>
             <a href="https://wa.me/${escapeHtml(cleanPhone)}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(name)}" onclick="recordContactUse_('${escapeJsString(entry.phone)}', 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>
-            <button type="button" aria-label="הוספת ${escapeHtml(name)} לאנשי הקשר בטלפון" onclick="downloadMonthlyIntern_('${escapeJsString(entry.id)}')">${getDirectoryIconSvg_("saveContact")}</button>
           </span>
           <span class="monthlyInternSecondaryActions">
             ${currentUserIsAdmin
@@ -1657,7 +1527,6 @@ function renderMonthlyInterns_() {
                  <button type="button" class="danger" onclick="deleteMonthlyIntern_('${escapeJsString(entry.id)}')">מחיקה מהרשימה</button>`
               : `<button type="button" onclick="openMonthlyInternReport_('${escapeJsString(entry.id)}')">דיווח על טעות</button>`}
           </span>
-          ${reportStatus ? `<span class="userRequestStatus ${reportStatus.tone}">דיווח: ${reportStatus.label}</span>` : ""}
         </article>
       `;
     }).join("");
@@ -1684,9 +1553,6 @@ function openMonthlyInternsView_() {
   monthlyInternsHomeScrollY = window.scrollY;
   view.hidden = false;
   appElement.classList.add("internsViewActive");
-  loadUserRequestStatuses_().then(() => {
-    if (appElement.classList.contains("internsViewActive")) renderMonthlyInterns_();
-  });
   window.scrollTo({ top: 0, behavior: "auto" });
   window.setTimeout(() => {
     const backButton = view.querySelector(".monthlyInternsViewBack");
@@ -5701,7 +5567,6 @@ async function logout() {
     activeQuickFilter = "all";
     directoryBrowseActivated = false;
     resetMonthlyInternsState_();
-    resetUserRequestState_();
     closeAllDirectoryMenus_();
     closeContactDetail_();
     closeDepartmentBrowser_();
@@ -6669,11 +6534,11 @@ async function loadAdminReportsData_() {
       phone: String(data.phone || ""),
       email: normalizeEmail(data.email || ""),
       reporterEmail: normalizeEmail(data.reporterEmail || ""),
-      source: ["device_picker", "self_profile", "contact_detail", "google_form"].includes(data.source)
+      source: ["device_picker", "self_profile", "google_form"].includes(data.source)
         ? data.source
         : "manual",
-      requestType: ["self_update", "contact_update"].includes(data.requestType)
-        ? data.requestType
+      requestType: data.requestType === "self_update"
+        ? "self_update"
         : "contact_add",
       originalContactId: String(data.originalContactId || ""),
       originalPhone: normalizePhone(data.originalPhone || ""),
@@ -6994,11 +6859,9 @@ function getActivityTitle(activity) {
     form_submission: "נשלח טופס הצטרפות",
     contact_add_detected: "איש קשר נוסף למערכת",
     contact_add_request_approved: "בקשת הוספת איש קשר אושרה",
-    contact_update_request_approved: "בקשת עדכון איש קשר אושרה",
     form_access_request_approved: "בקשת הצטרפות וגישה אושרה",
     form_access_pending_admin: "בקשת הצטרפות ממתינה למנהל",
     contact_add_request_rejected: "בקשת הוספת איש קשר נדחתה",
-    contact_update_request_rejected: "בקשת עדכון איש קשר נדחתה",
     self_profile_update_approved: "עדכון פרטים אישיים אושר",
     self_profile_update_rejected: "עדכון פרטים אישיים נדחה",
     email_self_update: "כתובת מייל עודכנה",
@@ -7241,7 +7104,6 @@ async function setContactReportStatus_(reportId, status) {
       report.status = nextStatus;
       report.resolvedBy = nextStatus === "resolved" ? currentAdminEmail : "";
     }
-    updateAdminPendingBadges_();
     renderAdminList();
   } catch (error) {
     console.error("Report status update failed", error);
@@ -7304,15 +7166,12 @@ function buildApprovedContactPayload_(request, values, existingContact) {
   const isSelfUpdate = Boolean(
     request && request.requestType === "self_update" && existingContact
   );
-  const isContactUpdate = Boolean(
-    request && request.requestType === "contact_update" && existingContact
-  );
   const choose = (nextValue, currentValue) => {
     const normalized = String(nextValue || "").trim();
     return normalized || String(currentValue || "").trim();
   };
   const editableValue = (nextValue, currentValue) =>
-    (isSelfUpdate || isContactUpdate)
+    isSelfUpdate
       ? String(nextValue || "").trim()
       : choose(nextValue, currentValue);
 
@@ -7323,13 +7182,12 @@ function buildApprovedContactPayload_(request, values, existingContact) {
     title_prefix: editableValue(values.titlePrefix, base.title_prefix),
     role: editableValue(values.role, base.role),
     department: editableValue(values.department, base.department),
-    phone: isSelfUpdate
-      ? normalizePhone(base.phone)
-      : normalizePhone(values.phone || base.phone),
+    // במסמך קיים לא משנים את מספר הטלפון, משום שהוא משמש כמזהה הרשומה.
+    phone: existingContact ? normalizePhone(base.phone) : normalizePhone(values.phone),
     email: normalizeEmail(
-      isSelfUpdate
+      request && request.requestType === "self_update" && existingContact
         ? base.email
-        : isContactUpdate ? values.email : values.email || base.email
+        : values.email || base.email
     ),
     source: existingContact
       ? String(base.source || "admin-approved-update")
@@ -7522,14 +7380,10 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
 
   const existingContact = findExistingContactForAddRequest_(values, request);
   const isSelfUpdate = request.requestType === "self_update";
-  const isContactUpdate = request.requestType === "contact_update";
-  const isUpdateRequest = isSelfUpdate || isContactUpdate;
   const grantsFormAccess = request.grantAccessOnApproval === true;
   const existingMessage = existingContact
     ? isSelfUpdate
       ? `לאשר את עדכון הפרטים של ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}? מספר הטלפון והמייל לא ישתנו.`
-      : isContactUpdate
-        ? `לאשר את השינויים בפרטי ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}?`
       : grantsFormAccess
         ? `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן את הפרטים ויאשר במפורש גישה למייל ${values.email}. להמשיך?`
         : `נמצא איש קשר קיים בשם ${existingContact.name || formatPhoneForDisplay(existingContact.phone)}. האישור יעדכן רק את הפרטים שמולאו בבקשה; מספר הטלפון של הרשומה הקיימת לא ישתנה. להמשיך?`
@@ -7538,9 +7392,9 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
 
   if (!await requestAdminConfirmation_({
-    title: isUpdateRequest ? "אישור עדכון פרטים" : existingContact ? "עדכון איש קשר קיים" : "הוספת איש קשר",
+    title: isSelfUpdate ? "אישור עדכון פרטים" : existingContact ? "עדכון איש קשר קיים" : "הוספת איש קשר",
     message: existingMessage,
-    confirmLabel: isUpdateRequest ? "אישור ועדכון" : "אישור והוספה",
+    confirmLabel: isSelfUpdate ? "אישור ועדכון" : "אישור והוספה",
     tone: "primary"
   })) return;
 
@@ -7549,7 +7403,7 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
     ? existingContact.docId
     : normalizePhone(payload.phone).replace(/\D/g, "") || `request_${requestId}`;
 
-  setAdminStatus(isUpdateRequest ? "מאשר את עדכון הפרטים..." : "מאשר ומוסיף את איש הקשר...", "loading");
+  setAdminStatus(isSelfUpdate ? "מאשר את עדכון הפרטים..." : "מאשר ומוסיף את איש הקשר...", "loading");
 
   if (!isSelfUpdate) {
     try {
@@ -7568,9 +7422,7 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       await loadContacts();
       await loadAdminData();
       setAdminStatus(
-        isContactUpdate
-          ? "עדכון הפרטים אושר ונשמר במקור הנתונים."
-          : grantsFormAccess
+        grantsFormAccess
           ? "בקשת ההצטרפות אושרה: איש הקשר והגישה עודכנו."
           : existingContact
           ? "איש הקשר הקיים עודכן גם בגיליון המקור."
@@ -7667,7 +7519,7 @@ async function rejectContactAddRequest_(requestId) {
   if (!request || request.status !== "pending") return;
   if (!await requestAdminConfirmation_({
     title: "דחיית הבקשה",
-    message: ["self_update", "contact_update"].includes(request.requestType)
+    message: request.requestType === "self_update"
       ? "בקשת עדכון הפרטים תסומן כנדחתה."
       : "בקשת הוספת איש הקשר תסומן כנדחתה.",
     confirmLabel: "דחיית הבקשה",
@@ -7687,9 +7539,7 @@ async function rejectContactAddRequest_(requestId) {
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
       action: request.requestType === "self_update"
         ? "self_profile_update_rejected"
-        : request.requestType === "contact_update"
-          ? "contact_update_request_rejected"
-          : "contact_add_request_rejected",
+        : "contact_add_request_rejected",
       displayName: getContactAddRequestName_(request),
       targetEmail: request.email || "",
       targetPhone: request.phone || "",
@@ -7752,21 +7602,17 @@ function renderAdminReports() {
       const statusLabel = request.status === "approved" ? "אושר" : request.status === "rejected" ? "נדחה" : "ממתין";
       const statusClass = request.status === "pending" ? "pending" : request.status;
       const isSelfUpdate = request.requestType === "self_update";
-      const isContactUpdate = request.requestType === "contact_update";
-      const isUpdateRequest = isSelfUpdate || isContactUpdate;
       const grantsFormAccess = request.grantAccessOnApproval === true;
-      const requestLabel = isUpdateRequest
-        ? isSelfUpdate ? "בקשת עדכון פרטים אישיים" : "בקשת עדכון פרטי איש קשר"
+      const requestLabel = isSelfUpdate
+        ? "בקשת עדכון פרטים אישיים"
         : grantsFormAccess
           ? "בקשת הצטרפות ואישור גישה"
         : "בקשת הוספת איש קשר";
       const sourceLabel = request.source === "device_picker"
         ? "ספר הטלפונים במכשיר"
-          : request.source === "self_profile"
-            ? "כפתור „אני” באפליקציה"
-            : request.source === "contact_detail"
-              ? "כרטיס איש הקשר באפליקציה"
-            : request.source === "google_form"
+        : request.source === "self_profile"
+          ? "כפתור „אני” באפליקציה"
+          : request.source === "google_form"
             ? "Google Form"
           : "טופס ידני";
       const details = [
@@ -7794,7 +7640,7 @@ function renderAdminReports() {
               <div class="adminCardDetailsList">${details}</div>
               ${request.status === "pending" ? `
                 <div class="adminCardActions">
-                  <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isUpdateRequest ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
+                  <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
                   <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
                   <details class="adminActionMenu">
                     <summary>פעולות נוספות</summary>
@@ -8001,11 +7847,9 @@ function renderAdminAttentionContactCard_(item) {
     request.email ||
     "איש קשר ללא שם";
   const isSelfUpdate = request.requestType === "self_update";
-  const isContactUpdate = request.requestType === "contact_update";
-  const isUpdateRequest = isSelfUpdate || isContactUpdate;
   const grantsFormAccess = request.grantAccessOnApproval === true;
-  const requestLabel = isUpdateRequest
-    ? isSelfUpdate ? "בקשת עדכון פרטים אישיים" : "בקשת עדכון פרטי איש קשר"
+  const requestLabel = isSelfUpdate
+    ? "בקשת עדכון פרטים אישיים"
     : grantsFormAccess
       ? "בקשת הצטרפות ואישור גישה"
       : "בקשת הוספת איש קשר";
@@ -8032,7 +7876,7 @@ function renderAdminAttentionContactCard_(item) {
             ${request.email ? `<b>מייל:</b> ${escapeHtml(request.email)}` : ""}
           </div>
           <div class="adminCardActions">
-            <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isUpdateRequest ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
+            <button type="button" class="adminActionBtn primary" onclick="approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
             <button type="button" class="adminActionBtn secondary" onclick="openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
             <button type="button" class="adminActionBtn warning" onclick="rejectContactAddRequest_('${escapeJsString(request.docId)}')">דחיית הבקשה</button>
           </div>
@@ -8121,10 +7965,9 @@ function getAdminAttentionRowPresentation_(item) {
   }
   if (item.kind === "contact") {
     const request = item.data;
-    const isUpdateRequest = ["self_update", "contact_update"].includes(request.requestType);
     return {
       title: getContactAddRequestName_(request) || request.email || formatPhoneForDisplay(request.phone) || "איש קשר",
-      type: isUpdateRequest
+      type: request.requestType === "self_update"
         ? "בקשת עדכון פרטים"
         : request.grantAccessOnApproval === true
           ? "בקשת איש קשר וגישה"
@@ -8220,8 +8063,7 @@ function getContactRequestDiffHtml_(request) {
     phone: request.phone,
     email: request.email
   }, request);
-  if (!existing || !["self_update", "contact_update"].includes(request.requestType)) return "";
-  const isContactUpdate = request.requestType === "contact_update";
+  if (!existing || request.requestType !== "self_update") return "";
   const current = {
     "שם פרטי": existing.first || "",
     "שם משפחה": existing.last || "",
@@ -8232,13 +8074,13 @@ function getContactRequestDiffHtml_(request) {
     "מייל": existing.email || ""
   };
   const requested = {
-    "שם פרטי": isContactUpdate ? request.firstName : request.firstName || current["שם פרטי"],
-    "שם משפחה": isContactUpdate ? request.lastName : request.lastName || current["שם משפחה"],
+    "שם פרטי": request.firstName || current["שם פרטי"],
+    "שם משפחה": request.lastName || current["שם משפחה"],
     "תואר": request.titlePrefix,
     "תפקיד": request.role,
     "מחלקה": request.department,
     "טלפון": formatPhoneForDisplay(request.phone || existing.phone || ""),
-    "מייל": isContactUpdate ? request.email : request.email || current["מייל"]
+    "מייל": request.email || current["מייל"]
   };
   const changes = Object.keys(current).filter(label =>
     normalizeSearchText(current[label]) !== normalizeSearchText(requested[label])
@@ -8257,7 +8099,7 @@ function getContactRequestDiffHtml_(request) {
 }
 
 function getPossibleDuplicateWarningHtml_(request) {
-  if (["self_update", "contact_update"].includes(request.requestType)) return "";
+  if (request.requestType === "self_update") return "";
   const duplicate = findExistingContactForAddRequest_({
     phone: request.phone,
     email: request.email
@@ -8351,10 +8193,8 @@ function openAdminAttentionItem_(kind, itemId) {
     const request = item.data;
     const name = getContactAddRequestName_(request) || request.email || formatPhoneForDisplay(request.phone) || "איש קשר";
     const isSelfUpdate = request.requestType === "self_update";
-    const isContactUpdate = request.requestType === "contact_update";
-    const isUpdateRequest = isSelfUpdate || isContactUpdate;
     openAdminFocusSheet_({
-      eyebrow: isUpdateRequest ? "בקשת עדכון פרטים" : "בקשת הוספת איש קשר",
+      eyebrow: isSelfUpdate ? "בקשת עדכון פרטים" : "בקשת הוספת איש קשר",
       title: name,
       subtitle: formatAdminRelativeTime_(request.createdAt),
       html: `
@@ -8368,7 +8208,7 @@ function openAdminAttentionItem_(kind, itemId) {
           { label: "נשלח על ידי", value: request.reporterEmail, ltr: true }
         ])}
         <div class="adminFocusPrimaryActions">
-          <button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approveContactAddRequest_('${escapeJsString(request.docId)}')">${isUpdateRequest ? "אישור ועדכון" : request.grantAccessOnApproval === true ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
+          <button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approveContactAddRequest_('${escapeJsString(request.docId)}')">${isSelfUpdate ? "אישור ועדכון" : request.grantAccessOnApproval === true ? "אישור איש קשר וגישה" : "אישור והוספה"}</button>
           <button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); openContactAddRequestForApproval_('${escapeJsString(request.docId)}')">עריכה לפני אישור</button>
         </div>
         <div class="adminFocusSecondaryActions">
@@ -8381,12 +8221,8 @@ function openAdminAttentionItem_(kind, itemId) {
 
   const report = item.data;
   if (report.subjectType === "intern") {
-    const samePublishedList = !report.internVersion ||
-      !monthlyInternsState.version ||
-      report.internVersion === monthlyInternsState.version;
-    const currentIntern = samePublishedList
-      ? getMonthlyInternById_(report.internId)
-      : null;
+    const samePublishedList = !report.internVersion || !monthlyInternsState.version || report.internVersion === monthlyInternsState.version;
+    const currentIntern = samePublishedList ? getMonthlyInternById_(report.internId) : null;
     openAdminFocusSheet_({
       eyebrow: "דיווח על סטאז׳ר",
       title: report.contactName || "סטאז׳ר",
@@ -12278,41 +12114,6 @@ function setContactAddStatus_(message = "", type = "") {
   setStatus("contactAddStatus", message, type);
 }
 
-function resetContactAddDuplicateWarning_() {
-  contactAddDuplicateConfirmed = false;
-  const warning = document.getElementById("contactAddDuplicateWarning");
-  if (warning) {
-    warning.hidden = true;
-    warning.innerHTML = "";
-  }
-  const submitButton = document.getElementById("contactAddSubmitBtn");
-  if (submitButton && contactAddModalMode !== "admin") {
-    submitButton.textContent = activeContactUpdate ? "שליחת העדכון לאישור" : "שליחה לבדיקה";
-  }
-}
-
-function getLikelyDuplicateContact_(values) {
-  const phone = normalizePhone(values && values.phone || "");
-  if (!phone) return null;
-  return contacts.find(contact =>
-    normalizePhone(contact.phone || "") === phone &&
-    (!activeContactUpdate || String(contact.docId || "") !== String(activeContactUpdate.docId || ""))
-  ) || null;
-}
-
-function showContactDuplicateWarning_(contact) {
-  const warning = document.getElementById("contactAddDuplicateWarning");
-  if (!warning || !contact) return;
-  warning.hidden = false;
-  warning.innerHTML = `
-    <strong>ייתכן שאיש הקשר כבר קיים</strong>
-    <span>${escapeHtml(getContactDisplayName_(contact))} · ${escapeHtml(formatPhoneForDisplay(contact.phone))}</span>
-    <small>בדקו את הרשומה. אם זה אדם אחר, אפשר לשלוח בכל זאת.</small>
-  `;
-  const submitButton = document.getElementById("contactAddSubmitBtn");
-  if (submitButton) submitButton.textContent = "שליחה בכל זאת";
-}
-
 function resetContactAddForm_() {
   [
     "contactAddFirstName",
@@ -12327,8 +12128,6 @@ function resetContactAddForm_() {
     if (field) field.value = "";
   });
   contactAddSource = "manual";
-  activeContactUpdate = null;
-  resetContactAddDuplicateWarning_();
   setContactAddStatus_("", "");
 }
 
@@ -12342,21 +12141,10 @@ function setContactAddFormValues_(values = {}) {
   document.getElementById("contactAddEmail").value = values.email || "";
 }
 
-function bindContactAddDuplicateReset_() {
-  [
-    "contactAddFirstName", "contactAddLastName", "contactAddTitlePrefix",
-    "contactAddRole", "contactAddDepartment", "contactAddPhone", "contactAddEmail"
-  ].forEach(id => {
-    const field = document.getElementById(id);
-    if (field) field.oninput = resetContactAddDuplicateWarning_;
-  });
-}
-
 function openContactAddModal_() {
   contactAddModalMode = "user";
   activeContactAddRequestId = "";
   resetContactAddForm_();
-  bindContactAddDuplicateReset_();
   document.getElementById("contactAddModalTitle").textContent = "הוספת איש קשר";
   document.getElementById("contactAddIntro").textContent = "לא חייבים למלא את כל השדות. יש להזין לפחות פרט אחד, והמנהל יבדוק את הבקשה לפני הפרסום.";
   document.getElementById("contactAddSubmitBtn").textContent = "שליחה לבדיקה";
@@ -12367,55 +12155,6 @@ function openContactAddModal_() {
   document.getElementById("contactPickerBox").classList.toggle("visible", contactPickerSupported_());
   document.getElementById("contactAddModal").classList.add("visible");
   document.body.style.overflow = "hidden";
-  loadUserRequestStatuses_().then(() => {
-    if (activeContactUpdate || contactAddModalMode !== "user") return;
-    const latest = userRequestState.contactRequests
-      .filter(request => String(request.requestType || "contact_add") === "contact_add")
-      .sort((left, right) => getTimestampMillis_(right.updatedAt || right.createdAt) - getTimestampMillis_(left.updatedAt || left.createdAt))[0];
-    if (!latest) return;
-    const presentation = getUserRequestStatusPresentation_(latest.status);
-    setContactAddStatus_(`מצב הבקשה האחרונה: ${presentation.label}.`, presentation.tone === "rejected" ? "error" : presentation.tone === "pending" ? "empty" : "success");
-  });
-}
-
-function openContactUpdateModal_(contactId) {
-  const contact = contacts.find(item => item.id === Number(contactId));
-  if (!contact) return;
-  contactAddModalMode = "user";
-  activeContactAddRequestId = "";
-  activeContactUpdate = contact;
-  contactAddSource = "contact_detail";
-  bindContactAddDuplicateReset_();
-  contactAddDuplicateConfirmed = true;
-  resetContactAddDuplicateWarning_();
-  contactAddDuplicateConfirmed = true;
-  setContactAddFormValues_({
-    firstName: contact.first,
-    lastName: contact.last,
-    titlePrefix: contact.title,
-    role: contact.role,
-    department: contact.dept,
-    phone: contact.phone,
-    email: contact.email
-  });
-  document.getElementById("contactAddModalTitle").textContent = "עדכון פרטי איש קשר";
-  document.getElementById("contactAddIntro").textContent = "הפרטים הנוכחיים כבר מולאו. שנו רק את מה שדורש תיקון; העדכון יפורסם לאחר אישור מנהל.";
-  document.getElementById("contactAddSubmitBtn").textContent = "שליחת העדכון לאישור";
-  document.getElementById("contactAddPhone").readOnly = false;
-  document.getElementById("contactAddEmail").readOnly = false;
-  document.getElementById("contactAddPhone").classList.remove("myProfileReadOnly");
-  document.getElementById("contactAddEmail").classList.remove("myProfileReadOnly");
-  document.getElementById("contactPickerBox").classList.remove("visible");
-  setContactAddStatus_("", "");
-  document.getElementById("contactAddModal").classList.add("visible");
-  document.body.style.overflow = "hidden";
-
-  loadUserRequestStatuses_().then(() => {
-    const pending = findLatestUserContactRequest_(contact, ["pending"]);
-    if (pending && activeContactUpdate && activeContactUpdate.id === contact.id) {
-      setContactAddStatus_("כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
-    }
-  });
 }
 
 function openContactAddRequestForApproval_(requestId, message = "") {
@@ -12429,17 +12168,13 @@ function openContactAddRequestForApproval_(requestId, message = "") {
   setContactAddFormValues_(request);
 
   const isSelfUpdate = request.requestType === "self_update";
-  const isContactUpdate = request.requestType === "contact_update";
-  const isUpdateRequest = isSelfUpdate || isContactUpdate;
   document.getElementById("contactAddModalTitle").textContent =
-    isSelfUpdate ? "בדיקת עדכון הפרטים האישיים" : isContactUpdate ? "בדיקת עדכון איש קשר" : "עריכת בקשה לפני אישור";
+    isSelfUpdate ? "בדיקת עדכון הפרטים האישיים" : "עריכת בקשה לפני אישור";
   document.getElementById("contactAddIntro").textContent = isSelfUpdate
     ? "המשתמש ביקש לעדכן את הפרטים שלו. אפשר לתקן את הנוסח לפני האישור; מספר הטלפון והמייל נשארים ללא שינוי."
-    : isContactUpdate
-      ? "המשתמש ביקש לעדכן איש קשר קיים. אפשר להשוות, לתקן ולאשר את הפרטים החדשים."
-      : "אפשר לתקן או להשלים פרטים. מספר טלפון נדרש רק בשלב האישור כדי שאיש הקשר יופיע באפליקציה.";
+    : "אפשר לתקן או להשלים פרטים. מספר טלפון נדרש רק בשלב האישור כדי שאיש הקשר יופיע באפליקציה.";
   document.getElementById("contactAddSubmitBtn").textContent =
-    isUpdateRequest ? "אישור ועדכון" : "אישור והוספה";
+    isSelfUpdate ? "אישור ועדכון" : "אישור והוספה";
   document.getElementById("contactAddPhone").readOnly = isSelfUpdate;
   document.getElementById("contactAddEmail").readOnly = isSelfUpdate;
   document.getElementById("contactAddPhone").classList.toggle(
@@ -12462,8 +12197,6 @@ function closeContactAddModal_() {
   document.body.style.overflow = "";
   contactAddModalMode = "user";
   activeContactAddRequestId = "";
-  activeContactUpdate = null;
-  resetContactAddDuplicateWarning_();
   document.getElementById("contactAddPhone").readOnly = false;
   document.getElementById("contactAddEmail").readOnly = false;
   document.getElementById("contactAddPhone").classList.remove("myProfileReadOnly");
@@ -12554,36 +12287,6 @@ async function submitContactAddRequest_() {
     return;
   }
 
-  const requestType = activeContactUpdate ? "contact_update" : "contact_add";
-  if (activeContactUpdate) {
-    const currentValues = {
-      firstName: String(activeContactUpdate.first || "").trim(),
-      lastName: String(activeContactUpdate.last || "").trim(),
-      titlePrefix: String(activeContactUpdate.title || "").trim(),
-      role: String(activeContactUpdate.role || "").trim(),
-      department: String(activeContactUpdate.dept || "").trim(),
-      phone: normalizePhone(activeContactUpdate.phone || ""),
-      email: normalizeEmail(activeContactUpdate.email || "")
-    };
-    const normalizedValues = {
-      ...values,
-      phone: normalizePhone(values.phone || ""),
-      email: normalizeEmail(values.email || "")
-    };
-    if (!Object.keys(currentValues).some(key => currentValues[key] !== normalizedValues[key])) {
-      setContactAddStatus_("לא בוצעו שינויים בפרטים.", "empty");
-      return;
-    }
-  } else if (!contactAddDuplicateConfirmed) {
-    const duplicate = getLikelyDuplicateContact_(values);
-    if (duplicate) {
-      showContactDuplicateWarning_(duplicate);
-      contactAddDuplicateConfirmed = true;
-      setContactAddStatus_("בדקו אם זו אותה רשומה לפני שליחה.", "empty");
-      return;
-    }
-  }
-
   const currentUser = auth && auth.currentUser;
   if (!currentUser || !currentUserHasAppAccess) {
     setContactAddStatus_("יש להתחבר לאפליקציה כדי לשלוח בקשה.", "error");
@@ -12592,69 +12295,39 @@ async function submitContactAddRequest_() {
 
   const submitButton = document.getElementById("contactAddSubmitBtn");
   submitButton.disabled = true;
-  setContactAddStatus_(activeContactUpdate ? "שולח את העדכון לאישור..." : "שולח את הבקשה...", "loading");
+  setContactAddStatus_("שולח את הבקשה...", "loading");
 
   try {
-    await loadUserRequestStatuses_({ force: true });
-    const pendingRequest = findEquivalentPendingContactRequest_(values, {
-      requestType,
-      originalContactId: activeContactUpdate
-        ? String(activeContactUpdate.docId || normalizePhone(activeContactUpdate.phone || "").replace(/\D/g, ""))
-        : ""
-    });
-    if (pendingRequest) {
-      setContactAddStatus_("כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
-      return;
-    }
-
-    const requestId = getCooldownSubmissionDocumentId_(activeContactUpdate ? "update" : "add", currentUser);
-    const originalContact = activeContactUpdate;
-    const requestPayload = {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      titlePrefix: values.titlePrefix,
-      role: values.role,
-      department: values.department,
-      phone: values.phone ? normalizePhone(values.phone) : "",
-      email: values.email,
-      reporterEmail: normalizeEmail(currentUser.email || ""),
-      source: activeContactUpdate
-        ? "contact_detail"
-        : contactAddSource === "device_picker" ? "device_picker" : "manual",
-      requestType,
-      originalContactId: originalContact
-        ? String(originalContact.docId || normalizePhone(originalContact.phone || "").replace(/\D/g, ""))
-        : "",
-      originalPhone: originalContact ? normalizePhone(originalContact.phone || "") : "",
-      originalEmail: originalContact ? normalizeEmail(originalContact.email || "") : "",
-      status: "pending",
-      createdAt: firebaseApi.serverTimestamp(),
-      updatedAt: firebaseApi.serverTimestamp(),
-      handledAt: null,
-      handledBy: "",
-      approvedContactId: ""
-    };
+    const requestId = getCooldownSubmissionDocumentId_("add", currentUser);
     await firebaseApi.setDoc(
       firebaseApi.doc(db, "contactAddRequests", requestId),
-      requestPayload,
+      {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        titlePrefix: values.titlePrefix,
+        role: values.role,
+        department: values.department,
+        phone: values.phone ? normalizePhone(values.phone) : "",
+        email: values.email,
+        reporterEmail: normalizeEmail(currentUser.email || ""),
+        source: contactAddSource === "device_picker" ? "device_picker" : "manual",
+        requestType: "contact_add",
+        originalContactId: "",
+        originalPhone: "",
+        originalEmail: "",
+        status: "pending",
+        createdAt: firebaseApi.serverTimestamp(),
+        updatedAt: firebaseApi.serverTimestamp(),
+        handledAt: null,
+        handledBy: "",
+        approvedContactId: ""
+      },
       { merge: false }
     );
 
-    userRequestState.contactRequests.unshift({
-      docId: requestId,
-      ...requestPayload,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-    userRequestState.loadedAt = Date.now();
-    setContactAddStatus_(
-      activeContactUpdate
-        ? "העדכון נשלח. מצב: ממתין לאישור."
-        : "הבקשה נשלחה. מצב: ממתין לאישור.",
-      "success"
-    );
-    document.getElementById("contactAddSubmitBtn").textContent = "ממתין לאישור";
-    setTimeout(closeContactAddModal_, 1900);
+    setContactAddStatus_("תודה על הוספת איש הקשר.", "success");
+    document.getElementById("contactAddSubmitBtn").textContent = "נשלח";
+    setTimeout(closeContactAddModal_, 1500);
   } catch (error) {
     console.error("Contact addition request failed", error);
     const isCooldown = error && [
@@ -12756,16 +12429,6 @@ async function submitContactReport() {
   setStatus("contactReportStatus", "שולח את הדיווח...", "loading");
 
   try {
-    await loadUserRequestStatuses_({ force: true });
-    const equivalentReport = findEquivalentOpenReport_({
-      ...activeReportContact,
-      issueType
-    });
-    if (equivalentReport) {
-      setStatus("contactReportStatus", "כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
-      return;
-    }
-
     const reportId = getCooldownSubmissionDocumentId_(
       "report",
       auth.currentUser
@@ -12795,13 +12458,7 @@ async function submitContactReport() {
       { merge: false }
     );
 
-    userRequestState.reports.unshift({
-      docId: reportId,
-      ...reportPayload,
-      createdAt: new Date()
-    });
-    userRequestState.loadedAt = Date.now();
-    setStatus("contactReportStatus", "הדיווח נשלח. מצב: ממתין לטיפול.", "success");
+    setStatus("contactReportStatus", "הדיווח נשלח למנהלי האפליקציה. תודה.", "success");
     setTimeout(closeContactReportModal, 1300);
   } catch (error) {
     console.error("Contact report submission failed", error);
@@ -13000,28 +12657,6 @@ function downloadContact(id) {
   }, 1000);
 }
 
-async function downloadMonthlyIntern_(internId) {
-  const intern = getMonthlyInternById_(internId);
-  if (!intern) return;
-  const displayName = String(intern.name || "סטאז׳ר").trim();
-  const nameParts = splitPickedContactName_(displayName);
-  const vcard = buildContactVCard({
-    first: nameParts.firstName,
-    last: nameParts.lastName,
-    title: "",
-    name: displayName,
-    dept: String(intern.department || ""),
-    role: "סטאז׳ר/ית",
-    phone: normalizePhone(intern.phone || ""),
-    email: "",
-    firstEn: "",
-    lastEn: ""
-  }) + "\r\n";
-  const safeFileName = displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
-  const completed = await shareOrDownloadVCard(vcard, safeFileName);
-  if (completed) recordContactUse_(intern.phone, "download");
-}
-
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -13090,7 +12725,6 @@ function getDirectoryIconSvg_(iconName) {
   const paths = {
     phone: '<path d="M7.2 3.5 9.5 8l-2 1.6a15 15 0 0 0 6.9 6.9l1.6-2 4.5 2.3-.7 3a2 2 0 0 1-2 1.6C9.4 20.7 3.3 14.6 2.6 6.2a2 2 0 0 1 1.6-2z"/>',
     whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M8.5 8.4c.6 3 2.1 4.5 5.1 5.1"/>',
-    saveContact: '<path d="M9.5 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.5 20a6 6 0 0 1 10.7-3.7M18 12v7m-3.5-3.5h7"/>',
     chevron: '<path d="m14.5 6-6 6 6 6"/>',
     check: '<path d="m5 12.5 4.2 4.2L19 7"/>'
   };
@@ -13162,11 +12796,6 @@ function openContactDetail_(id) {
   emailLink.onclick = () => recordContactUse_(contact.id, "email");
   emailText.textContent = contact.email || "";
 
-  updateContactDetailRequestStatus_(contact);
-  loadUserRequestStatuses_().then(() => {
-    if (activeContactDetailId === contact.id) updateContactDetailRequestStatus_(contact);
-  });
-
   const sheet = document.getElementById("contactDetailSheet");
   sheet.classList.add("visible");
   sheet.setAttribute("aria-hidden", "false");
@@ -13187,33 +12816,6 @@ function reportActiveContact_() {
   const id = activeContactDetailId;
   closeContactDetail_();
   openContactReportModal(id);
-}
-
-function updateContactDetailRequestStatus_(contact) {
-  const element = document.getElementById("contactDetailRequestStatus");
-  if (!element) return;
-  const updateRequest = findLatestUserContactRequest_(contact);
-  const report = userRequestState.reports
-    .filter(item => item.subjectType !== "intern" && (
-      (contact.docId && String(item.contactDocId || "") === String(contact.docId)) ||
-      normalizePhone(item.contactPhone || "") === normalizePhone(contact.phone || "")
-    ))
-    .sort((left, right) => getTimestampMillis_(right.resolvedAt || right.createdAt) - getTimestampMillis_(left.resolvedAt || left.createdAt))[0] || null;
-  const current = updateRequest
-    ? { ...getUserRequestStatusPresentation_(updateRequest.status), prefix: "עדכון פרטים" }
-    : report
-      ? { ...getUserRequestStatusPresentation_(report.status, "report"), prefix: "דיווח" }
-      : null;
-  element.hidden = !current;
-  element.className = `userRequestStatus${current ? ` ${current.tone}` : ""}`;
-  element.textContent = current ? `${current.prefix}: ${current.label}` : "";
-}
-
-function updateActiveContact_() {
-  if (activeContactDetailId === null) return;
-  const id = activeContactDetailId;
-  closeContactDetail_();
-  openContactUpdateModal_(id);
 }
 
 function getVisibleDepartment_(contact) {
@@ -13303,7 +12905,6 @@ function show(list) {
           <div class="contactRowActions">
             <a class="contactIconAction call" href="tel:${c.phone}" aria-label="חיוג אל ${escapeHtml(displayName)}" onclick="recordContactUse_(${c.id}, 'call')">${getDirectoryIconSvg_("phone")}</a>
             ${hideWhatsapp ? "" : `<a class="contactIconAction whatsapp" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener" aria-label="פתיחת WhatsApp עם ${escapeHtml(displayName)}" onclick="recordContactUse_(${c.id}, 'whatsapp')">${getDirectoryIconSvg_("whatsapp")}</a>`}
-            <button type="button" class="contactIconAction saveContact" aria-label="הוספת ${escapeHtml(displayName)} לאנשי הקשר בטלפון" onclick="downloadContact(${c.id})">${getDirectoryIconSvg_("saveContact")}</button>
           </div>
         `}
       </article>
