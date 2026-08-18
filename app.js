@@ -7282,6 +7282,46 @@ function adminActivityMatchesQuery(activity, query) {
   return searchable.includes(query);
 }
 
+function canManagerForceApproveAccess_(user) {
+  if (
+    !user ||
+    user.active !== true ||
+    user.phonePermissionActive !== true ||
+    user.manualApproved === true ||
+    normalizeEmail(user.email) === currentAdminEmail
+  ) {
+    return false;
+  }
+
+  const accessState = getUserAccessState_(user);
+  return Boolean(
+    accessState &&
+    ["pending", "temporary", "expired", "rejected", "waiting", "unknown"].includes(
+      accessState.key
+    )
+  );
+}
+
+function getManagerActivityApprovalTarget_(activity) {
+  if (!activity || ![
+    "worker_added",
+    "worker_email_changed",
+    "access_auto_granted"
+  ].includes(String(activity.action || ""))) {
+    return null;
+  }
+
+  const candidates = [
+    activity.newEmail,
+    activity.targetEmail
+  ].map(normalizeEmail).filter(Boolean);
+  const user = candidates
+    .map(email => getAllowedUserByEmail(email))
+    .find(Boolean);
+
+  return canManagerForceApproveAccess_(user) ? user : null;
+}
+
 function renderAdminActivity() {
   const query = getAdminSearchQuery();
 
@@ -7321,6 +7361,7 @@ function renderAdminActivity() {
     const oldEmails = Array.isArray(activity.oldEmails)
       ? activity.oldEmails.filter(Boolean)
       : [];
+    const approvalTarget = getManagerActivityApprovalTarget_(activity);
 
     const details = [
       changedFields.length
@@ -7355,6 +7396,12 @@ function renderAdminActivity() {
         </div>
         ${details.length
           ? `<div class="activityDetails">${details.map(escapeHtml).join("<br>")}</div>`
+          : ""}
+        ${approvalTarget
+          ? `<div class="adminCardActions activityApprovalActions">
+               <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(approvalTarget.email)}', false, true)">אישור גישה קבועה</button>
+               <button type="button" class="adminActionBtn secondary" onclick="openAdminPerson_('', '${escapeJsString(approvalTarget.email)}')">פתיחת כרטיס העובד</button>
+             </div>`
           : ""}
       </div>
     `;
@@ -8829,17 +8876,7 @@ function renderAdminPersonManagement_(contact, user) {
     accessState &&
     ["pending", "temporary", "expired"].includes(accessState.key)
   );
-  const canForceApproveAccess = Boolean(
-    user &&
-    !isSelf &&
-    user.active &&
-    user.phonePermissionActive &&
-    !user.manualApproved &&
-    accessState &&
-    ["pending", "temporary", "expired", "rejected"].includes(
-      accessState.key
-    )
-  );
+  const canForceApproveAccess = canManagerForceApproveAccess_(user);
 
   const primaryActions = [];
   const additionalActions = [];
@@ -8986,17 +9023,7 @@ function openAdminPerson_(contactDocId, userEmail) {
     accessState &&
     ["pending", "temporary", "expired"].includes(accessState.key)
   );
-  const canForceApproveAccess = Boolean(
-    user &&
-    !isSelf &&
-    user.active &&
-    user.phonePermissionActive &&
-    !user.manualApproved &&
-    accessState &&
-    ["pending", "temporary", "expired", "rejected"].includes(
-      accessState.key
-    )
-  );
+  const canForceApproveAccess = canManagerForceApproveAccess_(user);
   const contactStatus = contact
     ? contact.deleted ? "הוסר מהספר" : "מופיע בספר"
     : "אין רשומת איש קשר";
@@ -10303,10 +10330,7 @@ async function approveManualAccess_(email, temporary = false, force = false) {
   const canForceApprove = Boolean(
     force === true &&
     temporary !== true &&
-    user &&
-    user.active &&
-    user.accessReviewRequired === true &&
-    user.manualApproved !== true
+    canManagerForceApproveAccess_(user)
   );
   if (
     !user ||
