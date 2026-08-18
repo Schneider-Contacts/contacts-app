@@ -1733,15 +1733,22 @@ function openMonthlyInternEditor_(internId, reportId = "") {
 }
 
 async function updateActiveMonthlyInterns_(transform) {
-  if (!currentUserIsAdmin || !firebaseApi || !db) throw new Error("ADMIN_REQUIRED");
-  const activeRef = firebaseApi.doc(db, MONTHLY_INTERNS_COLLECTION_NAME, MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID);
+  if (!currentUserIsAdmin || !firebaseApi || !db) {
+    throw new Error("ADMIN_REQUIRED");
+  }
+  const activeRef = firebaseApi.doc(
+    db,
+    MONTHLY_INTERNS_COLLECTION_NAME,
+    MONTHLY_INTERNS_ACTIVE_DOCUMENT_ID
+  );
   let updatedEntries = null;
   let updatedData = null;
   await firebaseApi.runTransaction(db, async transaction => {
     const snapshot = await transaction.get(activeRef);
     if (!snapshot.exists()) throw new Error("NO_ACTIVE_INTERNS_LIST");
     const current = snapshot.data() || {};
-    const entries = (Array.isArray(current.entries) ? current.entries : []).map(normalizeMonthlyInternEntry_);
+    const entries = (Array.isArray(current.entries) ? current.entries : [])
+      .map(normalizeMonthlyInternEntry_);
     updatedEntries = transform(entries);
     if (!Array.isArray(updatedEntries)) throw new Error("INVALID_INTERNS_UPDATE");
     updatedData = {
@@ -1754,8 +1761,18 @@ async function updateActiveMonthlyInterns_(transform) {
     };
     transaction.set(activeRef, updatedData);
   });
-  adminMonthlyInternsActive = { ...(adminMonthlyInternsActive || {}), ...updatedData, publishedAt: new Date(), entries: updatedEntries };
-  monthlyInternsState = { ...monthlyInternsState, status: "ready", version: updatedData.version, entries: updatedEntries };
+  adminMonthlyInternsActive = {
+    ...(adminMonthlyInternsActive || {}),
+    ...updatedData,
+    publishedAt: new Date(),
+    entries: updatedEntries
+  };
+  monthlyInternsState = {
+    ...monthlyInternsState,
+    status: "ready",
+    version: updatedData.version,
+    entries: updatedEntries
+  };
   renderMonthlyInterns_();
   if (adminActiveTab === "system") renderAdminSystem_();
   return updatedEntries;
@@ -1767,16 +1784,33 @@ async function saveMonthlyInternChanges_(internId, reportId = "") {
   const phone = normalizePhone(document.getElementById("monthlyInternEditPhone")?.value || "");
   const department = String(document.getElementById("monthlyInternEditDepartment")?.value || "").trim();
   const saveButton = document.getElementById("monthlyInternEditSaveBtn");
-  if (!name) return setStatus("monthlyInternEditStatus", "יש להזין שם.", "error");
-  if (!phone || !isValidPhoneForRouting_(phone)) return setStatus("monthlyInternEditStatus", "יש להזין מספר טלפון ישראלי תקין.", "error");
+  if (!name) {
+    setStatus("monthlyInternEditStatus", "יש להזין שם.", "error");
+    return;
+  }
+  if (!phone || !isValidPhoneForRouting_(phone)) {
+    setStatus("monthlyInternEditStatus", "יש להזין מספר טלפון ישראלי תקין.", "error");
+    return;
+  }
   if (saveButton) saveButton.disabled = true;
   setStatus("monthlyInternEditStatus", "שומר את השינויים...", "loading");
   try {
     await updateActiveMonthlyInterns_(entries => {
       const index = entries.findIndex(entry => entry.id === internId);
       if (index < 0) throw new Error("INTERN_NOT_FOUND");
-      if (entries.some((entry, entryIndex) => entryIndex !== index && entry.phone === phone)) throw new Error("DUPLICATE_INTERN_PHONE");
-      entries[index] = { ...entries[index], id: internId, name, phone, department, manuallyEdited: true, manuallyEditedAt: new Date().toISOString(), manuallyEditedBy: currentAdminEmail };
+      if (entries.some((entry, entryIndex) => entryIndex !== index && entry.phone === phone)) {
+        throw new Error("DUPLICATE_INTERN_PHONE");
+      }
+      entries[index] = {
+        ...entries[index],
+        id: internId,
+        name,
+        phone,
+        department,
+        manuallyEdited: true,
+        manuallyEditedAt: new Date().toISOString(),
+        manuallyEditedBy: currentAdminEmail
+      };
       return entries;
     });
     logAdminAction("monthly_intern_edit", "", internId).catch(() => {});
@@ -1785,7 +1819,11 @@ async function saveMonthlyInternChanges_(internId, reportId = "") {
     setAdminStatus("פרטי הסטאז׳ר עודכנו.", "success");
   } catch (error) {
     console.error("Monthly intern edit failed", error);
-    const message = error && error.message === "DUPLICATE_INTERN_PHONE" ? "מספר הטלפון כבר משויך לסטאז׳ר אחר ברשימה." : error && error.message === "INTERN_NOT_FOUND" ? "הסטאז׳ר כבר אינו מופיע ברשימה הפעילה." : "שמירת השינויים נכשלה.";
+    const message = error && error.message === "DUPLICATE_INTERN_PHONE"
+      ? "מספר הטלפון כבר משויך לסטאז׳ר אחר ברשימה."
+      : error && error.message === "INTERN_NOT_FOUND"
+        ? "הסטאז׳ר כבר אינו מופיע ברשימה הפעילה."
+        : "שמירת השינויים נכשלה.";
     setStatus("monthlyInternEditStatus", message, "error");
     if (saveButton) saveButton.disabled = false;
   }
@@ -1795,7 +1833,12 @@ async function deleteMonthlyIntern_(internId) {
   if (!currentUserIsAdmin) return;
   const intern = getMonthlyInternById_(internId);
   if (!intern) return;
-  const confirmed = await requestAdminConfirmation_({ title: "מחיקת סטאז׳ר", message: `${intern.name} יוסר מרשימת הסטאז׳רים הפעילה.`, confirmLabel: "מחיקה", tone: "danger" });
+  const confirmed = await requestAdminConfirmation_({
+    title: "מחיקת סטאז׳ר",
+    message: `${intern.name} יוסר מרשימת הסטאז׳רים הפעילה.`,
+    confirmLabel: "מחיקה",
+    tone: "danger"
+  });
   if (!confirmed) return;
   try {
     await updateActiveMonthlyInterns_(entries => {
@@ -2277,6 +2320,22 @@ function getAuthErrorMessage(error) {
 
   if (code === "auth/network-request-failed") {
     return "לא ניתן להתחבר למערכת. בדקו את החיבור לאינטרנט ונסו שוב.";
+  }
+
+  if (
+    code === "auth/unauthorized-continue-uri" ||
+    code === "auth/invalid-continue-uri" ||
+    code === "auth/missing-continue-uri"
+  ) {
+    return "לא ניתן לשלוח מייל אימות עקב הגדרת קישור חזרה במערכת. מנהל ספר אנשי הקשר מטפל בכך.";
+  }
+
+  if (
+    code === "auth/invalid-api-key" ||
+    code === "auth/app-not-authorized" ||
+    code === "auth/configuration-not-found"
+  ) {
+    return "הגדרת ההתחברות למערכת אינה זמינה כרגע. מנהל ספר אנשי הקשר מטפל בכך.";
   }
 
   return "לא הצלחנו להשלים את הפעולה. בדקו את הפרטים ונסו שוב.";
@@ -4578,14 +4637,35 @@ async function permissionHasActivePhonePair_(permission, email) {
 
 async function getEmailEntryEligibility_(email) {
   const normalizedEmail = normalizeEmail(email);
-  const permission = await getCurrentUserPermission(normalizedEmail);
+  const emptyPermission = {
+    exists: false,
+    active: false,
+    phone: "",
+    phoneKey: ""
+  };
+  let permission = emptyPermission;
+  const signedInEmail = normalizeEmail(
+    auth && auth.currentUser && auth.currentUser.email
+  );
 
-  if (
-    permission.exists &&
-    permission.active &&
-    await permissionHasActivePhonePair_(permission, normalizedEmail)
-  ) {
-    return { allowed: true, isAdmin: false, permission };
+  // לפני יצירת חשבון Firebase אין למשתמש זהות מאומתת. כללי Firestore
+  // במכוון חוסמים קריאה ישירה ל-allowedUsers/allowedPhones במצב זה.
+  // לכן בודקים הרשאה דרך נתיב ה-Apps Script הציבורי, שמחזיר מסלול רק
+  // כאשר זוג המייל-טלפון הפעיל קיים. אחרי יצירת החשבון אפשר להיעזר גם
+  // בקריאה הישירה, כי כעת המשתמש קורא רק את מסמך ההרשאה של עצמו.
+  if (signedInEmail === normalizedEmail) {
+    try {
+      permission = await getCurrentUserPermission(normalizedEmail);
+      if (
+        permission.exists &&
+        permission.active &&
+        await permissionHasActivePhonePair_(permission, normalizedEmail)
+      ) {
+        return { allowed: true, isAdmin: false, permission };
+      }
+    } catch (error) {
+      console.warn("Signed-in permission lookup failed", error);
+    }
   }
 
   try {
@@ -4594,12 +4674,20 @@ async function getEmailEntryEligibility_(email) {
       normalizedEmail,
       { forceFresh: true }
     );
-    if (route && route.admin === true) {
-      authRouteIsAdmin = true;
-      return { allowed: true, isAdmin: true, permission };
+    const routeName = String(route && route.route || "");
+    const routeAllowsEntry = [
+      "PASSWORD",
+      "PASSWORD_SETUP",
+      "PASSWORD_RESET_READY"
+    ].includes(routeName);
+
+    if (routeAllowsEntry) {
+      const isAdmin = route && route.admin === true;
+      authRouteIsAdmin = isAdmin;
+      return { allowed: true, isAdmin, permission };
     }
   } catch (error) {
-    console.warn("Admin route verification failed", error);
+    console.warn("Server-side entry eligibility lookup failed", error);
   }
 
   return { allowed: false, isAdmin: false, permission };
@@ -5011,7 +5099,20 @@ async function registerWithPassword() {
     console.error("Registration failed", error);
 
     if (createdUser && !verificationSent) {
-      await deleteNewAuthUserSafely(createdUser);
+      // החשבון כבר נוצר, אך שליחת מייל האימות נכשלה. אין למחוק אותו:
+      // מחיקה יכולה להיכשל ולהשאיר את המשתמשת במסלול לא עקבי. נשמור
+      // את הסשן הלא-מאומת כדי שאפשר יהיה לשלוח את מייל האימות מחדש
+      // לאחר שהתקלה בהגדרת Firebase תטופל.
+      lastUnverifiedEmail = email;
+      document.getElementById("passwordInput").value = "";
+      document.getElementById("confirmPasswordInput").value = "";
+      showVerificationPanel_(createdUser, email);
+      setLoginStatus(
+        "החשבון נוצר, אך מייל האימות לא נשלח. " +
+          getAuthErrorMessage(error),
+        "error"
+      );
+      return;
     }
 
     const code = error && error.code ? error.code : "";
@@ -6175,6 +6276,9 @@ function getAdminPendingCounts_() {
   const contactReports = reportsLoaded
     ? adminReports.filter(report => report.status === "open").length
     : adminPendingSummary.contactReports;
+  const notifications = adminLoadedSections.has("activity")
+    ? getAdminRecentChangeNotificationItems_().length
+    : 0;
   const users = verificationRequests + passwordResetRequests;
   const reports = contactRequests + contactReports;
 
@@ -6183,9 +6287,10 @@ function getAdminPendingCounts_() {
     passwordResetRequests,
     contactRequests,
     contactReports,
+    notifications,
     users,
     reports,
-    total: users + reports,
+    total: users + reports + notifications,
     loaded:
       adminPendingSummary.loaded ||
       usersLoaded ||
@@ -6564,7 +6669,8 @@ async function loadAdminActivityData_() {
   const activityQuery = firebaseApi.query(
     firebaseApi.collection(db, "admin_actions"),
     firebaseApi.orderBy("timestamp", "desc"),
-    firebaseApi.limit(10)
+    // ההתראות בדף הניהול מציגות פעילות רלוונטית מהשבוע האחרון.
+    firebaseApi.limit(30)
   );
   const activitySnapshot = await firebaseApi.getDocs(activityQuery);
   const recordedActivity = activitySnapshot.docs.map(document => {
@@ -6742,7 +6848,9 @@ async function loadAdminDataPart_(section, loader) {
 async function loadAdminAttentionData_() {
   await Promise.all([
     loadAdminDataPart_("users", loadAdminUsersData_),
-    loadAdminDataPart_("reports", loadAdminReportsData_)
+    loadAdminDataPart_("reports", loadAdminReportsData_),
+    // התראות על הוספת עובד או שינוי מייל נשמרות ביומן הפעילות הקיים.
+    loadAdminDataPart_("activity", loadAdminActivityData_)
   ]);
 }
 
@@ -6934,7 +7042,7 @@ function getActivityTargetKey(activity) {
 
 function mergeActivityWithDetectedContacts(activityItems, contactItems) {
   const actualActivities = Array.isArray(activityItems) ? activityItems : [];
-  const additionKeys = new Set(actualActivities.filter(item => ["contact_add_form", "form_submission", "contact_add_detected"].includes(item.action)).map(getActivityTargetKey).filter(key => key !== "|"));
+  const additionKeys = new Set(actualActivities.filter(item => ["worker_added", "contact_add_form", "form_submission", "contact_add_detected"].includes(item.action)).map(getActivityTargetKey).filter(key => key !== "|"));
   const detectedActivities = (Array.isArray(contactItems) ? contactItems : []).map(contact => {
     const timestamp = getDetectedContactActivityTimestamp(contact);
     if (!timestamp) return null;
@@ -6977,7 +7085,7 @@ function formatActivityTimestamp(activity) {
 }
 
 function getActivityCategory(action) {
-  if (["contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "form_access_request_approved", "access_auto_granted", "manager_add"].includes(action)) {
+  if (["worker_added", "contact_add_form", "form_submission", "contact_add_detected", "contact_add_request_approved", "form_access_request_approved", "access_auto_granted", "manager_add"].includes(action)) {
     return "added";
   }
 
@@ -6990,6 +7098,9 @@ function getActivityCategory(action) {
 
 function getActivityTitle(activity) {
   const labels = {
+    worker_added: "עובד חדש נוסף",
+    worker_details_updated: "פרטי עובד עודכנו",
+    worker_email_changed: "כתובת המייל של עובד שונתה",
     contact_add_form: "נשלח טופס הצטרפות חדש",
     form_submission: "נשלח טופס הצטרפות",
     contact_add_detected: "איש קשר נוסף למערכת",
@@ -7885,13 +7996,33 @@ function getAdminAttentionItems_() {
       timestamp: getReportTimestamp_(report),
       data: report
     }));
+  const notificationItems = getAdminRecentChangeNotificationItems_();
 
   return [
     ...accessItems,
     ...resetItems,
     ...contactItems,
-    ...reportItems
+    ...reportItems,
+    ...notificationItems
   ].sort((a, b) => b.timestamp - a.timestamp);
+}
+
+function getAdminRecentChangeNotificationItems_() {
+  const notificationActions = new Set([
+    "worker_added",
+    "worker_details_updated",
+    "worker_email_changed"
+  ]);
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  return (Array.isArray(adminActivity) ? adminActivity : [])
+    .filter(activity => notificationActions.has(activity.action))
+    .map(activity => ({
+      kind: "notification",
+      timestamp: getActivityTimestamp(activity),
+      data: activity
+    }))
+    .filter(item => item.timestamp >= weekAgo);
 }
 
 function adminAttentionItemMatchesQuery_(item, query) {
@@ -7905,6 +8036,17 @@ function adminAttentionItemMatchesQuery_(item, query) {
   }
   if (item.kind === "report") {
     return adminReportMatchesQuery_(item.data, query);
+  }
+  if (item.kind === "notification") {
+    const activity = item.data;
+    return normalizeSearchText([
+      getActivityTitle(activity),
+      activity.displayName,
+      activity.targetEmail,
+      activity.targetPhone,
+      activity.oldEmails,
+      activity.newEmail
+    ].filter(Boolean).join(" ")).includes(query);
   }
 
   const request = item.data;
@@ -8135,6 +8277,18 @@ function getAdminAttentionRowPresentation_(item) {
       id: request.docId
     };
   }
+  if (item.kind === "notification") {
+    const activity = item.data;
+    const contact = findContactByEmail(activity.targetEmail);
+    return {
+      title: activity.displayName || (contact && contact.name) || activity.targetEmail || "עובד",
+      type: getActivityTitle(activity),
+      time: formatAdminRelativeTime_(activity.timestamp),
+      status: "חדש",
+      tone: "notification",
+      id: activity.docId
+    };
+  }
   const report = item.data;
   if (report.subjectType === "intern") {
     return {
@@ -8179,6 +8333,7 @@ function getAdminIconSvg_(kind) {
     reset: '<svg viewBox="0 0 24 24"><path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10m-10 0h11a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10Z"/><path d="M12 14v2"/></svg>',
     contact: '<svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="M19 4v5m-2.5-2.5h5"/></svg>',
     report: '<svg viewBox="0 0 24 24"><path d="M12 4 3.5 20h17L12 4Zm0 5v5m0 3v.1"/></svg>',
+    notification: '<svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>',
     system: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'
   };
   return icons[kind] || icons.system;
@@ -8319,6 +8474,30 @@ function openAdminAttentionItem_(kind, itemId) {
     return;
   }
 
+  if (kind === "notification") {
+    const activity = item.data;
+    const target = activity.displayName || activity.targetEmail || "עובד";
+    const oldEmails = Array.isArray(activity.oldEmails)
+      ? activity.oldEmails.filter(Boolean).join(", ")
+      : "";
+    openAdminFocusSheet_({
+      eyebrow: "עדכון מערכת",
+      title: target,
+      subtitle: formatAdminRelativeTime_(activity.timestamp),
+      html: `
+        ${renderAdminInfoRows_([
+          { label: "סוג העדכון", value: getActivityTitle(activity) },
+          { label: "מייל נוכחי", value: activity.targetEmail || activity.newEmail, ltr: true },
+          { label: "מייל קודם", value: oldEmails, ltr: true },
+          { label: "טלפון", value: activity.targetPhone ? formatPhoneForDisplay(activity.targetPhone) : "", ltr: true },
+          { label: "מקור", value: activity.source === "google-form" ? "טופס הצטרפות" : "עדכון עצמי" }
+        ])}
+        <p class="adminFocusDescription">העדכון נרשם ביומן המערכת. אם זו החלפת מייל, בקשת אישור הגישה מופיעה גם ברשימת המשימות עד לאימות המייל או לאישור מנהל.</p>
+      `
+    });
+    return;
+  }
+
   if (kind === "reset") {
     const request = item.data;
     const contact = findContactByEmail(request.email);
@@ -8452,15 +8631,15 @@ function renderAdminAttention_() {
 
   document.getElementById("adminSummary").textContent =
     items.length === 1
-      ? "פריט אחד ממתין לטיפול"
-      : `${items.length} פריטים ממתינים לטיפול`;
+      ? "פריט ניהול חדש אחד"
+      : `${items.length} פריטי ניהול והתראות חדשות`;
 
   if (!items.length) {
     document.getElementById("adminList").innerHTML = `
       <div class="adminFocusEmpty">
         <span aria-hidden="true">✓</span>
-        <strong>אין כרגע פריטים שממתינים לטיפול</strong>
-        <small>בקשות חדשות יופיעו כאן באופן מרוכז.</small>
+        <strong>אין כרגע פריטי ניהול חדשים</strong>
+        <small>בקשות ועדכוני עובדים חדשים יופיעו כאן באופן מרוכז.</small>
       </div>
     `;
     return;
@@ -12708,7 +12887,8 @@ function openMonthlyInternReport_(internId) {
   if (!intern || !auth || !auth.currentUser) return;
   activeReportContact = { ...intern, reportSubject: "intern" };
   document.getElementById("contactReportModalTitle").textContent = "דיווח על טעות בפרטי סטאז׳ר";
-  document.getElementById("contactReportContact").textContent = `${intern.name} · ${formatPhoneForDisplay(intern.phone)}`;
+  document.getElementById("contactReportContact").textContent =
+    `${intern.name} · ${formatPhoneForDisplay(intern.phone)}`;
   const type = document.getElementById("contactReportType");
   const detailsLabel = document.getElementById("contactReportDetailsLabel");
   if (detailsLabel) detailsLabel.textContent = "מה צריך לתקן? — לא חובה";
