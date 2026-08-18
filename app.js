@@ -106,6 +106,8 @@ let pendingEmailAuthRouteEmail = "";
 let pendingEmailAuthRoutePromise = null;
 let authEmailFlowToken = 0;
 let authAccountSetupEmail = "";
+let authAccountSetupFallback = false;
+let authRouteUnavailableEmail = "";
 let authReturningUser = false;
 
 let currentUserIsAdmin = false;
@@ -2367,6 +2369,8 @@ function invalidateEmailAuthFlow_() {
   pendingEmailAuthRouteEmail = "";
   pendingEmailAuthRoutePromise = null;
   authAccountSetupEmail = "";
+  authAccountSetupFallback = false;
+  authRouteUnavailableEmail = "";
 }
 
 function setAuthMode(mode) {
@@ -2490,6 +2494,10 @@ function applyResolvedEmailAuthRoute_(email, result, options = {}) {
 
   const route = String(result && result.route || "SYSTEM_ERROR");
   authRouteIsAdmin = Boolean(result && result.admin === true);
+  if (route !== "SYSTEM_ERROR") {
+    authRouteUnavailableEmail = "";
+    authAccountSetupFallback = false;
+  }
 
   if (route === "PASSWORD_RESET_READY") {
     showAuthPhoneStep_(normalizedEmail, "password_reset");
@@ -2907,6 +2915,13 @@ function showAuthPasswordStep_(email, mode = "login", options = {}) {
   if (form) form.style.display = "block";
   if (passwordStep) passwordStep.style.display = "block";
   setAuthMode(mode);
+  const firstAccessAction = document.getElementById("authFirstAccessAction");
+  if (firstAccessAction) {
+    firstAccessAction.style.display =
+      mode === "login" && authRouteUnavailableEmail === normalized
+        ? "inline-flex"
+        : "none";
+  }
   updateAuthProgress_(mode === "register" ? "password_setup" : "password");
   setLoginStatus("", "");
   setTimeout(() => {
@@ -2914,6 +2929,31 @@ function showAuthPasswordStep_(email, mode = "login", options = {}) {
     if (focusTarget) focusTarget.focus();
   }, 0);
   return true;
+}
+
+function markAuthRouteUnavailable_(email) {
+  authRouteUnavailableEmail = normalizeEmail(email);
+  authAccountSetupFallback = false;
+}
+
+function startApprovedAccountSetup_() {
+  if (authActionInProgress) return;
+
+  const email = getCurrentAuthEmail_();
+  if (!isValidEmail(email) || authRouteUnavailableEmail !== email) {
+    setLoginStatus("חזרו לשלב המייל ונסו שוב.", "error");
+    return;
+  }
+
+  // המסלול הזה זמין רק אחרי כשל ניתוב. לאחר יצירת חשבון Firebase
+  // בודקים את מסמך ההרשאה של המשתמשת עצמה, שהכללים מאפשרים לקרוא.
+  authAccountSetupEmail = email;
+  authAccountSetupFallback = true;
+  showAuthPasswordStep_(email, "register", { preserveFlow: true });
+  setLoginStatus(
+    "בחרו סיסמה לחשבון. ההרשאה שכבר אושרה תיבדק לאחר יצירת החשבון.",
+    "success"
+  );
 }
 
 function showAuthNotice_(title, message) {
@@ -3885,6 +3925,7 @@ async function continueFromEmailStep(options = {}) {
     applyResolvedEmailAuthRoute_(email, result, { flowToken });
 
     if (authStage === "routing") {
+      markAuthRouteUnavailable_(email);
       showAuthPasswordStep_(email, "login", {
         preserveFlow: true,
         returning: false
@@ -3897,6 +3938,7 @@ async function continueFromEmailStep(options = {}) {
   } catch (error) {
     if (flowToken !== authEmailFlowToken) return;
     console.warn("Auth route lookup failed", error);
+    markAuthRouteUnavailable_(email);
     showAuthPasswordStep_(email, "login", {
       preserveFlow: true,
       returning: false
@@ -5175,16 +5217,20 @@ async function registerWithPassword() {
 
   let createdUser = null;
   let verificationSent = false;
+  let verificationError = null;
 
   try {
-    const eligibility = await getEmailEntryEligibility_(email);
+    let eligibility = null;
+    if (!authAccountSetupFallback) {
+      eligibility = await getEmailEntryEligibility_(email);
 
-    if (!eligibility.allowed) {
-      setLoginStatus(
-        "לא נמצאה התאמה פעילה בין המייל למספר הטלפון. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
-        "error"
-      );
-      return;
+      if (!eligibility.allowed) {
+        setLoginStatus(
+          "לא נמצאה התאמה פעילה בין המייל למספר הטלפון. חזרו לשלב המייל כדי להמשיך במסלול המתאים.",
+          "error"
+        );
+        return;
+      }
     }
 
     const credential = await firebaseApi.createUserWithEmailAndPassword(
@@ -5195,22 +5241,84 @@ async function registerWithPassword() {
 
     createdUser = credential.user;
 
+    // כאשר נתב ההרשאות אינו זמין, אין אפשרות לקרוא הרשאה לפני
+    // התחברות. אחרי יצירת חשבון Firebase המשתמשת רשאית לקרוא רק את
+    // מסמך ההרשאה של עצמה; לכן אפשר לאמת כאן את אותה התאמה בבטחה.
+    if (authAccountSetupFallback) {
+      eligibility = await getEmailEntryEligibility_(email);
+      if (!eligibility.allowed) {
+        await deleteNewAuthUserSafely(createdUser);
+        createdUser = null;
+        showAuthEmailStep_({
+          forceEmailEntry: true,
+          preserveEmail: true
+        });
+        setLoginStatus(
+          "לא נמצאה התאמה פעילה בין המייל למספר הטלפון.",
+          "error"
+        );
+        return;
+      }
+    }
+
     auth.languageCode = "he";
 
-    await firebaseApi.sendEmailVerification(createdUser, {
-      url: PASSWORD_AUTH_RETURN_URL
-    });
+    try {
+      await firebaseApi.sendEmailVerification(createdUser, {
+        url: PASSWORD_AUTH_RETURN_URL
+      });
+      verificationSent = true;
+    } catch (error) {
+      verificationError = error;
+      console.error("Verification email could not be sent", error);
+    }
 
-    verificationSent = true;
     authAccountSetupEmail = "";
+    authAccountSetupFallback = false;
+    authRouteUnavailableEmail = "";
     clearCachedAuthRoute_("email", email);
-    startAuthEmailCooldown("verification", email);
-    recordOwnAuthState_("verification_sent");
+    if (verificationSent) {
+      startAuthEmailCooldown("verification", email);
+      recordOwnAuthState_("verification_sent");
+    }
 
-    lastUnverifiedEmail = email;
+    let permission = null;
+    try {
+      permission = await getCurrentUserPermission(email);
+    } catch (permissionError) {
+      console.warn("Could not read new-user permission", permissionError);
+    }
+
     document.getElementById("passwordInput").value = "";
     document.getElementById("confirmPasswordInput").value = "";
+
+    if (permission && permission.active && permission.manualApproved) {
+      lastUnverifiedEmail = "";
+      rememberSuccessfulEmail_(email);
+      await handleAuthenticatedUser(createdUser);
+      setLoginStatus(
+        verificationError
+          ? "החשבון נוצר והגישה אושרה על ידי מנהל. מייל האימות לא נשלח כרגע; אפשר להיכנס כעת."
+          : "החשבון נוצר ונשלח מייל אימות. הגישה אושרה על ידי מנהל ונפתחת כעת.",
+        verificationError ? "error" : "success"
+      );
+      return;
+    }
+
+    lastUnverifiedEmail = email;
     showVerificationPanel_(createdUser, email);
+    if (verificationError) {
+      setLoginStatus(
+        "החשבון נוצר, אך מייל האימות לא נשלח. " +
+          getAuthErrorMessage(verificationError),
+        "error"
+      );
+    } else {
+      setLoginStatus(
+        "החשבון נוצר ונשלח מייל אימות. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.",
+        "success"
+      );
+    }
   } catch (error) {
     console.error("Registration failed", error);
 
@@ -5235,6 +5343,17 @@ async function registerWithPassword() {
     if (code === "auth/email-already-in-use") {
       const input = document.getElementById("emailInput");
       if (input) input.value = email;
+      if (authAccountSetupFallback) {
+        authAccountSetupFallback = false;
+        authAccountSetupEmail = "";
+        authRouteUnavailableEmail = "";
+        showAuthPasswordStep_(email, "login", { preserveFlow: true });
+        setLoginStatus(
+          "כבר קיים חשבון לכתובת הזו. הזינו את הסיסמה או בחרו ב„שכחתי סיסמה”.",
+          "error"
+        );
+        return;
+      }
       try {
         await continueFromEmailStep({ forceFresh: true });
         setLoginStatus("כבר קיים חשבון לכתובת הזו. המשיכו במסלול שמוצג.", "success");
@@ -5326,25 +5445,30 @@ async function loginWithPassword() {
           flowToken === authEmailFlowToken &&
           !(auth && auth.currentUser)
         ) {
+          if (String(result && result.route || "") === "SYSTEM_ERROR") {
+            markAuthRouteUnavailable_(email);
+          }
           const changedState = applyResolvedEmailAuthRoute_(email, result, {
             flowToken,
             afterPasswordFailure: true
           });
           if (!changedState && String(result && result.route) !== "PASSWORD") {
+            markAuthRouteUnavailable_(email);
             setLoginStatus(
-              "לא הצלחנו להשלים את הכניסה. נסו שוב בעוד רגע.",
+              "לא הצלחנו לבדוק את מסלול הכניסה. אפשר לנסות שוב או להגדיר סיסמה.",
               "error"
             );
           }
         }
       } catch (routeError) {
         if (flowToken === authEmailFlowToken) {
+          markAuthRouteUnavailable_(email);
           showAuthPasswordStep_(email, "login", {
             preserveFlow: true,
             returning: authReturningUser
           });
           setLoginStatus(
-            "הסיסמה אינה נכונה או שהחשבון עדיין לא הוגדר. בדקו את הסיסמה ונסו שוב.",
+            "לא הצלחנו לבדוק את מסלול הכניסה. אפשר לנסות שוב או להגדיר סיסמה.",
             "error"
           );
         }

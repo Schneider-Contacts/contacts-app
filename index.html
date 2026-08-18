@@ -160,6 +160,7 @@
           <button type="button" class="authTextAction" onclick="showPasswordRecoveryOptions_()">שכחתי סיסמה</button>
           <span aria-hidden="true">·</span>
           <button type="button" class="authTextAction" onclick="forgetRememberedLoginIdentity_()">זה לא אני</button>
+          <button type="button" id="authFirstAccessAction" class="authTextAction" style="display:none;" onclick="startApprovedAccountSetup_()">הגדרת סיסמה</button>
         </div>
         <div id="authModeNote" class="authModeNote"></div>
       </div>
@@ -866,7 +867,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260818-manager-approval-v1"></script>
+  <script src="app.js?v=20260818-login-fallback-v1"></script>
 
 </body>
 </html>
