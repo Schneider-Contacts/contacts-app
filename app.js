@@ -113,6 +113,7 @@ let currentUserIsSuperAdmin = false;
 let currentUserHasAppAccess = false;
 let verificationAccessListenerUnsubscribe = null;
 let verificationAccessTransitionInProgress = false;
+let verificationReturnCheckInProgress = false;
 let currentAdminRole = "";
 let currentAdminEmail = "";
 let permissionListenerUnsubscribe = null;
@@ -4374,6 +4375,52 @@ async function checkVerificationAndContinue() {
   }
 }
 
+// קישור האימות יכול להיפתח בטאב או בדפדפן אחר. כאשר המשתמש חוזר
+// לטאב המקורי, מרעננים את משתמש Firebase הפעיל ומכניסים אותו מיד אם
+// האימות הושלם. כך לא נשארים במסך סיסמה ישן ולא נדרשת סיסמה נוספת.
+async function refreshVerificationSessionAfterReturn_() {
+  if (
+    verificationReturnCheckInProgress ||
+    authActionInProgress ||
+    !firebaseApi ||
+    !auth ||
+    !auth.currentUser
+  ) {
+    return false;
+  }
+
+  const user = auth.currentUser;
+  const email = normalizeEmail(user.email || "");
+  const pendingEmail = getPendingAuthEmail_();
+  if (!email || pendingEmail !== email) return false;
+
+  verificationReturnCheckInProgress = true;
+  try {
+    await firebaseApi.reload(user);
+    if (!user.emailVerified) return false;
+
+    rememberSuccessfulEmail_(email);
+    await handleAuthenticatedUser(user, { skipVerificationSuccess: true });
+    return true;
+  } catch (error) {
+    console.warn("Could not refresh verification state after return", error);
+    return false;
+  } finally {
+    verificationReturnCheckInProgress = false;
+  }
+}
+
+function initVerificationReturnMonitor_() {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshVerificationSessionAfterReturn_();
+    }
+  });
+  window.addEventListener("pageshow", () => {
+    refreshVerificationSessionAfterReturn_();
+  });
+}
+
 async function resendVerificationFromPanel() {
   if (!firebaseApi || !auth || !db || !auth.currentUser) {
     setLoginStatus("החיבור לחשבון הסתיים. התחברו מחדש כדי לשלוח אימות.", "error");
@@ -5027,8 +5074,77 @@ async function registerWithPassword() {
     authPurpose !== "register" ||
     authAccountSetupEmail !== email
   ) {
+    // דף ההרשמה יכול להישאר בזיכרון הדפדפן בזמן שהמשתמש פותח
+    // את קישור האימות. במקרה כזה החשבון כבר נוצר, ולכן אסור להציג
+    // שגיאה או לנסות ליצור אותו פעם שנייה. אם הסשן עדיין קיים, נרענן
+    // אותו ונמשיך ישירות; אחרת ננתב למסך הסיסמה הרגיל של החשבון הקיים.
+    const currentUser = auth && auth.currentUser;
+    if (
+      currentUser &&
+      normalizeEmail(currentUser.email || "") === email
+    ) {
+      try {
+        await firebaseApi.reload(currentUser);
+        if (currentUser.emailVerified) {
+          rememberSuccessfulEmail_(email);
+          await handleAuthenticatedUser(currentUser, {
+            skipVerificationSuccess: true
+          });
+          return;
+        }
+
+        showVerificationPanel_(currentUser, email);
+        setLoginStatus(
+          "החשבון כבר נוצר. השלימו את אימות המייל כדי להיכנס.",
+          "success"
+        );
+        return;
+      } catch (sessionError) {
+        console.warn(
+          "Could not recover the existing registration session",
+          sessionError
+        );
+      }
+    }
+
+    try {
+      const route = await requestPublicAuthRoute_("email", email, {
+        forceFresh: true
+      });
+      const routeName = String(route && route.route || "");
+
+      if (routeName === "PASSWORD") {
+        showAuthPasswordStep_(email, "login", {
+          preserveFlow: true
+        });
+        setLoginStatus(
+          "החשבון כבר נוצר. הזינו את הסיסמה כדי להיכנס.",
+          "success"
+        );
+        return;
+      }
+
+      if (routeName === "PASSWORD_SETUP") {
+        authAccountSetupEmail = email;
+        showAuthPasswordStep_(email, "register", {
+          preserveFlow: true
+        });
+        setLoginStatus(
+          "אפשר להמשיך ביצירת החשבון.",
+          "success"
+        );
+        return;
+      }
+    } catch (routeError) {
+      console.warn("Could not recover stale registration route", routeError);
+    }
+
+    showAuthEmailStep_({
+      forceEmailEntry: true,
+      preserveEmail: true
+    });
     setLoginStatus(
-      "מסלול יצירת הסיסמה אינו זמין עוד. חזרו למסך המייל ונסו שוב.",
+      "לא הצלחנו לרענן את מצב ההרשמה. נסו שוב בעוד רגע.",
       "error"
     );
     return;
@@ -6276,9 +6392,9 @@ function getAdminPendingCounts_() {
   const contactReports = reportsLoaded
     ? adminReports.filter(report => report.status === "open").length
     : adminPendingSummary.contactReports;
-  const notifications = adminLoadedSections.has("activity")
-    ? getAdminRecentChangeNotificationItems_().length
-    : 0;
+  // עדכוני "עובד נוסף" ו"מייל הוחלף" הם אירועי מידע ביומן הפעילות,
+  // לא בקשות שממתינות לטיפול. רק בקשות אמיתיות נספרות בתג המשימות.
+  const notifications = 0;
   const users = verificationRequests + passwordResetRequests;
   const reports = contactRequests + contactReports;
 
@@ -7996,14 +8112,11 @@ function getAdminAttentionItems_() {
       timestamp: getReportTimestamp_(report),
       data: report
     }));
-  const notificationItems = getAdminRecentChangeNotificationItems_();
-
   return [
     ...accessItems,
     ...resetItems,
     ...contactItems,
-    ...reportItems,
-    ...notificationItems
+    ...reportItems
   ].sort((a, b) => b.timestamp - a.timestamp);
 }
 
@@ -8631,8 +8744,8 @@ function renderAdminAttention_() {
 
   document.getElementById("adminSummary").textContent =
     items.length === 1
-      ? "פריט ניהול חדש אחד"
-      : `${items.length} פריטי ניהול והתראות חדשות`;
+      ? "פריט אחד ממתין לטיפול"
+      : `${items.length} פריטים ממתינים לטיפול`;
 
   if (!items.length) {
     document.getElementById("adminList").innerHTML = `
@@ -8716,6 +8829,17 @@ function renderAdminPersonManagement_(contact, user) {
     accessState &&
     ["pending", "temporary", "expired"].includes(accessState.key)
   );
+  const canForceApproveAccess = Boolean(
+    user &&
+    !isSelf &&
+    user.active &&
+    user.phonePermissionActive &&
+    !user.manualApproved &&
+    accessState &&
+    ["pending", "temporary", "expired", "rejected"].includes(
+      accessState.key
+    )
+  );
 
   const primaryActions = [];
   const additionalActions = [];
@@ -8761,6 +8885,11 @@ function renderAdminPersonManagement_(contact, user) {
   if (hasPendingRequest) {
     primaryActions.push(
       '<button type="button" class="adminActionBtn primary" onclick="setAdminTab(\'attention\')">מעבר לבקשה שממתינה</button>'
+    );
+  }
+  if (canForceApproveAccess) {
+    primaryActions.push(
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור גישה קבועה מרחוק</button>`
     );
   }
 
@@ -8857,6 +8986,17 @@ function openAdminPerson_(contactDocId, userEmail) {
     accessState &&
     ["pending", "temporary", "expired"].includes(accessState.key)
   );
+  const canForceApproveAccess = Boolean(
+    user &&
+    !isSelf &&
+    user.active &&
+    user.phonePermissionActive &&
+    !user.manualApproved &&
+    accessState &&
+    ["pending", "temporary", "expired", "rejected"].includes(
+      accessState.key
+    )
+  );
   const contactStatus = contact
     ? contact.deleted ? "הוסר מהספר" : "מופיע בספר"
     : "אין רשומת איש קשר";
@@ -8886,7 +9026,14 @@ function openAdminPerson_(contactDocId, userEmail) {
   }
   const accessActions = [];
   if (hasPendingAccess) {
-    accessActions.push('<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת הבקשה שממתינה</button>');
+    accessActions.push(
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור גישה קבועה מרחוק</button>`,
+      '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת הבקשה המלאה</button>'
+    );
+  } else if (canForceApproveAccess) {
+    accessActions.push(
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור גישה קבועה מרחוק</button>`
+    );
   } else if (user && !isSelf) {
     accessActions.push(
       `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="closeAdminFocusSheet_(); toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>`
@@ -10139,7 +10286,7 @@ function closeAdminReasonModal_(value = null) {
   if (resolve) resolve(value);
 }
 
-async function approveManualAccess_(email, temporary = false) {
+async function approveManualAccess_(email, temporary = false, force = false) {
   if (!currentUserIsAdmin) {
     setAdminStatus("רק מנהל פעיל יכול לאשר גישה.", "error");
     return;
@@ -10149,13 +10296,27 @@ async function approveManualAccess_(email, temporary = false) {
   const user = getAllowedUserByEmail(normalizedEmail);
   const contact = findContactByEmail(normalizedEmail);
   const request = getEffectiveVerificationRequestForUser_(user);
+  const hasActionableRequest = Boolean(
+    request &&
+    ["pending", "temporary_active"].includes(request.status)
+  );
+  const canForceApprove = Boolean(
+    force === true &&
+    temporary !== true &&
+    user &&
+    user.active &&
+    user.accessReviewRequired === true &&
+    user.manualApproved !== true
+  );
   if (
     !user ||
     !user.active ||
-    !request ||
-    !["pending", "temporary_active"].includes(request.status)
+    (!hasActionableRequest && !canForceApprove)
   ) {
-    setAdminStatus("לא נמצאה בקשת אישור פעילה עבור המשתמש.", "error");
+    setAdminStatus(
+      "לא נמצאה בקשת אישור פעילה או הרשאה שממתינה לאישור מרחוק.",
+      "error"
+    );
     return;
   }
 
@@ -10182,10 +10343,16 @@ async function approveManualAccess_(email, temporary = false) {
   ].join("\n");
 
   const reason = await requestAdminReason_({
-    title: temporary ? "אישור גישה עד 23:59" : "אישור גישה קבועה",
+    title: temporary
+      ? "אישור גישה עד 23:59"
+      : canForceApprove
+        ? "אישור גישה קבועה מרחוק"
+        : "אישור גישה קבועה",
     intro: temporary
       ? "האישור יאפשר כניסה עד 23:59 היום. יש לוודא תחילה את זהות המשתמש."
-      : "האישור יאפשר כניסה גם ללא אימות מייל. יש לוודא תחילה את זהות המשתמש.",
+      : canForceApprove
+        ? "המשתמש יקבל גישה גם ללא אימות מייל. ודאו את זהותו בשיחה ורשמו כיצד זוהה."
+        : "האישור יאפשר כניסה גם ללא אימות מייל. יש לוודא תחילה את זהות המשתמש.",
     identity
   });
 
@@ -10233,7 +10400,7 @@ async function approveManualAccess_(email, temporary = false) {
           },
       { merge: true }
     );
-    if (!request.synthetic) {
+    if (hasActionableRequest && !request.synthetic) {
       batch.set(
         firebaseApi.doc(db, "verificationRequests", normalizedEmail),
         {
@@ -10249,7 +10416,9 @@ async function approveManualAccess_(email, temporary = false) {
     batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
       action: temporary
         ? "temporary_access_manager_grant"
-        : "manual_approval_grant",
+        : canForceApprove
+          ? "manual_approval_forced"
+          : "manual_approval_grant",
       targetEmail: normalizedEmail,
       displayName: contact && contact.name ? contact.name : "",
       adminEmail: currentAdminEmail,
@@ -13673,6 +13842,7 @@ function initHiddenGreenSignature_() {
 function init() {
   initHiddenGreenSignature_();
   initAuthInputEnhancements_();
+  initVerificationReturnMonitor_();
   initMainDirectoryUx_();
   cleanupOldImportPayloads();
 
