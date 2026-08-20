@@ -2993,8 +2993,12 @@ function submitAccessRegistrationDetailsFromWeb_(parameters) {
     titlePrefix: cleanSheetValue_(parameters && parameters.titlePrefix)
       .slice(0, 60),
     role: cleanSheetValue_(parameters && parameters.role).slice(0, 160),
+    roleMode: cleanSheetValue_(parameters && parameters.roleMode)
+      .slice(0, 20),
     department: cleanSheetValue_(parameters && parameters.department)
       .slice(0, 160),
+    departmentMode: cleanSheetValue_(parameters && parameters.departmentMode)
+      .slice(0, 20),
     submittedAt: new Date().toISOString()
   }, "app", { submitUnknownDetails: true });
 }

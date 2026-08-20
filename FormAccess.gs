@@ -593,6 +593,57 @@ function getRegistrationContactProfile_(contact) {
   };
 }
 
+function normalizeRegistrationOptionKey_(value) {
+  return cleanSheetValue_(value)
+    .toLowerCase()
+    .replace(new RegExp("[\\s\\x22\\x27׳״’\\x60.,\\-_/]+", "g"), " ")
+    .trim();
+}
+
+function getRegistrationFieldOptions_(contacts) {
+  const collect = fieldName => {
+    const variantsByKey = {};
+    (Array.isArray(contacts) ? contacts : []).forEach(contact => {
+      const value = cleanSheetValue_(contact && contact[fieldName]).slice(0, 160);
+      const key = normalizeRegistrationOptionKey_(value);
+      if (!key || value.length < 2) return;
+      if (!variantsByKey[key]) variantsByKey[key] = {};
+      variantsByKey[key][value] = (variantsByKey[key][value] || 0) + 1;
+    });
+
+    return Object.keys(variantsByKey)
+      .map(key => Object.keys(variantsByKey[key]).sort((left, right) => {
+        const countDifference = variantsByKey[key][right] - variantsByKey[key][left];
+        if (countDifference) return countDifference;
+        return left.localeCompare(right, "he");
+      })[0])
+      .sort((left, right) => left.localeCompare(right, "he"))
+      .slice(0, 180);
+  };
+
+  return {
+    roles: collect("role"),
+    departments: collect("department")
+  };
+}
+
+function resolveRequiredRegistrationOption_(value, mode, options, fieldLabel) {
+  const cleanValue = cleanSheetValue_(value).slice(0, 160);
+  if (!cleanValue) throw new Error("יש לבחור " + fieldLabel + ".");
+  if (cleanSheetValue_(mode) === "other") return cleanValue;
+
+  const normalizedValue = normalizeRegistrationOptionKey_(cleanValue);
+  const canonical = (Array.isArray(options) ? options : []).find(option =>
+    normalizeRegistrationOptionKey_(option) === normalizedValue
+  );
+  if (!canonical) {
+    throw new Error(
+      fieldLabel + " אינו מופיע ברשימה. בחרו באפשרות „אחר”."
+    );
+  }
+  return canonical;
+}
+
 /**
  * מקור הסמכות היחיד לבקשת הרשמה חדשה, הן מהאפליקציה והן מהטופס הישן.
  * Firestore נכתב תחילה. app_users הוא מראה תפעולית בלבד וכשל בו אינו
@@ -622,7 +673,8 @@ function processAccessRegistration_(payload, source, options) {
   }
 
   try {
-    const matchingContact = readAndDeduplicateContacts_().find(contact =>
+    const contacts = readAndDeduplicateContacts_();
+    const matchingContact = contacts.find(contact =>
       normalizeIsraeliPhone(contact && contact.phone) === phone
     ) || null;
     const existingAllowedUser = getAllowedUser_(email);
@@ -634,6 +686,22 @@ function processAccessRegistration_(payload, source, options) {
       email,
       phone
     );
+    let registrationOptions = null;
+    if (settings.submitUnknownDetails === true && !matchingContact) {
+      registrationOptions = getRegistrationFieldOptions_(contacts);
+      values.role = resolveRequiredRegistrationOption_(
+        values.role,
+        values.roleMode,
+        registrationOptions.roles,
+        "תפקיד"
+      );
+      values.department = resolveRequiredRegistrationOption_(
+        values.department,
+        values.departmentMode,
+        registrationOptions.departments,
+        "מחלקה או מכון"
+      );
+    }
     const contactProfile = getRegistrationContactProfile_(matchingContact);
     const submittedProfile = {
       name: [
@@ -660,11 +728,13 @@ function processAccessRegistration_(payload, source, options) {
       deferProvisionalGrant &&
       settings.submitUnknownDetails !== true
     ) {
+      registrationOptions = getRegistrationFieldOptions_(contacts);
       return {
         ok: true,
         route: "DETAILS_REQUIRED",
         provisional: false,
-        detailsRequired: true
+        detailsRequired: true,
+        registrationOptions
       };
     }
 

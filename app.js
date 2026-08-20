@@ -109,6 +109,7 @@ let authAccountSetupEmail = "";
 let provisionalRegistrationPhone = "";
 let pendingRegistrationEmail = "";
 let pendingRegistrationPhone = "";
+let registrationFieldOptions = { roles: [], departments: [] };
 let authAccountSetupFallback = false;
 let authRouteUnavailableEmail = "";
 let authReturningUser = false;
@@ -714,6 +715,12 @@ function initAuthInputEnhancements_() {
     });
   }
 
+  ["registrationRole", "registrationDepartment"].forEach(selectId => {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.addEventListener("change", toggleRegistrationOtherFields_);
+  });
+
   [
     "emailInput",
     "phoneInput",
@@ -721,8 +728,8 @@ function initAuthInputEnhancements_() {
     "confirmPasswordInput",
     "registrationFirstName",
     "registrationLastName",
-    "registrationRole",
-    "registrationDepartment"
+    "registrationRoleOther",
+    "registrationDepartmentOther"
   ].forEach(inputId => {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -743,6 +750,49 @@ function initAuthInputEnhancements_() {
       handlePrimaryAuthAction();
     });
   });
+}
+
+function populateRegistrationSelect_(selectId, values, placeholder) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  const previousValue = select.value;
+  select.replaceChildren();
+
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = placeholder;
+  select.appendChild(placeholderOption);
+
+  (Array.isArray(values) ? values : []).forEach(value => {
+    const cleanValue = String(value || "").trim();
+    if (!cleanValue || cleanValue === "__other__") return;
+    const option = document.createElement("option");
+    option.value = cleanValue;
+    option.textContent = cleanValue;
+    select.appendChild(option);
+  });
+
+  const otherOption = document.createElement("option");
+  otherOption.value = "__other__";
+  otherOption.textContent = "אחר";
+  select.appendChild(otherOption);
+
+  if (Array.from(select.options).some(option => option.value === previousValue)) {
+    select.value = previousValue;
+  }
+}
+
+function toggleRegistrationOtherFields_() {
+  const roleSelect = document.getElementById("registrationRole");
+  const departmentSelect = document.getElementById("registrationDepartment");
+  const roleOtherField = document.getElementById("registrationRoleOtherField");
+  const departmentOtherField = document.getElementById(
+    "registrationDepartmentOtherField"
+  );
+  if (roleOtherField) roleOtherField.hidden = roleSelect?.value !== "__other__";
+  if (departmentOtherField) {
+    departmentOtherField.hidden = departmentSelect?.value !== "__other__";
+  }
 }
 
 function formatPhoneForDisplay(phone) {
@@ -2856,10 +2906,48 @@ function showAuthEmailStep_(options = {}) {
   }, 0);
 }
 
-function showAuthRegistrationDetailsStep_(email, phone) {
+function showAuthRegistrationDetailsStep_(email, phone, options = null) {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedPhone = normalizePhone(phone);
+  const identityChanged =
+    pendingRegistrationEmail !== normalizedEmail ||
+    pendingRegistrationPhone !== normalizedPhone;
   authStage = "registration_details";
-  pendingRegistrationEmail = normalizeEmail(email);
-  pendingRegistrationPhone = normalizePhone(phone);
+  pendingRegistrationEmail = normalizedEmail;
+  pendingRegistrationPhone = normalizedPhone;
+  if (options && typeof options === "object") {
+    registrationFieldOptions = {
+      roles: Array.isArray(options.roles) ? options.roles : [],
+      departments: Array.isArray(options.departments)
+        ? options.departments
+        : []
+    };
+  }
+  if (identityChanged) {
+    [
+      "registrationFirstName",
+      "registrationLastName",
+      "registrationTitlePrefix",
+      "registrationRole",
+      "registrationRoleOther",
+      "registrationDepartment",
+      "registrationDepartmentOther"
+    ].forEach(inputId => {
+      const input = document.getElementById(inputId);
+      if (input) input.value = "";
+    });
+  }
+  populateRegistrationSelect_(
+    "registrationRole",
+    registrationFieldOptions.roles,
+    "בחרו תפקיד"
+  );
+  populateRegistrationSelect_(
+    "registrationDepartment",
+    registrationFieldOptions.departments,
+    "בחרו מחלקה או מכון"
+  );
+  toggleRegistrationOtherFields_();
   setVerificationPanelVisible_(false);
   setPasswordRecoveryPanelVisible_(false);
   setAuthRedirectPanelVisible_(false);
@@ -2886,6 +2974,25 @@ async function submitRegistrationDetails_() {
     setLoginStatus("יש למלא שם פרטי ושם משפחה.", "error");
     return;
   }
+  const roleSelection = document.getElementById("registrationRole")?.value || "";
+  const departmentSelection =
+    document.getElementById("registrationDepartment")?.value || "";
+  const roleMode = roleSelection === "__other__" ? "other" : "existing";
+  const departmentMode = departmentSelection === "__other__"
+    ? "other"
+    : "existing";
+  const role = roleMode === "other"
+    ? String(document.getElementById("registrationRoleOther")?.value || "").trim()
+    : roleSelection;
+  const department = departmentMode === "other"
+    ? String(
+      document.getElementById("registrationDepartmentOther")?.value || ""
+    ).trim()
+    : departmentSelection;
+  if (!role || !department) {
+    setLoginStatus("יש לבחור תפקיד ומחלקה או מכון.", "error");
+    return;
+  }
   authActionInProgress = true;
   const button = document.getElementById("registrationDetailsSubmitBtn");
   if (button) button.disabled = true;
@@ -2899,8 +3006,10 @@ async function submitRegistrationDetails_() {
         firstName,
         lastName,
         titlePrefix: document.getElementById("registrationTitlePrefix")?.value || "",
-        role: document.getElementById("registrationRole")?.value || "",
-        department: document.getElementById("registrationDepartment")?.value || "",
+        role,
+        roleMode,
+        department,
+        departmentMode,
         website: document.getElementById("registrationWebsite")?.value || ""
       },
       "contacts-access-registration-details"
@@ -4187,7 +4296,11 @@ async function continueFromPhoneStep() {
     const route = String(result.route || "SYSTEM_ERROR");
 
     if (route === "DETAILS_REQUIRED") {
-      showAuthRegistrationDetailsStep_(phoneStepEmail, phone);
+      showAuthRegistrationDetailsStep_(
+        phoneStepEmail,
+        phone,
+        result.registrationOptions
+      );
       return;
     }
 

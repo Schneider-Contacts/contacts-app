@@ -4103,6 +4103,10 @@ body.directorySheetOpen {
   pointer-events: none !important;
 }
 
+#login .authRegistrationDetailsStep .authField[hidden] {
+  display: none !important;
+}
+
 @media (max-width: 520px) {
   #login .authRegistrationGrid {
     grid-template-columns: 1fr;

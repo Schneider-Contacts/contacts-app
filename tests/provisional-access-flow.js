@@ -86,6 +86,9 @@ vm.createContext(sandbox);
 vm.runInContext(
   [
     extractFunction("getAccessReviewReason_"),
+    extractFunction("normalizeRegistrationOptionKey_"),
+    extractFunction("getRegistrationFieldOptions_"),
+    extractFunction("resolveRequiredRegistrationOption_"),
     extractFunction("processAccessRegistration_")
   ].join("\n"),
   sandbox
@@ -140,6 +143,21 @@ result = sandbox.processAccessRegistration_(
 );
 assert.equal(result.route, "DETAILS_REQUIRED");
 assert.equal(state.queued, 0, "preflight must wait for required identity details");
+assert.equal(Array.from(result.registrationOptions.roles).length, 0);
+
+const canonicalOptions = sandbox.getRegistrationFieldOptions_([
+  { role: "רופא/ה", department: "ילדים א׳" },
+  { role: "רופא/ה", department: "ילדים א" },
+  { role: "אח/ות", department: "טיפול נמרץ ילדים" }
+]);
+assert.deepEqual(Array.from(canonicalOptions.roles), ["אח/ות", "רופא/ה"]);
+assert.equal(
+  Array.from(canonicalOptions.departments).filter(value =>
+    sandbox.normalizeRegistrationOptionKey_(value) === "ילדים א"
+  ).length,
+  1,
+  "equivalent department spellings must produce one canonical choice"
+);
 
 reset();
 state.contact = null;
@@ -150,7 +168,9 @@ result = sandbox.processAccessRegistration_(
     firstName: "ישראל",
     lastName: "ישראלי",
     role: "רופא",
-    department: "ילדים א׳"
+    roleMode: "other",
+    department: "ילדים א׳",
+    departmentMode: "other"
   },
   "app",
   { submitUnknownDetails: true }
@@ -159,6 +179,24 @@ assert.equal(result.route, "PENDING_ADMIN");
 assert.equal(state.queued, 1);
 assert.equal(state.queuedValues.firstName, "ישראל");
 assert.equal(state.queuedValues.department, "ילדים א׳");
+
+assert.throws(
+  () => sandbox.processAccessRegistration_(
+    {
+      email: "missing-fields@example.com",
+      phone: "0501234567",
+      firstName: "ישראל",
+      lastName: "ישראלי",
+      role: "",
+      roleMode: "other",
+      department: "ילדים א׳",
+      departmentMode: "other"
+    },
+    "app",
+    { submitUnknownDetails: true }
+  ),
+  /יש לבחור תפקיד/
+);
 
 reset();
 result = sandbox.processAccessRegistration_(

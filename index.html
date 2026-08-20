@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260820-provisional-access-v2">
+<link rel="stylesheet" href="styles.css?v=20260820-registration-options-v1">
 
 
 
@@ -158,12 +158,30 @@
           </div>
         </div>
         <div class="authField">
-          <label for="registrationRole">תפקיד — לא חובה</label>
-          <div class="authInputShell"><input id="registrationRole" type="text" maxlength="160" autocomplete="organization-title"></div>
+          <label for="registrationRole">תפקיד <span aria-hidden="true">*</span></label>
+          <div class="authInputShell">
+            <select id="registrationRole" aria-required="true">
+              <option value="">בחרו תפקיד</option>
+              <option value="__other__">אחר</option>
+            </select>
+          </div>
+        </div>
+        <div id="registrationRoleOtherField" class="authField" hidden>
+          <label for="registrationRoleOther">תפקיד אחר <span aria-hidden="true">*</span></label>
+          <div class="authInputShell"><input id="registrationRoleOther" type="text" maxlength="160" autocomplete="organization-title"></div>
         </div>
         <div class="authField authRegistrationFull">
-          <label for="registrationDepartment">מחלקה / מכון — לא חובה</label>
-          <div class="authInputShell"><input id="registrationDepartment" type="text" maxlength="160" autocomplete="organization"></div>
+          <label for="registrationDepartment">מחלקה / מכון <span aria-hidden="true">*</span></label>
+          <div class="authInputShell">
+            <select id="registrationDepartment" aria-required="true">
+              <option value="">בחרו מחלקה או מכון</option>
+              <option value="__other__">אחר</option>
+            </select>
+          </div>
+        </div>
+        <div id="registrationDepartmentOtherField" class="authField authRegistrationFull" hidden>
+          <label for="registrationDepartmentOther">מחלקה / מכון אחר <span aria-hidden="true">*</span></label>
+          <div class="authInputShell"><input id="registrationDepartmentOther" type="text" maxlength="160" autocomplete="organization"></div>
         </div>
       </div>
       <input id="registrationWebsite" class="authRegistrationHoneypot" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -927,7 +945,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260820-provisional-access-v2"></script>
+  <script src="app.js?v=20260820-registration-options-v1"></script>
 
 </body>
 </html>

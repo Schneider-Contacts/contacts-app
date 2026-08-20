@@ -324,13 +324,28 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="authRegistrationDetailsStep"[\s\S]*?id="registrationFirstName"[\s\S]*?id="registrationLastName"[\s\S]*?id="registrationTitlePrefix"[\s\S]*?id="registrationRole"[\s\S]*?id="registrationDepartment"/,
+  /id="authRegistrationDetailsStep"[\s\S]*?id="registrationFirstName"[\s\S]*?id="registrationLastName"[\s\S]*?id="registrationTitlePrefix"[\s\S]*?id="registrationRole"[\s\S]*?id="registrationRoleOther"[\s\S]*?id="registrationDepartment"[\s\S]*?id="registrationDepartmentOther"/,
   "Unknown contacts must receive an in-app registration-details step"
 );
 assert.doesNotMatch(
   indexSource,
-  /id="registration(?:FirstName|LastName)"[^>]*(?:^|\s)required(?:\s|=|>)/m,
+  /id="registration(?:FirstName|LastName|Role|Department)"[^>]*(?:^|\s)required(?:\s|=|>)/m,
   "Hidden registration fields must not block earlier auth form stages with native required validation"
+);
+assert.match(
+  appSource,
+  /function populateRegistrationSelect_\(/,
+  "Registration must populate role and department choices returned by the server"
+);
+assert.match(
+  appSource,
+  /showAuthRegistrationDetailsStep_\([\s\S]*?result\.registrationOptions/,
+  "Registration must use the canonical options returned by the server"
+);
+assert.match(
+  appSource,
+  /registrationRoleOther[\s\S]*?registrationDepartmentOther/,
+  "Registration must offer an Other fallback for role and department"
 );
 assert.match(
   appSource,
@@ -344,8 +359,8 @@ assert.match(
 );
 assert.match(
   read("WebEndpoints.gs"),
-  /submitAccessRegistrationDetailsFromWeb_\([\s\S]*?!firstName \|\| !lastName[\s\S]*?submitUnknownDetails: true/,
-  "The server must require names before queuing an unknown-contact request"
+  /submitAccessRegistrationDetailsFromWeb_\([\s\S]*?!firstName \|\| !lastName[\s\S]*?roleMode[\s\S]*?departmentMode[\s\S]*?submitUnknownDetails: true/,
+  "The server must require names and validate role/department selections before queuing an unknown-contact request"
 );
 assert.match(
   read("FormAccess.gs"),
