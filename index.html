@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260814-intern-search-v1">
+<link rel="stylesheet" href="styles.css?v=20260820-provisional-access-v1">
 
 
 
@@ -361,6 +361,25 @@
 </div>
 
   <div id="homeDashboard" class="homeDashboard">
+    <section id="provisionalAccessCard" class="provisionalAccessCard" hidden aria-live="polite">
+      <div>
+        <strong>גישה זמנית</strong>
+        <p>החשבון שלך פעיל בגישה זמנית וממתין לאישור מנהל.</p>
+        <small>הורדה מרוכזת של אנשי קשר תתאפשר לאחר אישור קבוע.</small>
+      </div>
+      <button type="button" id="requestPermanentAccessBtn" onclick="requestPermanentAccessReview_()">בקש אישור קבוע</button>
+      <div id="provisionalAccessStatus" class="provisionalAccessStatus"></div>
+      <a id="provisionalAdminWhatsappLink" class="provisionalAdminWhatsappLink" href="#" target="_blank" rel="noopener" hidden>שלח WhatsApp למנהל</a>
+    </section>
+
+    <section id="adminPendingHomeCard" class="adminPendingHomeCard" hidden>
+      <div>
+        <strong>משתמשים ממתינים לאישור</strong>
+        <small id="adminPendingHomeSummary"></small>
+      </div>
+      <button type="button" onclick="openAdminPanel()">פתיחת לטיפול</button>
+    </section>
+
     <section class="homeModule homeToolsModule toolsMenu" aria-labelledby="homeToolsTitle">
       <div class="homeModuleHeader">
         <h3 id="homeToolsTitle">כלים שימושיים</h3>
@@ -868,7 +887,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260818-login-fallback-v1"></script>
+  <script src="app.js?v=20260820-provisional-access-v1"></script>
 
 </body>
 </html>

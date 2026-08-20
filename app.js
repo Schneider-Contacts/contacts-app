@@ -106,6 +106,7 @@ let pendingEmailAuthRouteEmail = "";
 let pendingEmailAuthRoutePromise = null;
 let authEmailFlowToken = 0;
 let authAccountSetupEmail = "";
+let provisionalRegistrationPhone = "";
 let authAccountSetupFallback = false;
 let authRouteUnavailableEmail = "";
 let authReturningUser = false;
@@ -1352,6 +1353,10 @@ function toggleSelectionMode_() {
 }
 
 function enterSelectionMode() {
+  if (isCurrentUserProvisional_()) {
+    alert("בחירה והורדה מרוכזת זמינות לאחר אישור גישה קבועה.");
+    return;
+  }
   if (!currentDisplayedContacts.length) {
     alert("לא נמצאו אנשי קשר לבחירה");
     return;
@@ -2808,6 +2813,7 @@ function showAuthRoutingStep_() {
 
 function showAuthEmailStep_(options = {}) {
   invalidateEmailAuthFlow_();
+  provisionalRegistrationPhone = "";
   authStage = "email";
   authPurpose = "login";
   authMode = "login";
@@ -3441,6 +3447,22 @@ async function invalidatePublicAuthRouteCacheFromAdmin_(email) {
   );
 }
 
+async function syncAppUserMirrorFromClient_(email = "") {
+  const currentUser = auth && auth.currentUser;
+  if (!currentUser) return { ok: false };
+  let idToken;
+  try {
+    idToken = await currentUser.getIdToken(true);
+  } catch (refreshError) {
+    idToken = await currentUser.getIdToken(false);
+  }
+  return submitAuthRouterForm_(
+    "syncAppUserMirror",
+    { idToken, email: normalizeEmail(email || currentUser.email) },
+    "contacts-app-users-mirror"
+  );
+}
+
 function requestPasswordResetAssistance_(email) {
   const normalizedEmail = normalizeEmail(email);
 
@@ -4065,37 +4087,45 @@ async function continueFromPhoneStep() {
       return;
     }
 
-    const result = await requestPublicAuthRouteWithRetry_(
-      "phone",
-      phone,
-      { forceFresh: true }
+    const result = await submitAuthRouterForm_(
+      "registerAccess",
+      {
+        email: phoneStepEmail,
+        phone,
+        website: ""
+      },
+      "contacts-access-registration"
     );
     const route = String(result.route || "SYSTEM_ERROR");
 
-    if (route === "UPDATE_EMAIL") {
-      const params = new URLSearchParams({
-        phone: formatPhoneForDisplay(phone),
-        email: lastUnknownEmail,
-        from: "login"
+    if (route === "PROVISIONAL_SETUP_READY") {
+      authAccountSetupEmail = phoneStepEmail;
+      provisionalRegistrationPhone = phone;
+      authAccountSetupFallback = false;
+      clearCachedAuthRoute_("email", phoneStepEmail);
+      showAuthPasswordStep_(phoneStepEmail, "register", {
+        preserveFlow: true
       });
-      const href = `email-update.html?${params.toString()}`;
-      showAuthRedirectPanel_(
-        "מספר הטלפון נמצא",
-        "מעביר אתכם לעדכון כתובת המייל. לאחר העדכון תחזרו ישירות למסלול הכניסה המתאים.",
-        href,
-        "מעבר לעדכון המייל",
-        true
+      setLoginStatus(
+        "נמצאה התאמה לספר אנשי הקשר. בחרו סיסמה כדי להיכנס בגישה זמנית עד לאישור מנהל.",
+        "success"
       );
       return;
     }
 
-    if (route === "OPEN_FORM") {
+    if (route === "ACTIVE") {
+      clearCachedAuthRoute_("email", phoneStepEmail);
+      await continueFromEmailStep({ forceFresh: true });
+      return;
+    }
+
+    if (route === "PENDING_ADMIN") {
       showAuthRedirectPanel_(
-        "מספר הטלפון אינו מופיע במערכת",
-        "מעביר אתכם לטופס ההצטרפות לספר אנשי הקשר.",
-        REGISTRATION_FORM_URL,
-        "מעבר לטופס ההצטרפות",
-        true
+        "הבקשה נשלחה למנהל",
+        "לא נמצאה התאמה בטוחה שמאפשרת כניסה זמנית. הבקשה נשמרה ותמתין לאישור מנהל.",
+        result.formFallbackUrl || REGISTRATION_FORM_URL,
+        "פתיחת טופס ההצטרפות הישן (חלופה)",
+        false
       );
       return;
     }
@@ -4647,6 +4677,8 @@ async function getCurrentUserPermission(email) {
     manualApprovalReason: String(data.manualApprovalReason || ""),
     accessReviewRequired: data.accessReviewRequired === true,
     accessReviewStatus: String(data.accessReviewStatus || ""),
+    accessLevel: String(data.accessLevel || ""),
+    provisionalAt: data.provisionalAt || null,
     temporaryAccessUntil: data.temporaryAccessUntil || null,
     temporaryAccessReason: String(data.temporaryAccessReason || ""),
     temporaryAccessGrantedAt: data.temporaryAccessGrantedAt || null,
@@ -4658,6 +4690,16 @@ async function getCurrentUserPermission(email) {
       data.permanentApprovedBy || ""
     )
   };
+}
+
+function permissionHasProvisionalAccess_(permission) {
+  return Boolean(
+    permission &&
+    permission.active === true &&
+    permission.accessReviewRequired === true &&
+    permission.accessReviewStatus === "pending" &&
+    permission.accessLevel === "provisional"
+  );
 }
 
 function permissionHasTemporaryAccess_(permission) {
@@ -4853,6 +4895,12 @@ async function recordOwnAuthState_(state) {
   } else if (normalizedState === "temporary_approved") {
     payload = {
       authState: "temporary_approved",
+      lastAccessAt: now,
+      updatedAt: now
+    };
+  } else if (normalizedState === "provisional") {
+    payload = {
+      authState: "provisional",
       lastAccessAt: now,
       updatedAt: now
     };
@@ -5248,7 +5296,12 @@ async function registerWithPassword() {
 
   try {
     let eligibility = null;
-    if (!authAccountSetupFallback) {
+    const hasProvisionalRegistration = Boolean(
+      provisionalRegistrationPhone &&
+      isValidPhoneForRouting_(provisionalRegistrationPhone) &&
+      authAccountSetupEmail === email
+    );
+    if (!authAccountSetupFallback && !hasProvisionalRegistration) {
       eligibility = await getEmailEntryEligibility_(email);
 
       if (!eligibility.allowed) {
@@ -5267,6 +5320,43 @@ async function registerWithPassword() {
     );
 
     createdUser = credential.user;
+
+    if (hasProvisionalRegistration) {
+      try {
+        const idToken = await createdUser.getIdToken(true);
+        const finalized = await submitAuthRouterForm_(
+          "finalizeProvisionalAccess",
+          {
+            idToken,
+            phone: provisionalRegistrationPhone
+          },
+          "contacts-provisional-access-finalize"
+        );
+        if (
+          String(finalized && finalized.route || "") !==
+            "PROVISIONAL_READY"
+        ) {
+          throw new Error(
+            "יצירת ההרשאה הזמנית לא הושלמה. נסו שוב או פנו למנהל."
+          );
+        }
+      } catch (finalizeError) {
+        let savedPermission = null;
+        try {
+          savedPermission = await getCurrentUserPermission(email);
+        } catch (permissionError) {
+          console.warn(
+            "Could not verify provisional authorization after finalize failure",
+            permissionError
+          );
+        }
+        if (!permissionHasProvisionalAccess_(savedPermission)) {
+          await deleteNewAuthUserSafely(createdUser);
+          createdUser = null;
+          throw finalizeError;
+        }
+      }
+    }
 
     // כאשר נתב ההרשאות אינו זמין, אין אפשרות לקרוא הרשאה לפני
     // התחברות. אחרי יצירת חשבון Firebase המשתמשת רשאית לקרוא רק את
@@ -5301,6 +5391,7 @@ async function registerWithPassword() {
     }
 
     authAccountSetupEmail = "";
+    provisionalRegistrationPhone = "";
     authAccountSetupFallback = false;
     authRouteUnavailableEmail = "";
     clearCachedAuthRoute_("email", email);
@@ -5318,6 +5409,19 @@ async function registerWithPassword() {
 
     document.getElementById("passwordInput").value = "";
     document.getElementById("confirmPasswordInput").value = "";
+
+    if (permissionHasProvisionalAccess_(permission)) {
+      lastUnverifiedEmail = "";
+      rememberSuccessfulEmail_(email);
+      await handleAuthenticatedUser(createdUser, {
+        skipVerificationSuccess: true
+      });
+      setLoginStatus(
+        "החשבון נוצר בגישה זמנית וממתין לאישור מנהל.",
+        "success"
+      );
+      return;
+    }
 
     if (permission && permission.active && permission.manualApproved) {
       lastUnverifiedEmail = "";
@@ -5430,6 +5534,20 @@ async function loginWithPassword() {
     }
 
     if (!credential.user.emailVerified) {
+      let provisionalPermission = null;
+      try {
+        provisionalPermission = await getCurrentUserPermission(email);
+      } catch (permissionError) {
+        console.warn("Provisional permission lookup failed", permissionError);
+      }
+      if (permissionHasProvisionalAccess_(provisionalPermission)) {
+        rememberSuccessfulEmail_(email);
+        await handleAuthenticatedUser(credential.user, {
+          skipVerificationSuccess: true
+        });
+        return;
+      }
+
       lastUnverifiedEmail = email;
       showVerificationPanel_(credential.user, email);
 
@@ -5741,6 +5859,66 @@ function updateAdminEntryVisibility_() {
 
 }
 
+function isCurrentUserProvisional_() {
+  return permissionHasProvisionalAccess_(currentUserPermissionData);
+}
+
+function updateProvisionalAccessUi_() {
+  const provisional = isCurrentUserProvisional_();
+  const card = document.getElementById("provisionalAccessCard");
+  if (card) card.hidden = !provisional;
+
+  ["importAllBtn", "recentContactsBtn", "selectionModeBtn"].forEach(id => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.disabled = provisional;
+    element.setAttribute("aria-disabled", String(provisional));
+    if (provisional) {
+      element.title = "זמין לאחר אישור גישה קבועה";
+    } else {
+      element.removeAttribute("title");
+    }
+  });
+  if (provisional && selectionMode) exitSelectionMode();
+}
+
+async function requestPermanentAccessReview_() {
+  const user = auth && auth.currentUser;
+  const button = document.getElementById("requestPermanentAccessBtn");
+  const status = document.getElementById("provisionalAccessStatus");
+  const whatsapp = document.getElementById("provisionalAdminWhatsappLink");
+  if (!user || !isCurrentUserProvisional_()) return;
+  if (button) button.disabled = true;
+  if (status) status.textContent = "מעביר את הבקשה למנהל...";
+  if (whatsapp) whatsapp.hidden = true;
+  try {
+    let idToken;
+    try {
+      idToken = await user.getIdToken(true);
+    } catch (refreshError) {
+      idToken = await user.getIdToken(false);
+    }
+    const result = await submitAuthRouterForm_(
+      "requestPermanentAccessReview",
+      { idToken },
+      "contacts-permanent-access-review"
+    );
+    if (status) status.textContent = "הבקשה הועברה למנהל";
+    if (button) button.textContent = "הבקשה הועברה למנהל";
+    if (
+      whatsapp &&
+      String(result.whatsappUrl || "").startsWith("https://wa.me/")
+    ) {
+      whatsapp.href = result.whatsappUrl;
+      whatsapp.hidden = false;
+    }
+  } catch (error) {
+    console.error("Permanent access review request failed", error);
+    if (status) status.textContent = error.message || "שליחת הבקשה נכשלה.";
+    if (button) button.disabled = false;
+  }
+}
+
 function showAppForUser(user) {
   closeAllDirectoryMenus_();
   closeContactDetail_();
@@ -5755,6 +5933,7 @@ function showAppForUser(user) {
   selectedContactIds.clear();
   updateUserInfoForUser_(user);
   updateAdminEntryVisibility_();
+  updateProvisionalAccessUi_();
   setLoginStatus("", "");
   renderCurrentSearchResults();
   loadCurrentMonthInterns_().catch(() => {});
@@ -5899,6 +6078,7 @@ async function handleAuthenticatedUser(user, options = {}) {
       permission &&
       permission.active &&
       permission.accessReviewRequired &&
+      !permissionHasProvisionalAccess_(permission) &&
       !permissionHasTemporaryAccess_(permission)
     ) {
       try {
@@ -5919,6 +6099,7 @@ async function handleAuthenticatedUser(user, options = {}) {
     }
 
     const hasTemporaryAccess = permissionHasTemporaryAccess_(permission);
+    const hasProvisionalAccess = permissionHasProvisionalAccess_(permission);
     if (
       !user.emailVerified &&
       !isAdmin &&
@@ -5927,7 +6108,8 @@ async function handleAuthenticatedUser(user, options = {}) {
         permission.active &&
         (
           permission.manualApproved ||
-          hasTemporaryAccess
+          hasTemporaryAccess ||
+          hasProvisionalAccess
         )
       )
     ) {
@@ -5950,7 +6132,7 @@ async function handleAuthenticatedUser(user, options = {}) {
         (
           (
             permission.accessReviewRequired === true &&
-            hasTemporaryAccess
+            (hasTemporaryAccess || hasProvisionalAccess)
           )
           ||
           (
@@ -5987,6 +6169,7 @@ async function handleAuthenticatedUser(user, options = {}) {
 
     currentUserPermissionData = permission;
     currentUserHasAppAccess = true;
+    updateProvisionalAccessUi_();
     rememberSuccessfulEmail_(user.email);
     setVerificationPanelVisible_(false);
 
@@ -5994,6 +6177,8 @@ async function handleAuthenticatedUser(user, options = {}) {
     recordOwnAuthState_(
       user.emailVerified
         ? "verified"
+        : hasProvisionalAccess
+          ? "provisional"
         : hasTemporaryAccess
           ? "temporary_approved"
           : "manual_approved"
@@ -6332,13 +6517,20 @@ function startPermissionListener(user) {
         ) &&
         getAdminTimestampMillis_(data.temporaryAccessUntil) > Date.now()
       );
+      const provisionalAccess = Boolean(
+        data &&
+        data.active === true &&
+        data.accessReviewRequired === true &&
+        String(data.accessReviewStatus || "") === "pending" &&
+        String(data.accessLevel || "") === "provisional"
+      );
       const hasEmailAccess = Boolean(
         data &&
         data.active === true &&
         (
           (
             data.accessReviewRequired === true &&
-            temporaryAccess
+            (temporaryAccess || provisionalAccess)
           )
           ||
           (
@@ -6368,8 +6560,11 @@ function startPermissionListener(user) {
         manualApproved: data.manualApproved === true,
         accessReviewRequired: data.accessReviewRequired === true,
         accessReviewStatus: String(data.accessReviewStatus || ""),
+        accessLevel: String(data.accessLevel || ""),
+        provisionalAt: data.provisionalAt || null,
         temporaryAccessUntil: data.temporaryAccessUntil || null
       };
+      updateProvisionalAccessUi_();
       if (temporaryAccess) {
         schedulePermissionExpiryCheck_(
           email,
@@ -6598,6 +6793,20 @@ function updateAdminPendingBadges_() {
     mainBadge.textContent = counts.total > 99
       ? "99+ לטיפול"
       : `${counts.total} לטיפול`;
+  }
+
+  const homeCard = document.getElementById("adminPendingHomeCard");
+  const homeSummary = document.getElementById("adminPendingHomeSummary");
+  const highPriorityCount = adminVerificationRequests.filter(request =>
+    request.status === "pending" && request.reviewRequestedNow === true
+  ).length;
+  if (homeCard) {
+    homeCard.hidden = !currentUserIsAdmin || counts.verificationRequests < 1;
+  }
+  if (homeSummary) {
+    homeSummary.textContent = highPriorityCount > 0
+      ? `${counts.verificationRequests} ממתינים · ${highPriorityCount} ביקשו טיפול כעת`
+      : `${counts.verificationRequests} ממתינים לאישור גישה`;
   }
 
   const headerBadge = document.getElementById("adminHeaderPendingBadge");
@@ -6856,6 +7065,8 @@ async function loadAdminUsersData_() {
       manualApprovalReason: String(data.manualApprovalReason || ""),
       accessReviewRequired: data.accessReviewRequired === true,
       accessReviewStatus: String(data.accessReviewStatus || ""),
+      accessLevel: String(data.accessLevel || ""),
+      provisionalAt: data.provisionalAt || null,
       temporaryAccessUntil: data.temporaryAccessUntil || null,
       temporaryAccessReason: String(data.temporaryAccessReason || ""),
       temporaryAccessGrantedAt: data.temporaryAccessGrantedAt || null,
@@ -6899,6 +7110,16 @@ async function loadAdminUsersData_() {
         ? data.status
         : "pending",
       requestType: String(data.requestType || "manual_verification"),
+      phone: normalizePhone(data.phone || ""),
+      name: String(data.name || ""),
+      role: String(data.role || ""),
+      department: String(data.department || ""),
+      contactId: String(data.contactId || ""),
+      provisional: data.provisional === true,
+      provisionalAt: data.provisionalAt || null,
+      reviewRequestedNow: data.reviewRequestedNow === true,
+      reviewRequestedAt: data.reviewRequestedAt || null,
+      priority: String(data.priority || "normal"),
       automaticReason: String(data.automaticReason || ""),
       temporaryAccessUntil: data.temporaryAccessUntil || null,
       requestedAt: data.requestedAt || null,
@@ -7579,6 +7800,13 @@ function findContactByEmail(email) {
   const normalized = normalizeEmail(email);
   return [...adminContacts, ...adminRemovedContacts].find(
     contact => normalizeEmail(contact.email) === normalized
+  ) || null;
+}
+
+function findAdminContactByPhone_(phone) {
+  const normalized = normalizePhone(phone);
+  return [...adminContacts, ...adminRemovedContacts].find(
+    contact => normalizePhone(contact.phone) === normalized
   ) || null;
 }
 
@@ -8299,8 +8527,9 @@ function getAdminAttentionItems_() {
 
       return {
         kind: "access",
+        priority: request.reviewRequestedNow === true ? 1 : 0,
         timestamp: getAdminTimestampMillis_(
-          request.requestedAt || request.updatedAt
+          request.reviewRequestedAt || request.requestedAt || request.updatedAt
         ),
         data: { user, request, accessState }
       };
@@ -8331,7 +8560,10 @@ function getAdminAttentionItems_() {
     ...resetItems,
     ...contactItems,
     ...reportItems
-  ].sort((a, b) => b.timestamp - a.timestamp);
+  ].sort((a, b) =>
+    Number(b.priority || 0) - Number(a.priority || 0) ||
+    b.timestamp - a.timestamp
+  );
 }
 
 function getAdminRecentChangeNotificationItems_() {
@@ -8389,7 +8621,8 @@ function adminAttentionItemMatchesQuery_(item, query) {
 
 function renderAdminAttentionAccessCard_(item) {
   const { user, request, accessState } = item.data;
-  const contact = findContactByEmail(user.email);
+  const contact = findContactByEmail(user.email) ||
+    findAdminContactByPhone_(request.phone || user.phone);
   const phone = contact && contact.phone ? contact.phone : user.phone;
   const isTemporary = accessState.key === "temporary";
   const allowTemporary = accessState.key === "pending";
@@ -8398,9 +8631,11 @@ function renderAdminAttentionAccessCard_(item) {
     <article class="adminCard adminFocusCard">
       <div class="adminCardTop">
         <div>
-          <div class="adminCardName">${escapeHtml(contact && contact.name ? contact.name : user.email)}</div>
+          <div class="adminCardName">${escapeHtml(request.name || (contact && contact.name) || user.email)}</div>
           <div class="adminCardMeta">
-            בקשת אישור כניסה<br>
+            ${request.role || contact && contact.role ? escapeHtml(request.role || contact.role) : ""}${request.department || contact && contact.dept ? `${request.role || contact && contact.role ? " · " : ""}${escapeHtml(request.department || contact.dept)}` : ""}<br>
+            ${request.provisional ? `גישה זמנית מאז ${escapeHtml(formatAdminRelativeTime_(request.provisionalAt || user.provisionalAt))}<br>` : "בקשת אישור כניסה<br>"}
+            ${request.reviewRequestedNow ? "<strong>ביקש אישור קבוע כעת</strong><br>" : ""}
             ${escapeHtml(user.email)}
             ${phone ? "<br>" + escapeHtml(formatPhoneForDisplay(phone)) : ""}
           </div>
@@ -8566,12 +8801,23 @@ function formatAdminRelativeTime_(value) {
 function getAdminAttentionRowPresentation_(item) {
   if (item.kind === "access") {
     const { user, request, accessState } = item.data;
-    const contact = findContactByEmail(user.email);
+    const contact = findContactByEmail(user.email) ||
+      findAdminContactByPhone_(request.phone || user.phone);
     return {
-      title: contact && contact.name ? contact.name : user.email,
-      type: "בקשת אישור כניסה",
-      time: formatAdminRelativeTime_(request.requestedAt || request.updatedAt),
-      status: accessState.key === "temporary" ? "עד סוף היום" : "ממתין",
+      title: request.name || (contact && contact.name) || user.email,
+      type: request.reviewRequestedNow
+        ? "ביקש אישור קבוע כעת"
+        : request.provisional
+          ? "גישה זמנית · ממתין לאישור"
+          : "בקשת אישור כניסה",
+      time: formatAdminRelativeTime_(
+        request.reviewRequestedAt || request.requestedAt || request.updatedAt
+      ),
+      status: accessState.key === "temporary"
+        ? "עד סוף היום"
+        : request.provisional
+          ? "זמני"
+          : "ממתין",
       tone: "access",
       id: user.email
     };
@@ -10296,6 +10542,20 @@ function getUserAccessState_(user) {
     const status = String(user.accessReviewStatus || "");
 
     if (
+      status === "pending" &&
+      String(user.accessLevel || "") === "provisional"
+    ) {
+      return {
+        key: "pending",
+        label: "גישה זמנית פעילה — ממתין לאישור קבוע",
+        note: user.provisionalAt
+          ? "גישה זמנית מאז " + formatAdminTimestamp_(user.provisionalAt)
+          : "המשתמש יכול להיכנס, ללא הורדה מרוכזת.",
+        badgeClass: "pending"
+      };
+    }
+
+    if (
       status === "temporary_active" &&
       temporaryUntil > Date.now()
     ) {
@@ -10488,7 +10748,8 @@ async function approveManualAccess_(email, temporary = false, force = false) {
 
   const normalizedEmail = normalizeEmail(email);
   const user = getAllowedUserByEmail(normalizedEmail);
-  const contact = findContactByEmail(normalizedEmail);
+  const contact = findContactByEmail(normalizedEmail) ||
+    findAdminContactByPhone_(user && user.phone);
   const request = getEffectiveVerificationRequestForUser_(user);
   const hasActionableRequest = Boolean(
     request &&
@@ -10587,6 +10848,7 @@ async function approveManualAccess_(email, temporary = false, force = false) {
             manualApprovedAt: now,
             manualApprovedBy: currentAdminEmail,
             manualApprovalReason: cleanReason.slice(0, 300),
+            accessLevel: "active",
             updatedAt: now
           },
       { merge: true }
@@ -10617,6 +10879,9 @@ async function approveManualAccess_(email, temporary = false, force = false) {
       timestamp: now
     });
     await batch.commit();
+    syncAppUserMirrorFromClient_(normalizedEmail).catch(error => {
+      console.warn("app_users mirror sync failed after approval", error);
+    });
     invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
       console.warn("Auth route cache invalidation failed", error);
     });
@@ -10658,6 +10923,7 @@ async function rejectManualAccess_(email) {
         temporaryAccessReason: "",
         temporaryAccessGrantedAt: null,
         temporaryAccessGrantedBy: "",
+        accessLevel: "revoked",
         updatedAt: now
       },
       { merge: true }
@@ -10681,6 +10947,9 @@ async function rejectManualAccess_(email) {
       timestamp: now
     });
     await batch.commit();
+    syncAppUserMirrorFromClient_(normalizedEmail).catch(error => {
+      console.warn("app_users mirror sync failed after rejection", error);
+    });
     invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
       console.warn("Auth route cache invalidation failed", error);
     });
@@ -10719,6 +10988,7 @@ async function revokeManualAccess_(email) {
         manualApprovedAt: null,
         manualApprovedBy: "",
         manualApprovalReason: "",
+        accessLevel: "revoked",
         updatedAt: now
       },
       { merge: true }
@@ -10740,6 +11010,9 @@ async function revokeManualAccess_(email) {
       timestamp: now
     });
     await batch.commit();
+    syncAppUserMirrorFromClient_(normalizedEmail).catch(error => {
+      console.warn("app_users mirror sync failed after revocation", error);
+    });
     invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
       console.warn("Auth route cache invalidation failed", error);
     });
@@ -12240,6 +12513,9 @@ async function toggleUserAccess(email, shouldActivate) {
     });
 
     await batch.commit();
+    syncAppUserMirrorFromClient_(normalizedEmail).catch(error => {
+      console.warn("app_users mirror sync failed after access change", error);
+    });
     invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
       console.warn("Auth route cache invalidation failed", error);
     });
@@ -12735,6 +13011,10 @@ function renderImportGuide(importKey) {
 }
 
 async function downloadSelectedContacts() {
+  if (isCurrentUserProvisional_()) {
+    alert("הורדה מרוכזת זמינה לאחר אישור גישה קבועה.");
+    return;
+  }
   const selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
 
   if (!selectedContacts.length) {
@@ -13365,6 +13645,10 @@ function clearRecentContactsSelection_() {
 }
 
 function openRecentContactsModal() {
+  if (isCurrentUserProvisional_()) {
+    alert("הורדת אנשי קשר חדשים זמינה לאחר אישור גישה קבועה.");
+    return;
+  }
   const recentContacts = getRecentContacts();
   const hasPreviousImport =
     Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0) > 0 ||
@@ -13410,6 +13694,10 @@ function closeRecentContactsModal() {
 }
 
 async function downloadRecentContacts() {
+  if (isCurrentUserProvisional_()) {
+    alert("הורדת אנשי קשר חדשים זמינה לאחר אישור גישה קבועה.");
+    return;
+  }
   const recentContacts = getRecentContacts();
   const selectedContacts = recentContacts.filter(contact =>
     selectedRecentContactPhones.has(getRecentContactSelectionKey_(contact))
@@ -13438,6 +13726,10 @@ async function downloadRecentContacts() {
 }
 
 async function downloadAllContacts() {
+  if (isCurrentUserProvisional_()) {
+    alert("הורדת כל אנשי הקשר זמינה לאחר אישור גישה קבועה.");
+    return;
+  }
   if (!contacts.length) {
     alert("לא נמצאו אנשי קשר");
     return;

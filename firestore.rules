@@ -81,6 +81,17 @@ service cloud.firestore {
               /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
             ).data.temporaryAccessUntil > request.time
           )
+          || (
+            get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.accessReviewRequired == true
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.accessReviewStatus == "pending"
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.accessLevel == "provisional"
+          )
         );
     }
 
@@ -157,6 +168,7 @@ service cloud.firestore {
             "manualApprovedAt",
             "manualApprovedBy",
             "manualApprovalReason",
+            "accessLevel",
             "updatedAt"
           ])
         && request.resource.data.updatedAt == request.time
@@ -197,6 +209,7 @@ service cloud.firestore {
                 "manualApprovedAt",
                 "manualApprovedBy",
                 "manualApprovalReason",
+                "accessLevel",
                 "updatedAt"
               ])
             &&
@@ -214,6 +227,7 @@ service cloud.firestore {
             && request.resource.data.manualApprovalReason is string
             && request.resource.data.manualApprovalReason.size() >= 3
             && request.resource.data.manualApprovalReason.size() <= 300
+            && request.resource.data.accessLevel == "active"
           )
           ||
           (
@@ -225,6 +239,7 @@ service cloud.firestore {
                 "temporaryAccessReason",
                 "temporaryAccessGrantedAt",
                 "temporaryAccessGrantedBy",
+                "accessLevel",
                 "updatedAt"
               ])
             &&
@@ -234,6 +249,7 @@ service cloud.firestore {
             && request.resource.data.temporaryAccessReason == ""
             && request.resource.data.temporaryAccessGrantedAt == null
             && request.resource.data.temporaryAccessGrantedBy == ""
+            && request.resource.data.accessLevel == "revoked"
           )
           ||
           (
@@ -249,6 +265,7 @@ service cloud.firestore {
                 "manualApprovedAt",
                 "manualApprovedBy",
                 "manualApprovalReason",
+                "accessLevel",
                 "updatedAt"
               ])
             &&
@@ -262,6 +279,7 @@ service cloud.firestore {
             && request.resource.data.manualApprovedAt == null
             && request.resource.data.manualApprovedBy == ""
             && request.resource.data.manualApprovalReason == ""
+            && request.resource.data.accessLevel == "revoked"
           )
         );
     }
@@ -284,7 +302,8 @@ service cloud.firestore {
           "verification_sent",
           "verified",
           "manual_approved",
-          "temporary_approved"
+          "temporary_approved",
+          "provisional"
         ]
         && request.resource.data.updatedAt == request.time
         && (
@@ -316,6 +335,14 @@ service cloud.firestore {
             && resource.data.accessReviewStatus == "temporary_active"
             && resource.data.temporaryAccessUntil is timestamp
             && resource.data.temporaryAccessUntil > request.time
+            && request.resource.data.lastAccessAt == request.time
+          )
+          || (
+            request.resource.data.authState == "provisional"
+            && 'accessLevel' in resource.data
+            && resource.data.accessLevel == "provisional"
+            && resource.data.accessReviewRequired == true
+            && resource.data.accessReviewStatus == "pending"
             && request.resource.data.lastAccessAt == request.time
           )
         );

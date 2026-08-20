@@ -71,6 +71,8 @@ const EMAIL_UPDATE_OPEN_KEY = "email_update_open";
 const DISABLE_REPLACED_EMAIL_KEY = "disable_replaced_email";
 const MAIN_APP_URL_KEY = "main_app_url";
 const DEFAULT_MAIN_APP_URL = "https://schneider-contacts.github.io/contacts-app/";
+const REGISTRATION_FORM_FALLBACK_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSfY6dWQD_OH5oXS1vbyRJRU44S1HSmAb6BLrA-a7SljvoaxzQ/viewform?usp=header";
 const PUBLIC_AUTH_ROUTE_CACHE_SECONDS = 10 * 60;
 const PUBLIC_AUTH_ROUTE_COOLDOWN_SECONDS = 2;
 const PUBLIC_AUTH_ROUTE_SOURCE = "schneider-auth-router";
@@ -98,11 +100,15 @@ const EMAIL_UPDATE_DUPLICATE_CACHE_PREFIX = "email-update-duplicate:";
 const FORM_SUBMISSION_DUPLICATE_CACHE_PREFIX = "form-submission-duplicate:";
 const REGISTRATION_FORM_CONFIRMATION_MESSAGE =
   "הפרטים נקלטו בהצלחה. אין צורך למלא את הטופס שוב.\n\n" +
-  "אם מספר הטלפון כבר קיים בספר אנשי הקשר, הגישה תאושר אוטומטית. " +
-  "בכל מקרה אחר הבקשה תועבר לאישור מנהל.\n\n" +
+  "אם מספר הטלפון כבר קיים בספר אנשי הקשר, תיפתח גישה זמנית " +
+  "והבקשה תועבר לאישור קבוע של מנהל. בכל מקרה אחר הבקשה תמתין לאישור מנהל.\n\n" +
   "להמשך ההרשמה או לבדיקת מצב הגישה, לחצו כאן:\n" +
   DEFAULT_MAIN_APP_URL + "?authMode=register&fresh=1\n\n" +
   "חשוב: מייל האימות מגיע לעיתים לספאם או לדואר זבל. יש לבדוק גם שם.";
+
+function getRegistrationFormUrl_() {
+  return REGISTRATION_FORM_FALLBACK_URL;
+}
 
 const EMAIL_UPDATE_SOURCE_SHEETS = [
   {

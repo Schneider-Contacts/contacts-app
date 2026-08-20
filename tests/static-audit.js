@@ -20,6 +20,7 @@ const appsScriptFiles = [
   "DirectorySync.gs",
   "ReportsAutomation.gs",
   "FirestoreData.gs",
+  "AppUsersMirror.gs",
   "WebEndpoints.gs",
   "EmailUpdateLogic.gs"
 ];
@@ -308,8 +309,53 @@ assert.doesNotMatch(
 );
 assert.match(
   appSource,
-  /continueFromPhoneStep\([\s\S]*?requestPublicAuthRouteWithRetry_\([\s\S]*?"phone"/,
-  "Phone routing must use the retrying auth helper"
+  /continueFromPhoneStep\([\s\S]*?submitAuthRouterForm_\([\s\S]*?"registerAccess"[\s\S]*?PROVISIONAL_SETUP_READY/,
+  "Unknown-email phone submission must use the centralized registration endpoint"
+);
+assert.match(
+  appSource,
+  /createUserWithEmailAndPassword\([\s\S]*?finalizeProvisionalAccess[\s\S]*?PROVISIONAL_READY/,
+  "Provisional authorization must be finalized only after Firebase account creation"
+);
+assert.match(
+  read("WebEndpoints.gs"),
+  /registerAccessFromWeb_\([\s\S]*?deferProvisionalGrant: true[\s\S]*?finalizeProvisionalAccessFromWeb_\([\s\S]*?verifyFirebaseUserIdToken_/,
+  "Anonymous registration must only preflight; final authorization must require a Firebase identity"
+);
+assert.match(
+  read("FormAccess.gs"),
+  /function processAccessRegistration_\([\s\S]*?getAccessReviewReason_\([\s\S]*?upsertAllowedUserPairAtomically_/,
+  "App and legacy Form registration must share one authoritative processor"
+);
+assert.match(
+  read("FirestoreData.gs"),
+  /provisionalApproval[\s\S]*?accessLevel = \{ stringValue: "provisional" \}[\s\S]*?"verificationRequests"/,
+  "Provisional permission and its approval request must be committed together"
+);
+assert.match(
+  rulesSource,
+  /accessReviewStatus == "pending"[\s\S]*?accessLevel == "provisional"/,
+  "Firestore rules must recognize the additive provisional access state"
+);
+assert.match(
+  appSource,
+  /function downloadAllContacts\(\)[\s\S]*?isCurrentUserProvisional_\(\)/,
+  "Bulk Download All must be blocked for provisional users"
+);
+assert.match(
+  appSource,
+  /function downloadRecentContacts\(\)[\s\S]*?isCurrentUserProvisional_\(\)/,
+  "Bulk Download New must be blocked for provisional users"
+);
+assert.match(
+  read("AppUsersMirror.gs"),
+  /const APP_USERS_SHEET_NAME = "app_users";[\s\S]*?function syncAppUsersMirrorFromFirestore\(\)/,
+  "The operational app_users mirror must provide reconciliation"
+);
+assert.match(
+  read("FirestoreData.gs"),
+  /getActiveManagerSupportContact_\([\s\S]*?a\.email === CONTACT_MANAGER_EMAIL[\s\S]*?whatsappUrl: "https:\/\/wa\.me\/"/,
+  "Approval WhatsApp must prefer the configured contact manager"
 );
 const authRoutingMarkup = indexSource.match(
   /<div id="authRoutingStep"[\s\S]*?(?=\n\s*<div id="authNoticeStep")/
@@ -352,8 +398,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function continueFromPhoneStep\(\)[\s\S]*?showAuthRoutingStep_\(\);[\s\S]*?requestPublicAuthRouteWithRetry_\(\s*"phone"/,
-  "Phone routing must use the branded transition while routing resolves"
+  /async function continueFromPhoneStep\(\)[\s\S]*?showAuthRoutingStep_\(\);[\s\S]*?submitAuthRouterForm_\([\s\S]*?"registerAccess"/,
+  "Phone registration must use the branded transition while the central processor resolves"
 );
 assert.match(
   appSource,
@@ -1735,6 +1781,10 @@ Object.assign(adminFocusSandbox, {
     adminFocusSandbox.adminContacts.find(
       contact => contact.email === email
     ) || null,
+  findAdminContactByPhone_: phone =>
+    adminFocusSandbox.adminContacts.find(
+      contact => String(contact.phone || "") === String(phone || "")
+    ) || null,
   formatPhoneForDisplay: value => String(value || ""),
   formatAdminTimestamp_: value => String(value || ""),
   formatContactAddRequestTimestamp_: value =>
@@ -2028,8 +2078,8 @@ assert.doesNotMatch(
 );
 assert.match(
   appSource,
-  /permission\.accessReviewRequired\s*&&\s*!permissionHasTemporaryAccess_\(permission\)/,
-  "A manager-approved temporary session must not wait for redundant server activation"
+  /permission\.accessReviewRequired\s*&&\s*!permissionHasProvisionalAccess_\(permission\)\s*&&\s*!permissionHasTemporaryAccess_\(permission\)/,
+  "Temporary and provisional sessions must not wait for redundant server activation"
 );
 assert.match(
   appSource,

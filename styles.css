@@ -4479,6 +4479,72 @@ body.directorySheetOpen {
   box-shadow: 0 4px 16px rgba(25, 47, 39, 0.045);
 }
 
+#app .provisionalAccessCard,
+#app .adminPendingHomeCard {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #b9dfcf;
+  border-radius: 17px;
+  background: #f1faf6;
+  color: #24443a;
+}
+
+#app .provisionalAccessCard[hidden],
+#app .adminPendingHomeCard[hidden] {
+  display: none !important;
+}
+
+#app .provisionalAccessCard strong,
+#app .adminPendingHomeCard strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 15px;
+}
+
+#app .provisionalAccessCard p {
+  margin: 0 0 3px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+#app .provisionalAccessCard small,
+#app .adminPendingHomeCard small {
+  color: #5a746a;
+  line-height: 1.45;
+}
+
+#app .provisionalAccessCard button,
+#app .adminPendingHomeCard button,
+#app .provisionalAdminWhatsappLink {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#app .provisionalAdminWhatsappLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #86d7ad;
+  background: #fff;
+  color: #176847;
+  text-decoration: none;
+}
+
+#app .provisionalAdminWhatsappLink[hidden] {
+  display: none !important;
+}
+
+#app .provisionalAccessStatus {
+  min-height: 0;
+  color: #176847;
+  font-size: 12px;
+}
+
 #app .homeToolsModule.toolsMenu {
   top: auto;
   width: auto;

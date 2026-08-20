@@ -323,7 +323,7 @@ function clearPublicAuthRouteCache_(kind, value) {
   }
 }
 
-function getGoogleFormAccessReviewReason_(
+function getAccessReviewReason_(
   contact,
   allowedUser,
   phonePermission,
@@ -333,7 +333,16 @@ function getGoogleFormAccessReviewReason_(
   if (!contact) return "phone_not_in_contacts";
   if (
     (allowedUser && allowedUser.active === false) ||
-    (phonePermission && phonePermission.active === false)
+    (phonePermission && phonePermission.active === false) ||
+    (
+      allowedUser &&
+      (
+        allowedUser.accessLevel === "revoked" ||
+        ["rejected", "revoked"].includes(
+          allowedUser.accessReviewStatus
+        )
+      )
+    )
   ) {
     return "blocked_permission";
   }
@@ -356,7 +365,23 @@ function getGoogleFormAccessReviewReason_(
   return "";
 }
 
-function getGoogleFormAccessRequestId_(phone, email, submittedAt) {
+function getGoogleFormAccessReviewReason_(
+  contact,
+  allowedUser,
+  phonePermission,
+  email,
+  phone
+) {
+  return getAccessReviewReason_(
+    contact,
+    allowedUser,
+    phonePermission,
+    email,
+    phone
+  );
+}
+
+function getAccessRequestId_(phone, email) {
   const digest = Utilities.computeDigest(
     Utilities.DigestAlgorithm.SHA_256,
     normalizeEmail_(email),
@@ -366,38 +391,28 @@ function getGoogleFormAccessRequestId_(phone, email, submittedAt) {
     .base64EncodeWebSafe(digest)
     .replace(/=+$/g, "")
     .slice(0, 18);
-  const submittedDate = new Date(
-    normalizeDateToIso_(submittedAt) || new Date().toISOString()
-  );
-  const dayKey = Utilities.formatDate(
-    submittedDate,
-    "Asia/Jerusalem",
-    "yyyyMMdd"
-  );
-
   return (
-    "google_form_" +
+    "access_" +
     normalizeIsraeliPhone(phone).replace(/\D/g, "") +
     "_" +
-    emailKey +
-    "_" +
-    dayKey
+    emailKey
   );
 }
 
-function queueGoogleFormAccessForAdmin_(
+function getGoogleFormAccessRequestId_(phone, email) {
+  return getAccessRequestId_(phone, email);
+}
+
+function queueAccessRequestForAdmin_(
   contact,
   formValues,
   reviewReason,
-  submittedAt
+  submittedAt,
+  source
 ) {
   const phone = normalizeIsraeliPhone(formValues.phone);
   const email = normalizeEmail_(formValues.email);
-  const requestId = getGoogleFormAccessRequestId_(
-    phone,
-    email,
-    submittedAt
-  );
+  const requestId = getAccessRequestId_(phone, email);
   const now = normalizeDateToIso_(submittedAt) || new Date().toISOString();
   const choose = (formValue, contactValue) =>
     cleanSheetValue_(formValue) || cleanSheetValue_(contactValue);
@@ -426,7 +441,7 @@ function queueGoogleFormAccessForAdmin_(
     phone: { stringValue: phone },
     email: { stringValue: email },
     reporterEmail: { stringValue: email },
-    source: { stringValue: "google_form" },
+    source: { stringValue: cleanSheetValue_(source || "app") },
     requestType: { stringValue: "contact_add" },
     originalContactId: {
       stringValue: contact ? getContactDocumentId_(contact) : ""
@@ -448,6 +463,37 @@ function queueGoogleFormAccessForAdmin_(
       stringValue: cleanSheetValue_(reviewReason)
     }
   };
+  const existingRequest = getAuthFlowDocument_(
+    "contactAddRequests",
+    requestId
+  );
+  if (
+    existingRequest &&
+    existingRequest.data &&
+    existingRequest.data.status === "pending"
+  ) {
+    return {
+      requestId,
+      duplicate: true,
+      reason: reviewReason
+    };
+  }
+  if (existingRequest && existingRequest.updateTime) {
+    commitFirestoreWrites_([{
+      update: {
+        name: getFirestoreDocumentName_("contactAddRequests", requestId),
+        fields
+      },
+      updateMask: { fieldPaths: Object.keys(fields) },
+      currentDocument: { updateTime: existingRequest.updateTime }
+    }]);
+    return {
+      requestId,
+      duplicate: false,
+      reopened: true,
+      reason: reviewReason
+    };
+  }
   const url =
     "https://firestore.googleapis.com/v1/projects/" +
     FIREBASE_PROJECT_ID +
@@ -488,6 +534,222 @@ function queueGoogleFormAccessForAdmin_(
     duplicate: false,
     reason: reviewReason
   };
+}
+
+function queueGoogleFormAccessForAdmin_(
+  contact,
+  formValues,
+  reviewReason,
+  submittedAt
+) {
+  return queueAccessRequestForAdmin_(
+    contact,
+    formValues,
+    reviewReason,
+    submittedAt,
+    "google_form"
+  );
+}
+
+function getRegistrationContactProfile_(contact) {
+  if (!contact) {
+    return { name: "", role: "", department: "", contactId: "" };
+  }
+  return {
+    name: [
+      cleanSheetValue_(contact.title_prefix),
+      cleanSheetValue_(contact.first_name_he),
+      cleanSheetValue_(contact.last_name_he)
+    ].filter(Boolean).join(" ").trim(),
+    role: cleanSheetValue_(contact.role),
+    department: cleanSheetValue_(contact.department),
+    contactId: getContactDocumentId_(contact)
+  };
+}
+
+/**
+ * מקור הסמכות היחיד לבקשת הרשמה חדשה, הן מהאפליקציה והן מהטופס הישן.
+ * Firestore נכתב תחילה. app_users הוא מראה תפעולית בלבד וכשל בו אינו
+ * מבטל הרשאה שכבר נשמרה בהצלחה.
+ */
+function processAccessRegistration_(payload, source, options) {
+  const values = payload && typeof payload === "object" ? payload : {};
+  const normalizedSource = source === "google_form" ? "google_form" : "app";
+  const email = normalizeEmail_(values.email);
+  const phone = normalizeIsraeliPhone(values.phone);
+  const now = normalizeDateToIso_(values.submittedAt) || new Date().toISOString();
+  const settings = options && typeof options === "object" ? options : {};
+  const deferProvisionalGrant = settings.deferProvisionalGrant === true;
+
+  if (!email || !isValidEmail_(email)) {
+    throw new Error("כתובת המייל אינה תקינה.");
+  }
+  if (!isValidNormalizedIsraeliPhone_(phone)) {
+    throw new Error("מספר הטלפון אינו תקין.");
+  }
+
+  const lock = settings.lockAlreadyHeld === true
+    ? null
+    : LockService.getScriptLock();
+  if (lock && !lock.tryLock(30000)) {
+    throw new Error("המערכת עסוקה בבקשת הרשמה אחרת. נסו שוב בעוד רגע.");
+  }
+
+  try {
+    const matchingContact = readAndDeduplicateContacts_().find(contact =>
+      normalizeIsraeliPhone(contact && contact.phone) === phone
+    ) || null;
+    const existingAllowedUser = getAllowedUser_(email);
+    const existingPhonePermission = getAllowedPhonePermission_(phone);
+    const reviewReason = getAccessReviewReason_(
+      matchingContact,
+      existingAllowedUser,
+      existingPhonePermission,
+      email,
+      phone
+    );
+    const profile = getRegistrationContactProfile_(matchingContact);
+
+    if (reviewReason) {
+      const requestResult = queueAccessRequestForAdmin_(
+        matchingContact,
+        {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phone,
+          email
+        },
+        reviewReason,
+        now,
+        normalizedSource
+      );
+      try {
+        appendFirestoreActivity_({
+          action: "access_registration_pending_admin",
+          targetEmail: email,
+          targetPhone: phone,
+          displayName: profile.name || cleanSheetValue_(values.displayName),
+          actorEmail: email,
+          source: normalizedSource,
+          syncStatus: requestResult.duplicate ? "duplicate" : "pending",
+          timestamp: now
+        });
+      } catch (activityError) {
+        console.error("רישום בקשת ההצטרפות הממתינה נכשל:", activityError);
+      }
+      syncAppUserMirrorBestEffort_({
+        email,
+        phone,
+        profile,
+        source: normalizedSource,
+        accessStatus: "pending",
+        requestedAt: now
+      });
+      clearPublicAuthRouteCache_("email", email);
+      return {
+        ok: true,
+        route: "PENDING_ADMIN",
+        provisional: false,
+        requestId: requestResult.requestId,
+        reason: reviewReason,
+        formFallbackUrl: getRegistrationFormUrl_()
+      };
+    }
+
+    const existingIsPermanent = Boolean(
+      existingAllowedUser &&
+      existingAllowedUser.active === true &&
+      existingAllowedUser.accessReviewRequired !== true &&
+      existingAllowedUser.accessLevel !== "provisional"
+    );
+    const existingRequiresAdminReview = Boolean(
+      existingAllowedUser &&
+      existingAllowedUser.active === true &&
+      existingAllowedUser.accessReviewRequired === true &&
+      existingAllowedUser.accessLevel !== "provisional"
+    );
+    if (existingRequiresAdminReview) {
+      syncAppUserMirrorBestEffort_({
+        email,
+        phone,
+        profile,
+        source: normalizedSource,
+        accessStatus: "pending",
+        requestedAt: now
+      });
+      return {
+        ok: true,
+        route: "PENDING_ADMIN",
+        provisional: false,
+        requestId: email,
+        reason: "existing_access_review",
+        formFallbackUrl: getRegistrationFormUrl_()
+      };
+    }
+    if (deferProvisionalGrant && !existingIsPermanent) {
+      return {
+        ok: true,
+        route: "PROVISIONAL_SETUP_READY",
+        provisional: false,
+        eligible: true
+      };
+    }
+    const allowedResult = existingIsPermanent
+      ? {
+          status: "existing_active",
+          provisional: false,
+          accessGrantedAt: existingAllowedUser.accessGrantedAt || ""
+        }
+      : upsertAllowedUserPairAtomically_(
+          email,
+          normalizedSource,
+          phone,
+          {
+            existingUser: existingAllowedUser,
+            existingPhonePermission,
+            provisionalApproval: true,
+            registrationProfile: profile
+          }
+        );
+
+    try {
+      appendFirestoreActivity_({
+        action: allowedResult.provisional
+          ? "provisional_access_granted"
+          : "access_registration_existing_active",
+        targetEmail: email,
+        targetPhone: phone,
+        displayName: profile.name,
+        actorEmail: email,
+        source: normalizedSource,
+        timestamp: now
+      });
+    } catch (activityError) {
+      console.error("רישום פעילות ההרשמה נכשל:", activityError);
+    }
+
+    syncAppUserMirrorBestEffort_({
+      email,
+      phone,
+      profile,
+      source: normalizedSource,
+      accessStatus: allowedResult.provisional ? "provisional" : "active",
+      requestedAt: now,
+      provisionalAt: allowedResult.provisional
+        ? allowedResult.accessGrantedAt || now
+        : ""
+    });
+    clearPublicAuthRouteCache_("email", email);
+    return {
+      ok: true,
+      route: allowedResult.provisional ? "PROVISIONAL_READY" : "ACTIVE",
+      provisional: allowedResult.provisional === true,
+      requestId: allowedResult.provisional ? email : "",
+      profile
+    };
+  } finally {
+    if (lock) lock.releaseLock();
+  }
 }
 
 /**
@@ -593,77 +855,34 @@ function onFormSubmit(e) {
       console.error("עדכון אינדקס הטלפונים נכשל:", indexError);
     }
 
-    const matchingContact = readAndDeduplicateContacts_().find(contact =>
-      normalizeIsraeliPhone(contact && contact.phone) === normalizedPhone
-    ) || null;
-    const existingAllowedUser = getAllowedUser_(email);
-    const existingPhonePermission = getAllowedPhonePermission_(
-      normalizedPhone
-    );
-    const reviewReason = getGoogleFormAccessReviewReason_(
-      matchingContact,
-      existingAllowedUser,
-      existingPhonePermission,
-      email,
-      normalizedPhone
-    );
-
-    if (reviewReason) {
-      const requestResult = queueGoogleFormAccessForAdmin_(
-        matchingContact,
-        {
-          firstName,
-          lastName,
-          phone: normalizedPhone,
-          email
-        },
-        reviewReason,
+    const registrationResult = processAccessRegistration_(
+      {
+        firstName,
+        lastName,
+        displayName,
+        phone: normalizedPhone,
+        email,
         submittedAt
-      );
+      },
+      "google_form",
+      { lockAlreadyHeld: true }
+    );
 
-      try {
-        appendFirestoreActivity_({
-          action: "form_access_pending_admin",
-          targetEmail: email,
-          targetPhone: normalizedPhone,
-          displayName,
-          actorEmail: email,
-          source: "google-form",
-          syncStatus: requestResult.duplicate ? "duplicate" : "pending",
-          timestamp: submittedAt
-        });
-      } catch (activityError) {
-        console.error(
-          "רישום בקשת ההצטרפות הממתינה נכשל:",
-          activityError
-        );
-      }
+    if (registrationResult.route === "PENDING_ADMIN") {
       rememberFormSubmission_(normalizedPhone, email);
-      clearPublicAuthRouteCache_("email", email);
       console.log(
         "בקשת הטופס הועברה לאישור מנהל: " +
-          reviewReason +
+          registrationResult.reason +
           " (" +
-          requestResult.requestId +
+          registrationResult.requestId +
           ")"
       );
       return;
     }
 
-    const allowedResult = upsertAllowedUserPairAtomically_(
-      email,
-      "google-form",
-      normalizedPhone,
-      {
-        existingUser: existingAllowedUser,
-        existingPhonePermission,
-        // מספר שכבר נמצא בספר המאומת הוא מקרה האישור האוטומטי
-        // שמוצג למשתמש בהודעת הסיום של הטופס.
-        permanentApproval: true,
-        approvedBy: "system"
-      }
-    );
-    clearPublicAuthRouteCache_("email", email);
+    const allowedResult = {
+      status: registrationResult.provisional ? "created" : "updated"
+    };
 
     let syncStatus = "updated";
     try {
@@ -694,7 +913,7 @@ function onFormSubmit(e) {
 
       if (allowedResult && allowedResult.status === "created") {
         appendFirestoreActivity_({
-          action: "access_auto_granted",
+          action: "access_provisional_granted",
           targetEmail: email,
           targetPhone: normalizedPhone,
           displayName,

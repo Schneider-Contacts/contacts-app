@@ -11,6 +11,7 @@ function upsertAllowedUserPairAtomically_(
   const allowTransfer = settings.allowTransfer === true;
   const allowReactivate = settings.allowReactivate === true;
   const permanentApproval = settings.permanentApproval === true;
+  const provisionalApproval = settings.provisionalApproval === true;
   const approvedBy = normalizeEmail_(settings.approvedBy || "");
 
   if (!normalizedEmail || !isValidEmail_(normalizedEmail)) {
@@ -102,6 +103,16 @@ function upsertAllowedUserPairAtomically_(
 
   const now = new Date().toISOString();
   const isNewGrant = !existingUser;
+  const existingAccessLevel = cleanSheetValue_(
+    existingUser && existingUser.accessLevel
+  );
+  const grantProvisional = Boolean(
+    provisionalApproval &&
+    (
+      isNewGrant ||
+      existingAccessLevel === "provisional"
+    )
+  );
   const userUpdateFields = [
     "active",
     "email",
@@ -125,6 +136,19 @@ function upsertAllowedUserPairAtomically_(
       userUpdateFields.push(
         "permanentApprovedAt",
         "permanentApprovedBy"
+      );
+    }
+  }
+  if (grantProvisional) {
+    userUpdateFields.push("accessLevel", "provisionalAt");
+    if (!isNewGrant) {
+      userUpdateFields.push(
+        "accessReviewRequired",
+        "accessReviewStatus",
+        "temporaryAccessUntil",
+        "temporaryAccessReason",
+        "temporaryAccessGrantedAt",
+        "temporaryAccessGrantedBy"
       );
     }
   }
@@ -162,6 +186,24 @@ function upsertAllowedUserPairAtomically_(
         stringValue: approvedBy || "admin"
       };
     }
+  }
+
+  if (grantProvisional) {
+    userFields.accessLevel = { stringValue: "provisional" };
+    userFields.provisionalAt = {
+      timestampValue:
+        existingUser && existingUser.provisionalAt
+          ? existingUser.provisionalAt
+          : now
+    };
+    userFields.accessReviewRequired = { booleanValue: true };
+    userFields.accessReviewStatus = {
+      stringValue: ACCESS_REVIEW_STATUS_PENDING
+    };
+    userFields.temporaryAccessUntil = { nullValue: null };
+    userFields.temporaryAccessReason = { stringValue: "" };
+    userFields.temporaryAccessGrantedAt = { nullValue: null };
+    userFields.temporaryAccessGrantedBy = { stringValue: "" };
   }
 
   const phoneUpdateFields = [
@@ -214,6 +256,71 @@ function upsertAllowedUserPairAtomically_(
           : { exists: false }
     },
   ];
+
+  if (grantProvisional) {
+    const requestProfile = settings.registrationProfile || {};
+    const existingRequest = getAuthFlowDocument_(
+      "verificationRequests",
+      normalizedEmail
+    );
+    const requestData = existingRequest && existingRequest.data || {};
+    const requestedAt = requestData.requestedAt || now;
+    const requestFields = {
+      email: { stringValue: normalizedEmail },
+      phone: { stringValue: normalizedPhone },
+      requestType: { stringValue: "access_review" },
+      source: { stringValue: source || "unknown" },
+      status: { stringValue: ACCESS_REVIEW_STATUS_PENDING },
+      name: {
+        stringValue: cleanSheetValue_(requestProfile.name || "")
+      },
+      role: {
+        stringValue: cleanSheetValue_(requestProfile.role || "")
+      },
+      department: {
+        stringValue: cleanSheetValue_(requestProfile.department || "")
+      },
+      contactId: {
+        stringValue: cleanSheetValue_(requestProfile.contactId || "")
+      },
+      provisional: { booleanValue: true },
+      provisionalAt: {
+        timestampValue:
+          existingUser && existingUser.provisionalAt
+            ? existingUser.provisionalAt
+            : now
+      },
+      requestedAt: { timestampValue: requestedAt },
+      updatedAt: { timestampValue: now },
+      reviewRequestedNow: {
+        booleanValue: requestData.reviewRequestedNow === true
+      },
+      priority: {
+        stringValue: cleanSheetValue_(requestData.priority || "normal")
+      },
+      handledAt: { nullValue: null },
+      handledBy: { stringValue: "" }
+    };
+    if (requestData.reviewRequestedAt) {
+      requestFields.reviewRequestedAt = {
+        timestampValue: requestData.reviewRequestedAt
+      };
+    }
+    writes.push({
+      update: {
+        name: getFirestoreDocumentName_(
+          "verificationRequests",
+          normalizedEmail
+        ),
+        fields: requestFields
+      },
+      updateMask: { fieldPaths: Object.keys(requestFields) },
+      currentDocument:
+        existingRequest && existingRequest.updateTime
+          ? { updateTime: existingRequest.updateTime }
+          : { exists: false }
+    });
+  }
 
   let transferredFrom = "";
   if (
@@ -277,6 +384,7 @@ function upsertAllowedUserPairAtomically_(
     phoneKey,
     accessGrantedAt: isNewGrant ? now : "",
     accessReviewRequired: isNewGrant && !permanentApproval,
+    provisional: grantProvisional,
     transferredFrom
   };
 }
@@ -372,6 +480,42 @@ function getAllowedUser_(email) {
       fields.accessReviewStatus &&
       fields.accessReviewStatus.stringValue
         ? cleanSheetValue_(fields.accessReviewStatus.stringValue)
+        : "",
+    accessLevel:
+      fields.accessLevel && fields.accessLevel.stringValue
+        ? cleanSheetValue_(fields.accessLevel.stringValue)
+        : "",
+    provisionalAt:
+      fields.provisionalAt && fields.provisionalAt.timestampValue
+        ? fields.provisionalAt.timestampValue
+        : "",
+    accessGrantedAt:
+      fields.accessGrantedAt && fields.accessGrantedAt.timestampValue
+        ? fields.accessGrantedAt.timestampValue
+        : "",
+    source:
+      fields.source && fields.source.stringValue
+        ? cleanSheetValue_(fields.source.stringValue)
+        : "",
+    permanentApprovedAt:
+      fields.permanentApprovedAt && fields.permanentApprovedAt.timestampValue
+        ? fields.permanentApprovedAt.timestampValue
+        : "",
+    permanentApprovedBy:
+      fields.permanentApprovedBy && fields.permanentApprovedBy.stringValue
+        ? normalizeEmail_(fields.permanentApprovedBy.stringValue)
+        : "",
+    manualApprovedBy:
+      fields.manualApprovedBy && fields.manualApprovedBy.stringValue
+        ? normalizeEmail_(fields.manualApprovedBy.stringValue)
+        : "",
+    firebaseUid:
+      fields.firebaseUid && fields.firebaseUid.stringValue
+        ? cleanSheetValue_(fields.firebaseUid.stringValue)
+        : "",
+    updatedAt:
+      fields.updatedAt && fields.updatedAt.timestampValue
+        ? fields.updatedAt.timestampValue
         : "",
     temporaryAccessUntil:
       fields.temporaryAccessUntil &&
@@ -887,7 +1031,11 @@ function getActiveManagerSupportContact_() {
     console.warn("קריאת מטמון איש הקשר למנהל נכשלה:", error);
   }
 
-  const admins = getActiveAdminRecords_();
+  const admins = getActiveAdminRecords_().sort((a, b) => {
+    if (a.email === CONTACT_MANAGER_EMAIL) return -1;
+    if (b.email === CONTACT_MANAGER_EMAIL) return 1;
+    return 0;
+  });
   let contacts = [];
   try {
     contacts = readAndDeduplicateContacts_();

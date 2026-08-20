@@ -1185,6 +1185,19 @@ function activateTemporaryAccessFromWeb_(parameters) {
     };
   }
 
+  // גישה זמנית חדשה אינה הופכת לקבועה בעקבות אימות מייל. רק מנהל
+  // רשאי להעביר provisional ל-active, ולכן אין להפעיל כאן את מסלול
+  // האישור האוטומטי הישן.
+  if (allowedUser.accessLevel === "provisional") {
+    return {
+      ok: true,
+      permanent: false,
+      temporary: false,
+      provisional: true,
+      needsManager: true
+    };
+  }
+
   // חסימה או דחייה מפורשת של מנהל גוברות תמיד על אימות Firebase.
   if (
     allowedUser.accessReviewStatus === ACCESS_REVIEW_STATUS_REJECTED ||
@@ -2937,6 +2950,225 @@ function createAuthRouteCacheInvalidationPostResponse_(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function registerAccessFromWeb_(parameters) {
+  if (cleanSheetValue_(parameters && parameters.website)) {
+    throw new Error("הבקשה לא התקבלה.");
+  }
+  return processAccessRegistration_({
+    email: parameters && parameters.email,
+    phone: parameters && parameters.phone,
+    submittedAt: new Date().toISOString()
+  }, "app", { deferProvisionalGrant: true });
+}
+
+function finalizeProvisionalAccessFromWeb_(parameters) {
+  const identity = verifyFirebaseUserIdToken_(
+    parameters && parameters.idToken
+  );
+  return processAccessRegistration_({
+    email: identity.email,
+    phone: parameters && parameters.phone,
+    submittedAt: new Date().toISOString()
+  }, "app");
+}
+
+function requestPermanentAccessReviewFromWeb_(parameters) {
+  const identity = verifyFirebaseUserIdToken_(
+    parameters && parameters.idToken
+  );
+  const allowedUser = getAllowedUser_(identity.email);
+  const request = getAuthFlowDocument_(
+    "verificationRequests",
+    identity.email
+  );
+
+  if (
+    !allowedUser ||
+    allowedUser.active !== true ||
+    allowedUser.accessLevel !== "provisional" ||
+    allowedUser.accessReviewRequired !== true ||
+    !isAllowedEmailPhonePairActive_(identity.email, allowedUser)
+  ) {
+    throw new Error("החשבון אינו ממתין כעת לאישור גישה קבועה.");
+  }
+  if (
+    !request ||
+    !request.data ||
+    normalizeEmail_(request.data.email) !== identity.email ||
+    request.data.status !== ACCESS_REVIEW_STATUS_PENDING
+  ) {
+    throw new Error("בקשת האישור כבר טופלה או שאינה זמינה.");
+  }
+
+  const alreadyRequested = request.data.reviewRequestedNow === true;
+  const now = new Date().toISOString();
+  if (!alreadyRequested) {
+    const fields = {
+      reviewRequestedNow: { booleanValue: true },
+      reviewRequestedAt: { timestampValue: now },
+      priority: { stringValue: "high" },
+      updatedAt: { timestampValue: now }
+    };
+    commitFirestoreWrites_([{
+      update: {
+        name: getFirestoreDocumentName_(
+          "verificationRequests",
+          identity.email
+        ),
+        fields
+      },
+      updateMask: { fieldPaths: Object.keys(fields) },
+      currentDocument: request.updateTime
+        ? { updateTime: request.updateTime }
+        : { exists: true }
+    }]);
+    try {
+      appendFirestoreActivity_({
+        action: "provisional_review_requested_now",
+        targetEmail: identity.email,
+        targetPhone: allowedUser.phone,
+        actorEmail: identity.email,
+        source: "app",
+        timestamp: now
+      });
+    } catch (activityError) {
+      console.error("Permanent review activity failed:", activityError);
+    }
+  }
+
+  const contact = readAndDeduplicateContacts_().find(item =>
+    normalizeIsraeliPhone(item && item.phone) ===
+      normalizeIsraeliPhone(allowedUser.phone)
+  ) || null;
+  const profile = getRegistrationContactProfile_(contact);
+  syncAppUserMirrorBestEffort_({
+    email: identity.email,
+    phone: allowedUser.phone,
+    profile,
+    source: allowedUser.source || "app",
+    accessStatus: "provisional",
+    requestedAt: request.data.requestedAt || "",
+    provisionalAt: allowedUser.provisionalAt || request.data.provisionalAt || "",
+    reviewRequestedAt:
+      request.data.reviewRequestedAt || now,
+    firebaseUid: identity.uid,
+    updatedAt: now
+  });
+
+  let whatsappUrl = "";
+  try {
+    const support = getActiveManagerSupportContact_();
+    if (
+      support &&
+      support.ok === true &&
+      String(support.whatsappUrl || "").startsWith("https://wa.me/")
+    ) {
+      const message = [
+        "שלום,",
+        "נרשמתי לאפליקציית אנשי הקשר של שניידר ויש לי כרגע גישה זמנית.",
+        "אשמח לאישור גישה קבועה.",
+        "",
+        "שם: " + (profile.name || "לא צוין"),
+        "תפקיד: " + (profile.role || "לא צוין"),
+        "מחלקה: " + (profile.department || "לא צוין"),
+        "מייל: " + identity.email,
+        "טלפון: " + normalizeIsraeliPhone(allowedUser.phone)
+      ].join("\n");
+      whatsappUrl = support.whatsappUrl + "?text=" +
+        encodeURIComponent(message);
+    }
+  } catch (supportError) {
+    console.warn("Approval WhatsApp destination unavailable:", supportError);
+  }
+
+  return {
+    ok: true,
+    duplicate: alreadyRequested,
+    reviewRequestedNow: true,
+    whatsappUrl
+  };
+}
+
+function syncAppUserMirrorFromWeb_(parameters) {
+  const identity = verifyFirebaseUserIdToken_(
+    parameters && parameters.idToken
+  );
+  const targetEmail = normalizeEmail_(
+    parameters && parameters.email || identity.email
+  );
+  if (targetEmail !== identity.email) {
+    verifyFirebaseAdminIdToken_(parameters && parameters.idToken);
+  }
+  const allowedUser = getAllowedUser_(targetEmail);
+  if (!allowedUser) {
+    throw new Error("הרשאת המשתמש אינה קיימת.");
+  }
+  const contact = readAndDeduplicateContacts_().find(item =>
+    normalizeIsraeliPhone(item && item.phone) ===
+      normalizeIsraeliPhone(allowedUser.phone)
+  ) || null;
+  const request = getAuthFlowDocument_("verificationRequests", targetEmail);
+  const result = syncAppUserMirrorBestEffort_({
+    email: targetEmail,
+    phone: allowedUser.phone,
+    profile: getRegistrationContactProfile_(contact),
+    source: allowedUser.source || "firestore_sync",
+    accessStatus: getAllowedUserMirrorStatus_(allowedUser),
+    requestedAt: request && request.data && request.data.requestedAt || "",
+    provisionalAt: allowedUser.provisionalAt || "",
+    reviewRequestedAt:
+      request && request.data && request.data.reviewRequestedAt || "",
+    approvedAt: allowedUser.permanentApprovedAt || "",
+    approvedBy: allowedUser.permanentApprovedBy || "",
+    firebaseUid: targetEmail === identity.email ? identity.uid : "",
+    updatedAt: new Date().toISOString()
+  });
+  return { ok: result.failed !== true, ...result };
+}
+
+function createAccessRegistrationPostResponse_(e) {
+  const parameters = e && e.parameter ? e.parameter : {};
+  const action = cleanSheetValue_(parameters.action);
+  const nonce = cleanSheetValue_(parameters.nonce).slice(0, 160);
+  const sourceByAction = {
+    registerAccess: "contacts-access-registration",
+    finalizeProvisionalAccess: "contacts-provisional-access-finalize",
+    requestPermanentAccessReview: "contacts-permanent-access-review",
+    syncAppUserMirror: "contacts-app-users-mirror"
+  };
+  let payload;
+  try {
+    if (action === "registerAccess") {
+      payload = registerAccessFromWeb_(parameters);
+    } else if (action === "finalizeProvisionalAccess") {
+      payload = finalizeProvisionalAccessFromWeb_(parameters);
+    } else if (action === "requestPermanentAccessReview") {
+      payload = requestPermanentAccessReviewFromWeb_(parameters);
+    } else if (action === "syncAppUserMirror") {
+      payload = syncAppUserMirrorFromWeb_(parameters);
+    } else {
+      throw new Error("פעולת הרשמה אינה תקינה.");
+    }
+  } catch (error) {
+    console.error("Access registration action failed:", error);
+    payload = {
+      ok: false,
+      message: error && error.message
+        ? String(error.message)
+        : "הפעולה נכשלה. נסו שוב."
+    };
+  }
+  payload.source = sourceByAction[action] || "contacts-access-registration";
+  payload.nonce = nonce;
+  const serialized = JSON.stringify(payload).replace(/</g, "\\u003c");
+  const html =
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>" +
+    "<script>window.top.postMessage(" + serialized + ",\"*\");</script>" +
+    "</body></html>";
+  return HtmlService.createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
 function doPost(e) {
   const action = e && e.parameter
     ? cleanSheetValue_(e.parameter.action)
@@ -2950,6 +3182,14 @@ function doPost(e) {
   }
   if (action === "invalidateAuthRouteCache") {
     return createAuthRouteCacheInvalidationPostResponse_(e);
+  }
+  if (
+    action === "registerAccess" ||
+    action === "finalizeProvisionalAccess" ||
+    action === "requestPermanentAccessReview" ||
+    action === "syncAppUserMirror"
+  ) {
+    return createAccessRegistrationPostResponse_(e);
   }
   if (
     action === "preparePasswordRecovery" ||
