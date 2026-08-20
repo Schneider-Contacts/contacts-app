@@ -336,7 +336,10 @@ function submitEmailUpdate(formData) {
   let allowedStatus = "";
   let firestoreStatus = "";
   let pendingOldEmails = [];
+  let sheetWriteAttempted = false;
   let sheetWasUpdated = false;
+  let firestoreWasCommitted = false;
+  let sheetRollbackStatus = "not-needed";
 
   // נעילה אחת מגינה על בדיקת הכפילות, עדכון הגיליון והרשאת Firebase.
   // נפח השימוש נמוך ולכן סדרה קצרה של עדכוני מייל עדיפה על שתי פעולות כפולות.
@@ -488,6 +491,7 @@ function submitEmailUpdate(formData) {
       ...new Set(matches.map(match => match.sheetName))
     ];
 
+    sheetWriteAttempted = true;
     updateMatchedEmailCells_(matches, newEmail);
     sheetWasUpdated = true;
 
@@ -505,6 +509,7 @@ function submitEmailUpdate(formData) {
       normalizedPhone,
       existingPhonePermission
     );
+    firestoreWasCommitted = true;
     allowedStatus = allowedResult.status;
 
     queueDirectoryRebuild_("email-update", {
@@ -530,7 +535,8 @@ function submitEmailUpdate(formData) {
 
     try {
       appendFirestoreActivity_({
-        action: "email_self_update",
+        // משמש גם כהתראה יזומה למנהל במסך הניהול.
+        action: "worker_email_changed",
         targetEmail: newEmail,
         targetPhone: normalizedPhone,
         displayName,
@@ -583,6 +589,20 @@ function submitEmailUpdate(formData) {
 
     return successResult;
   } catch (error) {
+    if (sheetWriteAttempted && !firestoreWasCommitted) {
+      try {
+        const restoredRows = rollbackMatchedEmailCells_(matches, newEmail);
+        sheetRollbackStatus = "rolled-back:" + restoredRows;
+        sheetWasUpdated = false;
+      } catch (rollbackError) {
+        sheetRollbackStatus = "rollback-failed";
+        console.error(
+          "שחזור המיילים בגיליון לאחר כשל הרשאה נכשל:",
+          rollbackError
+        );
+      }
+    }
+
     try {
       appendEmailUpdateLog_({
         phone: normalizedPhone,
@@ -595,6 +615,7 @@ function submitEmailUpdate(formData) {
         firestoreStatus: firestoreStatus || "failed-or-not-run",
         result:
           (sheetWasUpdated ? "partial-after-sheet-update: " : "error: ") +
+          "sheet-recovery=" + sheetRollbackStatus + "; " +
           cleanSheetValue_(error.message)
       });
     } catch (logError) {
@@ -1087,6 +1108,34 @@ function updateMatchedEmailCells_(matches, newEmail) {
 
     sheet.getRangeList(bySheet[sheetName]).setValue(newEmail);
   });
+}
+
+/**
+ * משחזר את ערכי המייל המקוריים אם כתיבת ההרשאות נכשלה.
+ * השחזור מתבצע רק כאשר התא עדיין מכיל את המייל החדש, כדי לא לדרוס
+ * שינוי ידני או תהליך אחר שהתרחש בינתיים.
+ */
+function rollbackMatchedEmailCells_(matches, attemptedEmail) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const normalizedAttemptedEmail = normalizeEmail_(attemptedEmail);
+  let restoredRows = 0;
+
+  (Array.isArray(matches) ? matches : []).forEach(match => {
+    const sheet = spreadsheet.getSheetByName(match.sheetName);
+    if (!sheet) {
+      throw new Error('לא נמצא טאב המקור "' + match.sheetName + '" לשחזור.');
+    }
+
+    const cell = sheet.getRange(Number(match.row), Number(match.emailColumn));
+    if (normalizeEmail_(cell.getDisplayValue()) !== normalizedAttemptedEmail) {
+      return;
+    }
+
+    cell.setValue(cleanSheetValue_(match.oldEmail));
+    restoredRows += 1;
+  });
+
+  return restoredRows;
 }
 
 function columnToLetter_(column) {

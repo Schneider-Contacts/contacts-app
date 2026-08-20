@@ -191,7 +191,8 @@
       <div class="authNoticeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2.8 20h18.4zM12 9v5m0 3v.1"/></svg></div>
       <h3 id="authNoticeTitle" class="authModeHeading">לא ניתן להמשיך</h3>
       <p id="authNoticeMessage" class="authModeDescription"></p>
-      <button type="button" class="primaryAuthBtn" onclick="forgetRememberedLoginIdentity_()">חזרה למסך הכניסה</button>
+      <button type="button" id="authNoticeRetryBtn" class="primaryAuthBtn" style="display:none;" onclick="retryAccessActivation_()">ניסיון נוסף</button>
+      <button type="button" class="authStageBack bottom" onclick="forgetRememberedLoginIdentity_()">חזרה למסך הכניסה</button>
     </div>
   </form>
 

@@ -224,6 +224,45 @@ function rememberFormSubmission_(normalizedPhone, normalizedEmail) {
   );
 }
 
+function clearRecentSubmissionRecordsForUser_(normalizedPhone, normalizedEmail) {
+  const phone = normalizeIsraeliPhone(normalizedPhone);
+  const email = normalizeEmail_(normalizedEmail);
+  const prefixes = [
+    FORM_SUBMISSION_DUPLICATE_CACHE_PREFIX,
+    EMAIL_UPDATE_DUPLICATE_CACHE_PREFIX
+  ];
+  const cacheKeys = prefixes.map(prefix =>
+    getSubmissionCacheStorageKey_(prefix, phone, email)
+  );
+  const propertyKeys = prefixes.map(prefix =>
+    getSubmissionPropertyKey_(prefix, phone, email)
+  );
+
+  if (phone) {
+    propertyKeys.push(
+      EMAIL_UPDATE_PHONE_PROPERTY_PREFIX +
+        getSubmissionCacheKey_(
+          EMAIL_UPDATE_PHONE_PROPERTY_PREFIX,
+          phone,
+          ""
+        )
+    );
+  }
+
+  try {
+    CacheService.getScriptCache().removeAll(cacheKeys);
+  } catch (error) {
+    console.warn("ניקוי מטמון ההרשמה לאחר איפוס חשבון נכשל:", error);
+  }
+
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    propertyKeys.forEach(key => properties.deleteProperty(key));
+  } catch (error) {
+    console.warn("ניקוי היסטוריית ההרשמה לאחר איפוס חשבון נכשל:", error);
+  }
+}
+
 function cleanupExpiredSubmissionRecords_() {
   const properties = PropertiesService.getScriptProperties();
   const allProperties = properties.getProperties();
@@ -617,7 +656,11 @@ function onFormSubmit(e) {
       normalizedPhone,
       {
         existingUser: existingAllowedUser,
-        existingPhonePermission
+        existingPhonePermission,
+        // מספר שכבר נמצא בספר המאומת הוא מקרה האישור האוטומטי
+        // שמוצג למשתמש בהודעת הסיום של הטופס.
+        permanentApproval: true,
+        approvedBy: "system"
       }
     );
     clearPublicAuthRouteCache_("email", email);
@@ -635,7 +678,11 @@ function onFormSubmit(e) {
 
     try {
       appendFirestoreActivity_({
-        action: "contact_add_form",
+        // מנהלים רואים את שתי התוצאות גם כלשונית התראה בדף הניהול.
+        // השם המפורש מאפשר להבדיל בין עובד חדש לבין עדכון של עובד קיים.
+        action: allowedResult && allowedResult.status === "created"
+          ? "worker_added"
+          : "worker_details_updated",
         targetEmail: email,
         targetPhone: normalizedPhone,
         displayName,

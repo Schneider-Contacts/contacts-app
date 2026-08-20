@@ -320,14 +320,14 @@ function createEmailUpdateResultPage_(success, result, errorMessage) {
     "?email=" + encodeURIComponent(email) + "&manualApproval=1&fresh=1";
   const duplicate = Boolean(success && safeResult.duplicate === true);
   const title = success
-    ? (duplicate ? "הפרטים כבר נקלטו" : "המייל עודכן בהצלחה")
+    ? (duplicate ? "הפרטים כבר נקלטו" : "בקשת עדכון המייל התקבלה")
     : "העדכון לא הושלם";
   const statusClass = success ? "success" : "error";
   const safeMessage = escapeHtmlForOutput_(
     success
       ? (duplicate
           ? "אותו מספר טלפון ואותו מייל כבר נקלטו ב־24 השעות האחרונות. אין צורך לשלוח את הטופס שוב."
-          : "חזרו לאפליקציה והמשיכו עם כתובת המייל החדשה. אין צורך לשלוח את העדכון שוב.")
+          : "חזרו לאפליקציה, הגדירו סיסמה ויישלח מייל אימות מ-Firebase. הגישה תיפתח רק לאחר אימות המייל או אישור מפורש של מנהל.")
       : (errorMessage || "העדכון נכשל. נסו שוב.")
   );
   const details = success
@@ -359,7 +359,7 @@ function createEmailUpdateResultPage_(success, result, errorMessage) {
     ? '<ol><li>' +
       (duplicate
         ? 'אם מייל האימות לא הגיע, לחצו על „בקשת אימות ישיר ממנהל”.'
-        : 'לחצו על „המשך להרשמה”, בחרו סיסמה וקבלו מייל אימות.') +
+        : 'לחצו על „המשך להרשמה”, בחרו סיסמה וקבלו מייל אימות מ-Firebase.') +
       '</li><li><b>חשוב: יש לבדוק גם בתיקיית ספאם / דואר זבל. מיילים אוטומטיים מגיעים לשם לעיתים קרובות.</b></li></ol>'
     : '';
 
@@ -1185,6 +1185,7 @@ function activateTemporaryAccessFromWeb_(parameters) {
     };
   }
 
+  // חסימה או דחייה מפורשת של מנהל גוברות תמיד על אימות Firebase.
   if (
     allowedUser.accessReviewStatus === ACCESS_REVIEW_STATUS_REJECTED ||
     allowedUser.accessReviewStatus === ACCESS_REVIEW_STATUS_REVOKED
@@ -1194,6 +1195,91 @@ function activateTemporaryAccessFromWeb_(parameters) {
       permanent: false,
       temporary: false,
       blockedByManager: true
+    };
+  }
+
+  // אימות Firebase של המייל הנוכחי הוא אישור בעלות מלא על הכתובת.
+  // לאחר שהחסימות נבדקו, אפשר להפוך את ההרשאה לקבועה.
+  if (identity.emailVerified === true) {
+    const now = new Date().toISOString();
+    const verificationRequest = getAuthFlowDocument_(
+      "verificationRequests",
+      identity.email
+    );
+    const actionId = Utilities.getUuid().replace(/-/g, "");
+    const allowedFields = {
+      accessReviewRequired: { booleanValue: false },
+      accessReviewStatus: { stringValue: ACCESS_REVIEW_STATUS_APPROVED },
+      temporaryAccessUntil: { nullValue: null },
+      temporaryAccessReason: { stringValue: "" },
+      temporaryAccessGrantedAt: { nullValue: null },
+      temporaryAccessGrantedBy: { stringValue: "" },
+      emailVerifiedAt: { timestampValue: now },
+      approvalSource: { stringValue: "firebase_email_verification" },
+      updatedAt: { timestampValue: now }
+    };
+    const requestFields = {
+      email: { stringValue: identity.email },
+      requestType: { stringValue: "access_review" },
+      status: { stringValue: ACCESS_REVIEW_STATUS_APPROVED },
+      requestedAt: {
+        timestampValue: verificationRequest &&
+          verificationRequest.data &&
+          verificationRequest.data.requestedAt
+            ? verificationRequest.data.requestedAt
+            : now
+      },
+      updatedAt: { timestampValue: now },
+      handledAt: { timestampValue: now },
+      handledBy: { stringValue: "firebase_email_verification" },
+      temporaryAccessUntil: { nullValue: null },
+      automaticReason: { stringValue: "verified_current_email" }
+    };
+
+    commitFirestoreWrites_([
+      {
+        update: {
+          name: getFirestoreDocumentName_("allowedUsers", identity.email),
+          fields: allowedFields
+        },
+        updateMask: { fieldPaths: Object.keys(allowedFields) },
+        currentDocument: allowedUser.updateTime
+          ? { updateTime: allowedUser.updateTime }
+          : { exists: true }
+      },
+      {
+        update: {
+          name: getFirestoreDocumentName_(
+            "verificationRequests",
+            identity.email
+          ),
+          fields: requestFields
+        },
+        updateMask: { fieldPaths: Object.keys(requestFields) },
+        currentDocument:
+          verificationRequest && verificationRequest.updateTime
+            ? { updateTime: verificationRequest.updateTime }
+            : { exists: false }
+      },
+      {
+        update: {
+          name: getFirestoreDocumentName_("admin_actions", actionId),
+          fields: {
+            action: { stringValue: "email_verification_access_grant" },
+            targetEmail: { stringValue: identity.email },
+            source: { stringValue: "firebase_email_verification" },
+            timestamp: { timestampValue: now }
+          }
+        },
+        currentDocument: { exists: false }
+      }
+    ]);
+
+    return {
+      ok: true,
+      permanent: true,
+      temporary: false,
+      approvalSource: "firebase_email_verification"
     };
   }
 
@@ -1483,6 +1569,207 @@ function updateFirebasePasswordAdmin_(localId, password) {
     throw new Error(
       "עדכון הסיסמה ב־Firebase נכשל. יש לבדוק את הרשאות השרת."
     );
+  }
+}
+
+function updateFirebaseDisabledStateAdmin_(localId, disabled) {
+  const response = UrlFetchApp.fetch(
+    "https://identitytoolkit.googleapis.com/v1/accounts:update",
+    {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken()
+      },
+      payload: JSON.stringify({
+        localId: cleanSheetValue_(localId),
+        targetProjectId: FIREBASE_PROJECT_ID,
+        disableUser: disabled === true,
+        validSince: String(Math.floor(Date.now() / 1000)),
+        returnSecureToken: false
+      }),
+      muteHttpExceptions: true
+    }
+  );
+
+  if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+    throw new Error(
+      "עדכון מצב חשבון Firebase נכשל. HTTP " +
+        response.getResponseCode()
+    );
+  }
+}
+
+function deleteFirebaseUserAdmin_(localId) {
+  const response = UrlFetchApp.fetch(
+    "https://identitytoolkit.googleapis.com/v1/projects/" +
+      encodeURIComponent(FIREBASE_PROJECT_ID) +
+      "/accounts:delete",
+    {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken()
+      },
+      payload: JSON.stringify({
+        localId: cleanSheetValue_(localId),
+        targetProjectId: FIREBASE_PROJECT_ID
+      }),
+      muteHttpExceptions: true
+    }
+  );
+
+  if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+    throw new Error(
+      "מחיקת חשבון Firebase נכשלה. HTTP " +
+        response.getResponseCode()
+    );
+  }
+}
+
+/**
+ * מאפס חשבון כניסה בלבד. איש הקשר נשאר במקור ובספר אנשי הקשר,
+ * כדי שאפשר יהיה לבצע הרשמה חדשה מאפס בעתיד.
+ */
+function resetUserLoginFromWeb_(parameters) {
+  const admin = verifyFirebaseAdminIdToken_(parameters.idToken);
+  const email = normalizeEmail_(parameters.email);
+
+  if (!email || !isValidEmail_(email)) {
+    throw new Error("כתובת המייל אינה תקינה.");
+  }
+  if (email === admin.email || isActiveAdminEmail_(email)) {
+    throw new Error("לא ניתן לאפס חשבון מנהל דרך הפעולה הזו.");
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error("המערכת עסוקה באיפוס אחר. נסו שוב בעוד רגע.");
+  }
+
+  try {
+    const allowedUser = getAllowedUser_(email);
+    const phone = normalizeIsraeliPhone(allowedUser && allowedUser.phone);
+    const phonePermission = phone
+      ? getAllowedPhonePermission_(phone)
+      : null;
+    const verificationRequest = getAuthFlowDocument_(
+      "verificationRequests",
+      email
+    );
+    const passwordRecovery = getAuthFlowDocument_(
+      PASSWORD_RECOVERY_REQUEST_COLLECTION,
+      email
+    );
+    const firebaseUser = findFirebaseUserByEmailAdmin_(email);
+    const firebaseWasDisabled = Boolean(firebaseUser && firebaseUser.disabled);
+
+    // מבטלים טוקנים פעילים לפני מחיקת ההרשאות. אם ה-commit ייכשל,
+    // מצב חשבון Firebase מוחזר כדי שלא להשאיר השבתה חלקית.
+    if (firebaseUser && !firebaseWasDisabled) {
+      updateFirebaseDisabledStateAdmin_(firebaseUser.localId, true);
+    }
+
+    const actionId = Utilities.getUuid().replace(/-/g, "");
+    const now = new Date().toISOString();
+    const writes = [];
+
+    if (allowedUser) {
+      writes.push({
+        delete: getFirestoreDocumentName_("allowedUsers", email),
+        currentDocument: allowedUser.updateTime
+          ? { updateTime: allowedUser.updateTime }
+          : { exists: true }
+      });
+    }
+    if (
+      phonePermission &&
+      normalizeEmail_(phonePermission.email) === email
+    ) {
+      writes.push({
+        delete: getFirestoreDocumentName_(
+          ALLOWED_PHONES_COLLECTION_NAME,
+          phonePermission.phoneKey
+        ),
+        currentDocument: phonePermission.updateTime
+          ? { updateTime: phonePermission.updateTime }
+          : { exists: true }
+      });
+    }
+    if (verificationRequest) {
+      writes.push({
+        delete: getFirestoreDocumentName_("verificationRequests", email),
+        currentDocument: verificationRequest.updateTime
+          ? { updateTime: verificationRequest.updateTime }
+          : { exists: true }
+      });
+    }
+    if (passwordRecovery) {
+      writes.push({
+        delete: getFirestoreDocumentName_(
+          PASSWORD_RECOVERY_REQUEST_COLLECTION,
+          email
+        ),
+        currentDocument: passwordRecovery.updateTime
+          ? { updateTime: passwordRecovery.updateTime }
+          : { exists: true }
+      });
+    }
+
+    writes.push({
+      update: {
+        name: getFirestoreDocumentName_("admin_actions", actionId),
+        fields: {
+          action: { stringValue: "user_login_full_reset" },
+          targetEmail: { stringValue: email },
+          targetPhone: { stringValue: phone || "" },
+          adminEmail: { stringValue: admin.email },
+          timestamp: { timestampValue: now }
+        }
+      },
+      currentDocument: { exists: false }
+    });
+
+    try {
+      commitFirestoreWrites_(writes);
+    } catch (error) {
+      if (firebaseUser && !firebaseWasDisabled) {
+        try {
+          updateFirebaseDisabledStateAdmin_(firebaseUser.localId, false);
+        } catch (restoreError) {
+          console.error(
+            "Firebase account restore after reset failure failed:",
+            restoreError
+          );
+        }
+      }
+      throw error;
+    }
+
+    if (firebaseUser) {
+      try {
+        deleteFirebaseUserAdmin_(firebaseUser.localId);
+      } catch (error) {
+        // ההרשאות כבר נמחקו והחשבון נשאר מושבת. ניסיון חוזר
+        // ישלים את המחיקה בלי לפתוח בינתיים נתיב כניסה.
+        throw new Error(
+          "ההרשאות נמחקו והחשבון הושבת, אך מחיקת חשבון Firebase לא הושלמה. נסו את האיפוס שוב."
+        );
+      }
+    }
+
+    clearPublicAuthRouteCache_("email", email);
+    if (phone) clearPublicAuthRouteCache_("phone", phone);
+    clearRecentSubmissionRecordsForUser_(phone, email);
+
+    return {
+      ok: true,
+      email,
+      firebaseAccountDeleted: Boolean(firebaseUser),
+      contactPreserved: true
+    };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -2079,6 +2366,8 @@ function createAuthManagementPostResponse_(e) {
       payload = consumePasswordRecoveryFromWeb_(parameters);
     } else if (action === "cancelPasswordRecovery") {
       payload = cancelPasswordRecoveryFromWeb_(parameters);
+    } else if (action === "resetUserLogin") {
+      payload = resetUserLoginFromWeb_(parameters);
     } else {
       throw new Error("פעולת האימות אינה מוכרת.");
     }
@@ -2666,7 +2955,8 @@ function doPost(e) {
     action === "preparePasswordRecovery" ||
     action === "approvePasswordRecovery" ||
     action === "consumePasswordRecovery" ||
-    action === "cancelPasswordRecovery"
+    action === "cancelPasswordRecovery" ||
+    action === "resetUserLogin"
   ) {
     return createAuthManagementPostResponse_(e);
   }

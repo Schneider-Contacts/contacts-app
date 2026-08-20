@@ -2968,12 +2968,39 @@ function showAuthNotice_(title, message) {
   const notice = document.getElementById("authNoticeStep");
   const titleElement = document.getElementById("authNoticeTitle");
   const messageElement = document.getElementById("authNoticeMessage");
+  const retryButton = document.getElementById("authNoticeRetryBtn");
   if (form) form.style.display = "block";
   if (notice) notice.style.display = "block";
   if (titleElement) titleElement.textContent = title || "לא ניתן להמשיך";
   if (messageElement) messageElement.textContent = message || "נסו שוב מאוחר יותר.";
+  if (retryButton) retryButton.style.display = "none";
   updateAuthProgress_("blocked");
   setLoginStatus("", "");
+}
+
+function showAccessActivationRetryState_() {
+  showAuthNotice_(
+    "האימות הושלם",
+    "המייל אומת, אך השלמת ההרשאה נכשלה זמנית. החשבון נשאר מחובר — נסו שוב."
+  );
+  const retryButton = document.getElementById("authNoticeRetryBtn");
+  if (retryButton) retryButton.style.display = "flex";
+}
+
+async function retryAccessActivation_() {
+  const user = auth && auth.currentUser;
+  if (!user) {
+    showAuthEmailStep_({ forceEmailEntry: true });
+    return;
+  }
+
+  const button = document.getElementById("authNoticeRetryBtn");
+  if (button) button.disabled = true;
+  try {
+    await handleAuthenticatedUser(user, { skipVerificationSuccess: true });
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function getAuthRouteCacheKey_(kind, value) {
@@ -5866,6 +5893,7 @@ async function handleAuthenticatedUser(user, options = {}) {
       updateAdminEntryVisibility_();
     }
 
+    let accessActivationError = null;
     if (
       !isAdmin &&
       permission &&
@@ -5886,6 +5914,7 @@ async function handleAuthenticatedUser(user, options = {}) {
         }
       } catch (error) {
         console.error("Temporary access activation failed", error);
+        accessActivationError = error;
       }
     }
 
@@ -5931,6 +5960,20 @@ async function handleAuthenticatedUser(user, options = {}) {
         )
       )
     );
+
+    if (
+      !permissionAllowsAccess &&
+      accessActivationError &&
+      user.emailVerified &&
+      permission &&
+      permission.active &&
+      permission.accessReviewRequired
+    ) {
+      currentUserHasAppAccess = false;
+      showLoginScreen();
+      showAccessActivationRetryState_();
+      return;
+    }
 
     if (!permissionAllowsAccess) {
       const accessError = new Error(
@@ -9050,7 +9093,7 @@ function renderAdminPersonManagement_(contact, user) {
   }
   if (canForceApproveAccess) {
     primaryActions.push(
-      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור גישה קבועה מרחוק</button>`
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור כניסה קבוע — גם בלי מייל אימות</button>`
     );
   }
 
@@ -9062,7 +9105,7 @@ function renderAdminPersonManagement_(contact, user) {
     } else {
       additionalActions.unshift(
         `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>`,
-        `<button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>`
+        `<button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">איפוס מלא של חשבון הכניסה</button>`
       );
       if (user.manualApproved) {
         additionalActions.push(
@@ -9178,12 +9221,12 @@ function openAdminPerson_(contactDocId, userEmail) {
   const accessActions = [];
   if (hasPendingAccess) {
     accessActions.push(
-      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור גישה קבועה מרחוק</button>`,
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור כניסה קבוע — גם בלי מייל אימות</button>`,
       '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת הבקשה המלאה</button>'
     );
   } else if (canForceApproveAccess) {
     accessActions.push(
-      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור גישה קבועה מרחוק</button>`
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור כניסה קבוע — גם בלי מייל אימות</button>`
     );
   } else if (user && !isSelf) {
     accessActions.push(
@@ -9199,7 +9242,7 @@ function openAdminPerson_(contactDocId, userEmail) {
   }
   if (user && !isSelf) {
     advancedActions.push(
-      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(); deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאת כניסה</button>`
+      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(); deleteUserPermission('${escapeJsString(user.email)}')">איפוס מלא של חשבון הכניסה</button>`
     );
     if (user.manualApproved) {
       advancedActions.push(
@@ -10494,7 +10537,7 @@ async function approveManualAccess_(email, temporary = false, force = false) {
     title: temporary
       ? "אישור גישה עד 23:59"
       : canForceApprove
-        ? "אישור גישה קבועה מרחוק"
+        ? "אישור כניסה קבוע — גם בלי מייל אימות"
         : "אישור גישה קבועה",
     intro: temporary
       ? "האישור יאפשר כניסה עד 23:59 היום. יש לוודא תחילה את זהות המשתמש."
@@ -11285,7 +11328,7 @@ function renderAdminUsers() {
                    <details class="adminActionMenu">
                      <summary>פעולות נוספות</summary>
                      <div class="adminActionMenuBody">
-                       <button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">מחיקת הרשאה</button>
+                       <button type="button" class="adminActionBtn danger" onclick="deleteUserPermission('${escapeJsString(user.email)}')">איפוס מלא של חשבון הכניסה</button>
                      </div>
                    </details>`}
             </div>
@@ -12111,8 +12154,8 @@ async function toggleUserAccess(email, shouldActivate) {
   if (!await requestAdminConfirmation_({
     title: shouldActivate ? "החזרת גישה" : "חסימת גישה",
     message: shouldActivate
-      ? `${normalizedEmail} יוכל להיכנס שוב לאפליקציה.`
-      : `${normalizedEmail} לא יוכל להיכנס לאפליקציה עד להחזרת הגישה.`,
+      ? `הגישה של ${normalizedEmail} ושל מספר הטלפון המקושר תוחזר.`
+      : `${normalizedEmail} ומספר הטלפון המקושר ייחסמו לכניסה ולהרשמה חוזרת עד להחזרת הגישה.`,
     confirmLabel: shouldActivate ? "החזרת גישה" : "חסימת גישה",
     tone: shouldActivate ? "primary" : "warning"
   })) return;
@@ -12212,98 +12255,41 @@ async function deleteUserPermission(email) {
   const normalizedEmail = normalizeEmail(email);
 
   if (!normalizedEmail || normalizedEmail === currentAdminEmail) {
-    setAdminStatus("לא ניתן למחוק את הרשאת המנהל הנוכחי.", "error");
+    setAdminStatus("לא ניתן לאפס את חשבון המנהל הנוכחי.", "error");
     return;
   }
 
   if (!await requestAdminConfirmation_({
-    title: "מחיקת הרשאת כניסה",
-    message: `הרשאת הכניסה של ${normalizedEmail} והקישור למספר הטלפון יימחקו. חסימה עדיפה בדרך כלל, משום שטופס חדש עשוי ליצור הרשאה מחדש.`,
-    confirmLabel: "מחיקת הרשאה",
+    title: "איפוס מלא של חשבון הכניסה",
+    message: `חשבון Firebase, הרשאות הכניסה ובקשות האישור והאיפוס של ${normalizedEmail} יימחקו. איש הקשר יישאר בספר, והאדם יוכל להירשם מחדש מאפס.`,
+    confirmLabel: "איפוס החשבון",
     tone: "danger"
   })) {
     return;
   }
 
-  setAdminStatus("מוחק הרשאה...", "loading");
+  setAdminStatus("מאפס את חשבון הכניסה...", "loading");
 
   try {
-    const userPermission = getAllowedUserByEmail(normalizedEmail);
-    const phonePermission = userPermission && userPermission.phoneKey
-      ? adminAllowedPhones.find(item =>
-          item.phoneKey === userPermission.phoneKey &&
-          item.email === normalizedEmail
-        ) || null
-      : null;
-    const verificationRequest = getVerificationRequestByEmail_(
-      normalizedEmail
+    const idToken = await auth.currentUser.getIdToken(true);
+    await submitAuthRouterForm_(
+      "resetUserLogin",
+      { idToken, email: normalizedEmail },
+      "contacts-auth-management"
     );
-    const batch = firebaseApi.writeBatch(db);
-    const now = firebaseApi.serverTimestamp();
-
-    batch.delete(
-      firebaseApi.doc(
-        db,
-        "allowedUsers",
-        userPermission && userPermission.docId
-          ? userPermission.docId
-          : normalizedEmail
-      )
-    );
-
-    if (phonePermission) {
-      batch.delete(
-        firebaseApi.doc(
-          db,
-          ALLOWED_PHONES_COLLECTION_NAME,
-          phonePermission.docId
-        )
-      );
-    }
-
-    if (
-      verificationRequest &&
-      ["pending", "temporary_active", "approved"].includes(
-        verificationRequest.status
-      )
-    ) {
-      batch.update(
-        firebaseApi.doc(
-          db,
-          "verificationRequests",
-          verificationRequest.docId
-        ),
-        {
-          status: verificationRequest.status === "pending"
-            ? "rejected"
-            : "revoked",
-          temporaryAccessUntil: null,
-          handledAt: now,
-          handledBy: currentAdminEmail,
-          updatedAt: now
-        }
-      );
-    }
-
-    batch.set(firebaseApi.doc(firebaseApi.collection(db, "admin_actions")), {
-      action: "permission_delete",
-      targetEmail: normalizedEmail,
-      targetPhone: userPermission && userPermission.phone
-        ? userPermission.phone
-        : "",
-      adminEmail: currentAdminEmail,
-      timestamp: now
-    });
-
-    await batch.commit();
-    invalidatePublicAuthRouteCacheFromAdmin_(normalizedEmail).catch(error => {
-      console.warn("Auth route cache invalidation failed", error);
-    });
     await loadAdminData();
-    setAdminStatus("הרשאת המייל נמחקה. קישור טלפון תואם נמחק אם היה קיים.", "success");
+    setAdminStatus(
+      "חשבון הכניסה אופס. איש הקשר נשאר בספר וניתן להירשם מחדש.",
+      "success"
+    );
   } catch (error) {
-    console.error("Permission deletion failed", error);
-    setAdminStatus("מחיקת ההרשאה נכשלה.", "error");
+    console.error("Full login reset failed", error);
+    setAdminStatus(
+      error && error.message
+        ? error.message
+        : "איפוס חשבון הכניסה נכשל.",
+      "error"
+    );
   }
 }
 

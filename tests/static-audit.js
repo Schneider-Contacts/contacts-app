@@ -382,8 +382,28 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function approveManualAccess_\([\s\S]*?if \(!request\.synthetic\) \{[\s\S]*?verificationRequests/,
+  /async function approveManualAccess_\([\s\S]*?if \(hasActionableRequest && !request\.synthetic\) \{[\s\S]*?verificationRequests/,
   "Approving a synthetic legacy review must not attempt a forbidden request create"
+);
+assert.match(
+  webEndpointsSource,
+  /ACCESS_REVIEW_STATUS_REJECTED[\s\S]*?ACCESS_REVIEW_STATUS_REVOKED[\s\S]*?if \(identity\.emailVerified === true\)/,
+  "A manager block must take precedence over verified-email activation"
+);
+assert.match(
+  emailUpdateLogicSource,
+  /function rollbackMatchedEmailCells_\([\s\S]*?normalizeEmail_\(cell\.getDisplayValue\(\)\)[\s\S]*?cell\.setValue/,
+  "Email replacement must provide a conflict-safe Sheets rollback"
+);
+assert.match(
+  webEndpointsSource,
+  /function resetUserLoginFromWeb_\([\s\S]*?allowedUsers[\s\S]*?ALLOWED_PHONES_COLLECTION_NAME[\s\S]*?verificationRequests[\s\S]*?PASSWORD_RECOVERY_REQUEST_COLLECTION[\s\S]*?deleteFirebaseUserAdmin_[\s\S]*?clearRecentSubmissionRecordsForUser_/,
+  "A full login reset must clear auth state while preserving the contact directory"
+);
+assert.match(
+  appSource,
+  /function showAccessActivationRetryState_\([\s\S]*?החשבון נשאר מחובר/,
+  "A transient post-verification activation failure must not sign the user out"
 );
 assert.match(
   appSource,
@@ -1998,8 +2018,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function deleteUserPermission\(email\)[\s\S]*?verificationRequests[\s\S]*?status:[\s\S]*?"rejected"[\s\S]*?"revoked"/,
-  "Deleting a permission must close its active verification request"
+  /function deleteUserPermission\(email\)[\s\S]*?resetUserLogin[\s\S]*?contacts-auth-management/,
+  "A full login reset must use the authenticated server action"
 );
 assert.doesNotMatch(
   appSource,
