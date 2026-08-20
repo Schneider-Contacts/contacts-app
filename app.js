@@ -784,10 +784,7 @@ function populateRegistrationSelect_(selectId, values, placeholder) {
 
   const hint = document.getElementById(selectId + "Hint");
   if (hint) {
-    const optionCount = Math.max(0, select.options.length - 2);
-    hint.textContent = optionCount
-      ? `${optionCount} אפשרויות קיימות · לא מצאתם? בחרו „אחר”`
-      : "לא מצאתם אפשרות מתאימה? בחרו „אחר”";
+    hint.textContent = "לא מצאתם אפשרות מתאימה? בחרו „אחר”";
   }
 }
 
@@ -2766,7 +2763,7 @@ function updateAuthProgress_(stage) {
   const progress = document.getElementById("authProgress");
   const label = document.getElementById("authProgressText");
   const labels = {
-    email: "כניסה מאובטחת",
+    email: "",
     phone: "אימות זהות",
     password: "כניסה עם סיסמה",
     password_setup: "הגדרת סיסמה",
@@ -2779,9 +2776,9 @@ function updateAuthProgress_(stage) {
     password_recovery_new: "יצירת סיסמה חדשה"
   };
   if (progress) {
-    progress.style.display = stage ? "block" : "none";
+    progress.style.display = stage && labels[stage] ? "block" : "none";
   }
-  if (label) label.textContent = labels[stage] || labels.email;
+  if (label) label.textContent = labels[stage] || "";
 }
 
 function setPasswordRecoveryPanelVisible_(visible) {

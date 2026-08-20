@@ -399,7 +399,7 @@ assert.match(
 );
 assert.match(
   read("FormAccess.gs"),
-  /function canonicalizeRegistrationRole_\([\s\S]*?function getRegistrationFieldOptions_\([\s\S]*?preferredRoles[\s\S]*?departments: collect\("department", 18\)/,
+  /function canonicalizeRegistrationRole_\([\s\S]*?return "מנהל\/ת"[\s\S]*?function getRegistrationFieldOptions_\([\s\S]*?preferredRoles[\s\S]*?excludedDepartmentKeys[\s\S]*?\.slice\(0, 18\)/,
   "Registration must present a curated set of common canonical roles and departments"
 );
 assert.match(

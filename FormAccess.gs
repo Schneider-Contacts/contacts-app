@@ -605,18 +605,9 @@ function canonicalizeRegistrationRole_(value) {
   const key = normalizeRegistrationOptionKey_(cleanValue);
   if (!key) return "";
 
-  if (/מנהל|מנהלת|מ״מ|ממ /.test(key)) {
-    if (key.indexOf("מחלק") !== -1) return "מנהל/ת מחלקה";
-    if (key.indexOf("יחידה") !== -1) return "מנהל/ת יחידה";
-    if (key.indexOf("מכון") !== -1) return "מנהל/ת מכון";
-  }
-  if (key.indexOf("תת התמחות") !== -1) return "תת התמחות";
+  if (/מנהל|מנהלת|מ״מ|ממ /.test(key)) return "מנהל/ת";
   if (key.indexOf("מתמחה") !== -1) return "מתמחה";
   if (key.indexOf("מומחה") !== -1) return "מומחה/ית";
-  if (key === "בכיר ה" || key.indexOf("רופא בכיר") !== -1) {
-    return "רופא/ה בכיר/ה";
-  }
-  if (key.indexOf("אחות אחראית") !== -1) return "אח/ות אחראי/ת";
   if (key.indexOf("אחות") !== -1) return "אח/ות";
   if (key.indexOf("מזכיר") !== -1) return "מזכיר/ה";
   if (key.indexOf("עובדת סוציאלית") !== -1) return "עובד/ת סוציאלי/ת";
@@ -663,28 +654,34 @@ function getRegistrationFieldOptions_(contacts) {
       .sort((left, right) => left.localeCompare(right, "he"));
   };
 
-  const availableRoles = collect("role", 180, canonicalizeRegistrationRole_);
   const preferredRoles = [
     "מומחה/ית",
     "מתמחה",
-    "תת התמחות",
-    "רופא/ה בכיר/ה",
-    "מנהל/ת מחלקה",
-    "מנהל/ת יחידה",
-    "מנהל/ת מכון",
+    "מנהל/ת",
     "אח/ות",
-    "אח/ות אחראי/ת",
     "מזכיר/ה",
     "עובד/ת סוציאלי/ת",
-    "פסיכולוג/ית",
     "דיאטן/ית"
   ];
 
+  const excludedDepartmentKeys = [
+    "vpn",
+    "תורנים vpn",
+    "מעבדות",
+    "מרפאות ומכונים"
+  ].map(normalizeRegistrationOptionKey_);
+  const departments = collect("department", 22)
+    .filter(department =>
+      excludedDepartmentKeys.indexOf(
+        normalizeRegistrationOptionKey_(department)
+      ) === -1
+    )
+    .slice(0, 18)
+    .sort((left, right) => left.localeCompare(right, "he"));
+
   return {
-    roles: preferredRoles
-      .filter(role => availableRoles.indexOf(role) !== -1)
-      .sort((left, right) => left.localeCompare(right, "he")),
-    departments: collect("department", 18)
+    roles: preferredRoles.sort((left, right) => left.localeCompare(right, "he")),
+    departments
   };
 }
 

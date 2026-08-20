@@ -144,14 +144,22 @@ result = sandbox.processAccessRegistration_(
 );
 assert.equal(result.route, "DETAILS_REQUIRED");
 assert.equal(state.queued, 0, "preflight must wait for required identity details");
-assert.equal(Array.from(result.registrationOptions.roles).length, 0);
+assert.equal(Array.from(result.registrationOptions.roles).length, 7);
 
 const canonicalOptions = sandbox.getRegistrationFieldOptions_([
   { role: "מומחה/ית", department: "ילדים א׳" },
   { role: "מומחה/ית", department: "ילדים א" },
   { role: "אח/ות", department: "טיפול נמרץ ילדים" }
 ]);
-assert.deepEqual(Array.from(canonicalOptions.roles), ["אח/ות", "מומחה/ית"]);
+assert.deepEqual(Array.from(canonicalOptions.roles), [
+  "אח/ות",
+  "דיאטן/ית",
+  "מומחה/ית",
+  "מזכיר/ה",
+  "מנהל/ת",
+  "מתמחה",
+  "עובד/ת סוציאלי/ת"
+]);
 assert.equal(
   Array.from(canonicalOptions.departments).filter(value =>
     sandbox.normalizeRegistrationOptionKey_(value) === "ילדים א"
@@ -169,8 +177,29 @@ const manyRegistrationOptions = sandbox.getRegistrationFieldOptions_(
 assert.equal(Array.from(manyRegistrationOptions.departments).length, 18);
 assert.deepEqual(
   Array.from(manyRegistrationOptions.roles),
-  ["מנהל/ת מחלקה"],
-  "equivalent role wording must collapse into one curated choice"
+  [
+    "אח/ות",
+    "דיאטן/ית",
+    "מומחה/ית",
+    "מזכיר/ה",
+    "מנהל/ת",
+    "מתמחה",
+    "עובד/ת סוציאלי/ת"
+  ],
+  "registration must expose only the curated role choices"
+);
+
+const filteredDepartments = sandbox.getRegistrationFieldOptions_([
+  { role: "מומחה/ית", department: "VPN" },
+  { role: "מומחה/ית", department: "תורנים VPN" },
+  { role: "מומחה/ית", department: "מעבדות" },
+  { role: "מומחה/ית", department: "מרפאות ומכונים" },
+  { role: "מומחה/ית", department: "ילדים א׳" }
+]);
+assert.deepEqual(
+  Array.from(filteredDepartments.departments),
+  ["ילדים א׳"],
+  "generic quick-access categories must not appear as registration departments"
 );
 
 reset();
