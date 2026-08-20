@@ -379,8 +379,23 @@ assert.match(
 );
 assert.match(
   rulesSource,
-  /accessReviewStatus == "pending"[\s\S]*?accessLevel == "provisional"/,
-  "Firestore rules must recognize the additive provisional access state"
+  /accessReviewStatus == "pending"[\s\S]*?accessLevel == "provisional"[\s\S]*?provisionalAt \+ duration\.value\(24, 'h'\) > request\.time[\s\S]*?hasVerifiedEmail/,
+  "Firestore rules must limit provisional access to 24 hours after verified email or manager approval"
+);
+assert.match(
+  appSource,
+  /function permissionHasProvisionalAccess_\([\s\S]*?emailVerified[\s\S]*?PROVISIONAL_ACCESS_DURATION_MS/,
+  "The client must enforce the same verified 24-hour provisional window"
+);
+assert.match(
+  appSource,
+  /hasProvisionalAccess = permissionHasProvisionalAccess_[\s\S]*?user\.getIdToken\(true\)/,
+  "Verified provisional entry must refresh the Firebase token before Firestore reads"
+);
+assert.match(
+  read("FormAccess.gs"),
+  /function canonicalizeRegistrationRole_\([\s\S]*?function getRegistrationFieldOptions_\([\s\S]*?preferredRoles[\s\S]*?departments: collect\("department", 18\)/,
+  "Registration must present a curated set of common canonical roles and departments"
 );
 assert.match(
   appSource,

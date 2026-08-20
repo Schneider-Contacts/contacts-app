@@ -61,6 +61,7 @@ const PENDING_PASSWORD_RECOVERY_STORAGE_KEY =
   "contacts_pending_password_recovery_v1";
 const PASSWORD_RECOVERY_STATUS_INTERVAL_MS = 5000;
 const PASSWORD_RECOVERY_MIN_LENGTH = 8;
+const PROVISIONAL_ACCESS_DURATION_MS = 24 * 60 * 60 * 1000;
 
 let firebaseApi = null;
 let firebaseApp = null;
@@ -779,6 +780,14 @@ function populateRegistrationSelect_(selectId, values, placeholder) {
 
   if (Array.from(select.options).some(option => option.value === previousValue)) {
     select.value = previousValue;
+  }
+
+  const hint = document.getElementById(selectId + "Hint");
+  if (hint) {
+    const optionCount = Math.max(0, select.options.length - 2);
+    hint.textContent = optionCount
+      ? `${optionCount} אפשרויות קיימות · לא מצאתם? בחרו „אחר”`
+      : "לא מצאתם אפשרות מתאימה? בחרו „אחר”";
   }
 }
 
@@ -4661,6 +4670,7 @@ async function checkVerificationAndContinue() {
     }
 
     if (auth.currentUser.emailVerified) {
+      await auth.currentUser.getIdToken(true);
       showVerificationSuccessPanel_(auth.currentUser);
       return;
     }
@@ -4700,6 +4710,7 @@ async function refreshVerificationSessionAfterReturn_() {
   try {
     await firebaseApi.reload(user);
     if (!user.emailVerified) return false;
+    await user.getIdToken(true);
 
     rememberSuccessfulEmail_(email);
     await handleAuthenticatedUser(user, { skipVerificationSuccess: true });
@@ -4896,12 +4907,29 @@ async function getCurrentUserPermission(email) {
 }
 
 function permissionHasProvisionalAccess_(permission) {
+  const provisionalStartedAt = getAdminTimestampMillis_(
+    permission && permission.provisionalAt
+  );
+  const verifiedOrManagerApproved = Boolean(
+    permission &&
+    (
+      permission.manualApproved === true ||
+      (
+        auth &&
+        auth.currentUser &&
+        auth.currentUser.emailVerified === true
+      )
+    )
+  );
   return Boolean(
     permission &&
     permission.active === true &&
     permission.accessReviewRequired === true &&
     permission.accessReviewStatus === "pending" &&
-    permission.accessLevel === "provisional"
+    permission.accessLevel === "provisional" &&
+    verifiedOrManagerApproved &&
+    provisionalStartedAt > 0 &&
+    provisionalStartedAt + PROVISIONAL_ACCESS_DURATION_MS > Date.now()
   );
 }
 
@@ -6076,6 +6104,17 @@ function updateProvisionalAccessUi_() {
   const card = document.getElementById("provisionalAccessCard");
   if (card) card.hidden = !provisional;
 
+  const expiry = document.getElementById("provisionalAccessExpiry");
+  if (expiry && provisional) {
+    const startedAt = getAdminTimestampMillis_(
+      currentUserPermissionData && currentUserPermissionData.provisionalAt
+    );
+    const expiresAt = startedAt + PROVISIONAL_ACCESS_DURATION_MS;
+    expiry.textContent = expiresAt > Date.now()
+      ? "הגישה הזמנית פתוחה עד " + formatAdminTimestamp_(new Date(expiresAt))
+      : "הגישה הזמנית הסתיימה";
+  }
+
   ["importAllBtn", "recentContactsBtn", "selectionModeBtn"].forEach(id => {
     const element = document.getElementById(id);
     if (!element) return;
@@ -6308,6 +6347,11 @@ async function handleAuthenticatedUser(user, options = {}) {
 
     const hasTemporaryAccess = permissionHasTemporaryAccess_(permission);
     const hasProvisionalAccess = permissionHasProvisionalAccess_(permission);
+    if (user.emailVerified && hasProvisionalAccess) {
+      // Firebase reload updates the user record, but Firestore rules evaluate
+      // the ID-token claim. Refresh it before the first provisional read.
+      await user.getIdToken(true);
+    }
     if (
       !user.emailVerified &&
       !isAdmin &&
@@ -6566,7 +6610,11 @@ function stopPermissionListener() {
   permissionExpiryTimer = null;
 }
 
-function schedulePermissionExpiryCheck_(email, temporaryAccessUntil) {
+function schedulePermissionExpiryCheck_(
+  email,
+  temporaryAccessUntil,
+  expiryMessage = "הגישה הזמנית הסתיימה בחצות. יש להמתין לאישור קבוע של מנהל."
+) {
   if (permissionExpiryTimer) clearTimeout(permissionExpiryTimer);
   permissionExpiryTimer = null;
 
@@ -6579,9 +6627,7 @@ function schedulePermissionExpiryCheck_(email, temporaryAccessUntil) {
       auth && auth.currentUser && auth.currentUser.email
     );
     if (currentEmail !== normalizeEmail(email)) return;
-    signOutForPermissionLoss_(
-      "הגישה הזמנית הסתיימה בחצות. יש להמתין לאישור קבוע של מנהל."
-    );
+    signOutForPermissionLoss_(expiryMessage);
   }, Math.min(delay, 2147483000));
 }
 
@@ -6725,12 +6771,18 @@ function startPermissionListener(user) {
         ) &&
         getAdminTimestampMillis_(data.temporaryAccessUntil) > Date.now()
       );
-      const provisionalAccess = Boolean(
-        data &&
-        data.active === true &&
-        data.accessReviewRequired === true &&
-        String(data.accessReviewStatus || "") === "pending" &&
-        String(data.accessLevel || "") === "provisional"
+      const permissionSnapshotData = data
+        ? {
+            active: data.active === true,
+            manualApproved: data.manualApproved === true,
+            accessReviewRequired: data.accessReviewRequired === true,
+            accessReviewStatus: String(data.accessReviewStatus || ""),
+            accessLevel: String(data.accessLevel || ""),
+            provisionalAt: data.provisionalAt || null
+          }
+        : null;
+      const provisionalAccess = permissionHasProvisionalAccess_(
+        permissionSnapshotData
       );
       const hasEmailAccess = Boolean(
         data &&
@@ -6777,6 +6829,17 @@ function startPermissionListener(user) {
         schedulePermissionExpiryCheck_(
           email,
           data.temporaryAccessUntil
+        );
+      } else if (provisionalAccess) {
+        const provisionalStartedAt = getAdminTimestampMillis_(
+          data.provisionalAt
+        );
+        schedulePermissionExpiryCheck_(
+          email,
+          new Date(
+            provisionalStartedAt + PROVISIONAL_ACCESS_DURATION_MS
+          ),
+          "24 שעות הגישה הזמנית הסתיימו. יש להמתין לאישור קבוע של מנהל."
         );
       } else if (permissionExpiryTimer) {
         clearTimeout(permissionExpiryTimer);

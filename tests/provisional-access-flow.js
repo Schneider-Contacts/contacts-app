@@ -87,6 +87,7 @@ vm.runInContext(
   [
     extractFunction("getAccessReviewReason_"),
     extractFunction("normalizeRegistrationOptionKey_"),
+    extractFunction("canonicalizeRegistrationRole_"),
     extractFunction("getRegistrationFieldOptions_"),
     extractFunction("resolveRequiredRegistrationOption_"),
     extractFunction("processAccessRegistration_")
@@ -146,17 +147,30 @@ assert.equal(state.queued, 0, "preflight must wait for required identity details
 assert.equal(Array.from(result.registrationOptions.roles).length, 0);
 
 const canonicalOptions = sandbox.getRegistrationFieldOptions_([
-  { role: "רופא/ה", department: "ילדים א׳" },
-  { role: "רופא/ה", department: "ילדים א" },
+  { role: "מומחה/ית", department: "ילדים א׳" },
+  { role: "מומחה/ית", department: "ילדים א" },
   { role: "אח/ות", department: "טיפול נמרץ ילדים" }
 ]);
-assert.deepEqual(Array.from(canonicalOptions.roles), ["אח/ות", "רופא/ה"]);
+assert.deepEqual(Array.from(canonicalOptions.roles), ["אח/ות", "מומחה/ית"]);
 assert.equal(
   Array.from(canonicalOptions.departments).filter(value =>
     sandbox.normalizeRegistrationOptionKey_(value) === "ילדים א"
   ).length,
   1,
   "equivalent department spellings must produce one canonical choice"
+);
+
+const manyRegistrationOptions = sandbox.getRegistrationFieldOptions_(
+  Array.from({ length: 25 }, (_, index) => ({
+    role: index % 2 ? "מנהל המחלקה" : "מנהלת מחלקה",
+    department: `מחלקה ${String(index + 1).padStart(2, "0")}`
+  }))
+);
+assert.equal(Array.from(manyRegistrationOptions.departments).length, 18);
+assert.deepEqual(
+  Array.from(manyRegistrationOptions.roles),
+  ["מנהל/ת מחלקה"],
+  "equivalent role wording must collapse into one curated choice"
 );
 
 reset();

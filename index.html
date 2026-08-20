@@ -159,12 +159,13 @@
         </div>
         <div class="authField">
           <label for="registrationRole">תפקיד <span aria-hidden="true">*</span></label>
-          <div class="authInputShell">
+          <div class="authInputShell authSelectShell">
             <select id="registrationRole" aria-required="true">
               <option value="">בחרו תפקיד</option>
               <option value="__other__">אחר</option>
             </select>
           </div>
+          <small id="registrationRoleHint" class="authChoiceHint"></small>
         </div>
         <div id="registrationRoleOtherField" class="authField" hidden>
           <label for="registrationRoleOther">תפקיד אחר <span aria-hidden="true">*</span></label>
@@ -172,12 +173,13 @@
         </div>
         <div class="authField authRegistrationFull">
           <label for="registrationDepartment">מחלקה / מכון <span aria-hidden="true">*</span></label>
-          <div class="authInputShell">
+          <div class="authInputShell authSelectShell">
             <select id="registrationDepartment" aria-required="true">
               <option value="">בחרו מחלקה או מכון</option>
               <option value="__other__">אחר</option>
             </select>
           </div>
+          <small id="registrationDepartmentHint" class="authChoiceHint"></small>
         </div>
         <div id="registrationDepartmentOtherField" class="authField authRegistrationFull" hidden>
           <label for="registrationDepartmentOther">מחלקה / מכון אחר <span aria-hidden="true">*</span></label>
@@ -422,7 +424,8 @@
     <section id="provisionalAccessCard" class="provisionalAccessCard" hidden aria-live="polite">
       <div>
         <strong>גישה זמנית</strong>
-        <p>החשבון שלך פעיל בגישה זמנית וממתין לאישור מנהל.</p>
+        <p>החשבון שלך פעיל ל־24 שעות וממתין לאישור מנהל.</p>
+        <small id="provisionalAccessExpiry"></small>
         <small>הורדה מרוכזת של אנשי קשר תתאפשר לאחר אישור קבוע.</small>
       </div>
       <button type="button" id="requestPermanentAccessBtn" onclick="requestPermanentAccessReview_()">בקש אישור קבוע</button>
@@ -945,7 +948,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260820-registration-options-v1"></script>
+  <script src="app.js?v=20260820-registration-options-v2"></script>
 
 </body>
 </html>

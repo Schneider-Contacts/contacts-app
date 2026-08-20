@@ -91,6 +91,23 @@ service cloud.firestore {
             && get(
               /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
             ).data.accessLevel == "provisional"
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.provisionalAt is timestamp
+            && get(
+              /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+            ).data.provisionalAt + duration.value(24, 'h') > request.time
+            && (
+              hasVerifiedEmail()
+              || (
+                'manualApproved' in get(
+                  /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+                ).data
+                && get(
+                  /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
+                ).data.manualApproved == true
+              )
+            )
           )
         );
     }

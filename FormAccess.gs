@@ -600,11 +600,38 @@ function normalizeRegistrationOptionKey_(value) {
     .trim();
 }
 
+function canonicalizeRegistrationRole_(value) {
+  const cleanValue = cleanSheetValue_(value).slice(0, 160);
+  const key = normalizeRegistrationOptionKey_(cleanValue);
+  if (!key) return "";
+
+  if (/מנהל|מנהלת|מ״מ|ממ /.test(key)) {
+    if (key.indexOf("מחלק") !== -1) return "מנהל/ת מחלקה";
+    if (key.indexOf("יחידה") !== -1) return "מנהל/ת יחידה";
+    if (key.indexOf("מכון") !== -1) return "מנהל/ת מכון";
+  }
+  if (key.indexOf("תת התמחות") !== -1) return "תת התמחות";
+  if (key.indexOf("מתמחה") !== -1) return "מתמחה";
+  if (key.indexOf("מומחה") !== -1) return "מומחה/ית";
+  if (key === "בכיר ה" || key.indexOf("רופא בכיר") !== -1) {
+    return "רופא/ה בכיר/ה";
+  }
+  if (key.indexOf("אחות אחראית") !== -1) return "אח/ות אחראי/ת";
+  if (key.indexOf("אחות") !== -1) return "אח/ות";
+  if (key.indexOf("מזכיר") !== -1) return "מזכיר/ה";
+  if (key.indexOf("עובדת סוציאלית") !== -1) return "עובד/ת סוציאלי/ת";
+  if (key.indexOf("דיאטנית") !== -1) return "דיאטן/ית";
+  if (key.indexOf("פסיכולוג") !== -1) return "פסיכולוג/ית";
+  return cleanValue;
+}
+
 function getRegistrationFieldOptions_(contacts) {
-  const collect = fieldName => {
+  const collect = (fieldName, maximum, transform) => {
     const variantsByKey = {};
     (Array.isArray(contacts) ? contacts : []).forEach(contact => {
-      const value = cleanSheetValue_(contact && contact[fieldName]).slice(0, 160);
+      const rawValue = cleanSheetValue_(contact && contact[fieldName])
+        .slice(0, 160);
+      const value = transform ? transform(rawValue) : rawValue;
       const key = normalizeRegistrationOptionKey_(value);
       if (!key || value.length < 2) return;
       if (!variantsByKey[key]) variantsByKey[key] = {};
@@ -612,18 +639,52 @@ function getRegistrationFieldOptions_(contacts) {
     });
 
     return Object.keys(variantsByKey)
-      .map(key => Object.keys(variantsByKey[key]).sort((left, right) => {
-        const countDifference = variantsByKey[key][right] - variantsByKey[key][left];
+      .map(key => {
+        const variants = Object.keys(variantsByKey[key]);
+        const label = variants.sort((left, right) => {
+          const countDifference =
+            variantsByKey[key][right] - variantsByKey[key][left];
+          if (countDifference) return countDifference;
+          return left.localeCompare(right, "he");
+        })[0];
+        const count = variants.reduce(
+          (total, variant) => total + variantsByKey[key][variant],
+          0
+        );
+        return { label, count };
+      })
+      .sort((left, right) => {
+        const countDifference = right.count - left.count;
         if (countDifference) return countDifference;
-        return left.localeCompare(right, "he");
-      })[0])
-      .sort((left, right) => left.localeCompare(right, "he"))
-      .slice(0, 180);
+        return left.label.localeCompare(right.label, "he");
+      })
+      .slice(0, maximum)
+      .map(item => item.label)
+      .sort((left, right) => left.localeCompare(right, "he"));
   };
 
+  const availableRoles = collect("role", 180, canonicalizeRegistrationRole_);
+  const preferredRoles = [
+    "מומחה/ית",
+    "מתמחה",
+    "תת התמחות",
+    "רופא/ה בכיר/ה",
+    "מנהל/ת מחלקה",
+    "מנהל/ת יחידה",
+    "מנהל/ת מכון",
+    "אח/ות",
+    "אח/ות אחראי/ת",
+    "מזכיר/ה",
+    "עובד/ת סוציאלי/ת",
+    "פסיכולוג/ית",
+    "דיאטן/ית"
+  ];
+
   return {
-    roles: collect("role"),
-    departments: collect("department")
+    roles: preferredRoles
+      .filter(role => availableRoles.indexOf(role) !== -1)
+      .sort((left, right) => left.localeCompare(right, "he")),
+    departments: collect("department", 18)
   };
 }
 
