@@ -327,6 +327,11 @@ assert.match(
   /id="authRegistrationDetailsStep"[\s\S]*?id="registrationFirstName"[\s\S]*?id="registrationLastName"[\s\S]*?id="registrationTitlePrefix"[\s\S]*?id="registrationRole"[\s\S]*?id="registrationDepartment"/,
   "Unknown contacts must receive an in-app registration-details step"
 );
+assert.doesNotMatch(
+  indexSource,
+  /id="registration(?:FirstName|LastName)"[^>]*(?:^|\s)required(?:\s|=|>)/m,
+  "Hidden registration fields must not block earlier auth form stages with native required validation"
+);
 assert.match(
   appSource,
   /route === "DETAILS_REQUIRED"[\s\S]*?showAuthRegistrationDetailsStep_/,
