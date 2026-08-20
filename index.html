@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260820-provisional-access-v1">
+<link rel="stylesheet" href="styles.css?v=20260820-provisional-access-v2">
 
 
 
@@ -129,6 +129,46 @@
 
       <button type="submit" id="phoneContinueBtn" class="primaryAuthBtn">המשך</button>
       <button type="button" class="authStageBack bottom" onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">שימוש במייל אחר</button>
+    </div>
+
+    <div id="authRegistrationDetailsStep" class="authRegistrationDetailsStep" style="display:none;">
+      <h3 class="authModeHeading">בקשת הצטרפות</h3>
+      <p class="authModeDescription">לא מצאנו את מספר הטלפון בספר. מלאו פרטים קצרים והמנהל יבדוק את הבקשה.</p>
+      <div id="authRegistrationIdentity" class="selectedAuthEmail"></div>
+
+      <div class="authRegistrationGrid">
+        <div class="authField">
+          <label for="registrationFirstName">שם פרטי <span aria-hidden="true">*</span></label>
+          <div class="authInputShell"><input id="registrationFirstName" type="text" maxlength="100" autocomplete="given-name" required></div>
+        </div>
+        <div class="authField">
+          <label for="registrationLastName">שם משפחה <span aria-hidden="true">*</span></label>
+          <div class="authInputShell"><input id="registrationLastName" type="text" maxlength="100" autocomplete="family-name" required></div>
+        </div>
+        <div class="authField">
+          <label for="registrationTitlePrefix">תואר — לא חובה</label>
+          <div class="authInputShell">
+            <select id="registrationTitlePrefix">
+              <option value="">ללא</option>
+              <option value="ד״ר">ד״ר</option>
+              <option value="פרופ׳">פרופ׳</option>
+              <option value="מר">מר</option>
+              <option value="גב׳">גב׳</option>
+            </select>
+          </div>
+        </div>
+        <div class="authField">
+          <label for="registrationRole">תפקיד — לא חובה</label>
+          <div class="authInputShell"><input id="registrationRole" type="text" maxlength="160" autocomplete="organization-title"></div>
+        </div>
+        <div class="authField authRegistrationFull">
+          <label for="registrationDepartment">מחלקה / מכון — לא חובה</label>
+          <div class="authInputShell"><input id="registrationDepartment" type="text" maxlength="160" autocomplete="organization"></div>
+        </div>
+      </div>
+      <input id="registrationWebsite" class="authRegistrationHoneypot" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit" id="registrationDetailsSubmitBtn" class="primaryAuthBtn">שליחה לאישור מנהל</button>
+      <button type="button" class="authStageBack bottom" onclick="showAuthPhoneStep_(lastUnknownEmail, 'email_update')">חזרה למספר הטלפון</button>
     </div>
 
     <div id="authPasswordStep" style="display:none;">
@@ -887,7 +927,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260820-provisional-access-v1"></script>
+  <script src="app.js?v=20260820-provisional-access-v2"></script>
 
 </body>
 </html>

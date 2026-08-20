@@ -430,13 +430,19 @@ function queueAccessRequestForAdmin_(
       )
     },
     titlePrefix: {
-      stringValue: cleanSheetValue_(contact && contact.title_prefix)
+      stringValue: choose(
+        formValues.titlePrefix,
+        contact && contact.title_prefix
+      )
     },
     role: {
-      stringValue: cleanSheetValue_(contact && contact.role)
+      stringValue: choose(formValues.role, contact && contact.role)
     },
     department: {
-      stringValue: cleanSheetValue_(contact && contact.department)
+      stringValue: choose(
+        formValues.department,
+        contact && contact.department
+      )
     },
     phone: { stringValue: phone },
     email: { stringValue: email },
@@ -470,11 +476,31 @@ function queueAccessRequestForAdmin_(
   if (
     existingRequest &&
     existingRequest.data &&
+    existingRequest.data.createdAt
+  ) {
+    fields.createdAt = {
+      timestampValue: existingRequest.data.createdAt
+    };
+  }
+  if (
+    existingRequest &&
+    existingRequest.data &&
     existingRequest.data.status === "pending"
   ) {
+    commitFirestoreWrites_([{
+      update: {
+        name: getFirestoreDocumentName_("contactAddRequests", requestId),
+        fields
+      },
+      updateMask: { fieldPaths: Object.keys(fields) },
+      currentDocument: existingRequest.updateTime
+        ? { updateTime: existingRequest.updateTime }
+        : { exists: true }
+    }]);
     return {
       requestId,
       duplicate: true,
+      updated: true,
       reason: reviewReason
     };
   }
@@ -608,7 +634,39 @@ function processAccessRegistration_(payload, source, options) {
       email,
       phone
     );
-    const profile = getRegistrationContactProfile_(matchingContact);
+    const contactProfile = getRegistrationContactProfile_(matchingContact);
+    const submittedProfile = {
+      name: [
+        cleanSheetValue_(values.titlePrefix),
+        cleanSheetValue_(values.firstName),
+        cleanSheetValue_(values.lastName)
+      ].filter(Boolean).join(" ").trim(),
+      role: cleanSheetValue_(values.role),
+      department: cleanSheetValue_(values.department),
+      contactId: ""
+    };
+    const profile = matchingContact ? contactProfile : submittedProfile;
+
+    if (settings.submitUnknownDetails === true && matchingContact) {
+      return {
+        ok: true,
+        route: "RETRY_PHONE_CHECK",
+        provisional: false
+      };
+    }
+
+    if (
+      reviewReason === "phone_not_in_contacts" &&
+      deferProvisionalGrant &&
+      settings.submitUnknownDetails !== true
+    ) {
+      return {
+        ok: true,
+        route: "DETAILS_REQUIRED",
+        provisional: false,
+        detailsRequired: true
+      };
+    }
 
     if (reviewReason) {
       const requestResult = queueAccessRequestForAdmin_(
@@ -616,6 +674,9 @@ function processAccessRegistration_(payload, source, options) {
         {
           firstName: values.firstName,
           lastName: values.lastName,
+          titlePrefix: values.titlePrefix,
+          role: values.role,
+          department: values.department,
           phone,
           email
         },

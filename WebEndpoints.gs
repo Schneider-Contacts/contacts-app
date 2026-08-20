@@ -2837,7 +2837,9 @@ function approveContactAddRequestFromWeb_(parameters) {
       }
       accessResult = upsertAllowedUserPairAtomically_(
         contact.email,
-        "google-form-admin-approved",
+        request.data.source === "app"
+          ? "app-registration-admin-approved"
+          : "google-form-admin-approved",
         contact.phone,
         {
           allowTransfer: true,
@@ -2970,6 +2972,31 @@ function finalizeProvisionalAccessFromWeb_(parameters) {
     phone: parameters && parameters.phone,
     submittedAt: new Date().toISOString()
   }, "app");
+}
+
+function submitAccessRegistrationDetailsFromWeb_(parameters) {
+  if (cleanSheetValue_(parameters && parameters.website)) {
+    throw new Error("הבקשה לא התקבלה.");
+  }
+  const firstName = cleanSheetValue_(parameters && parameters.firstName)
+    .slice(0, 100);
+  const lastName = cleanSheetValue_(parameters && parameters.lastName)
+    .slice(0, 100);
+  if (!firstName || !lastName) {
+    throw new Error("יש למלא שם פרטי ושם משפחה.");
+  }
+  return processAccessRegistration_({
+    email: parameters && parameters.email,
+    phone: parameters && parameters.phone,
+    firstName,
+    lastName,
+    titlePrefix: cleanSheetValue_(parameters && parameters.titlePrefix)
+      .slice(0, 60),
+    role: cleanSheetValue_(parameters && parameters.role).slice(0, 160),
+    department: cleanSheetValue_(parameters && parameters.department)
+      .slice(0, 160),
+    submittedAt: new Date().toISOString()
+  }, "app", { submitUnknownDetails: true });
 }
 
 function requestPermanentAccessReviewFromWeb_(parameters) {
@@ -3133,6 +3160,7 @@ function createAccessRegistrationPostResponse_(e) {
   const sourceByAction = {
     registerAccess: "contacts-access-registration",
     finalizeProvisionalAccess: "contacts-provisional-access-finalize",
+    submitRegistrationDetails: "contacts-access-registration-details",
     requestPermanentAccessReview: "contacts-permanent-access-review",
     syncAppUserMirror: "contacts-app-users-mirror"
   };
@@ -3142,6 +3170,8 @@ function createAccessRegistrationPostResponse_(e) {
       payload = registerAccessFromWeb_(parameters);
     } else if (action === "finalizeProvisionalAccess") {
       payload = finalizeProvisionalAccessFromWeb_(parameters);
+    } else if (action === "submitRegistrationDetails") {
+      payload = submitAccessRegistrationDetailsFromWeb_(parameters);
     } else if (action === "requestPermanentAccessReview") {
       payload = requestPermanentAccessReviewFromWeb_(parameters);
     } else if (action === "syncAppUserMirror") {
@@ -3186,6 +3216,7 @@ function doPost(e) {
   if (
     action === "registerAccess" ||
     action === "finalizeProvisionalAccess" ||
+    action === "submitRegistrationDetails" ||
     action === "requestPermanentAccessReview" ||
     action === "syncAppUserMirror"
   ) {

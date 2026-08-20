@@ -38,6 +38,7 @@ const state = {
   allowedUser: null,
   allowedPhone: null,
   queued: 0,
+  queuedValues: null,
   upserts: 0
 };
 const sandbox = {
@@ -64,8 +65,9 @@ const sandbox = {
     department: "",
     contactId: "contact-1"
   }),
-  queueAccessRequestForAdmin_: () => {
+  queueAccessRequestForAdmin_: (_contact, values) => {
     state.queued += 1;
+    state.queuedValues = values;
     return { requestId: "pending-1", duplicate: false };
   },
   upsertAllowedUserPairAtomically_: () => {
@@ -94,6 +96,7 @@ function reset() {
   state.allowedUser = null;
   state.allowedPhone = null;
   state.queued = 0;
+  state.queuedValues = null;
   state.upserts = 0;
 }
 
@@ -127,6 +130,49 @@ result = sandbox.processAccessRegistration_(
 assert.equal(result.route, "PENDING_ADMIN");
 assert.equal(state.queued, 1);
 assert.equal(state.upserts, 0, "conflicting identity must never be provisional");
+
+reset();
+state.contact = null;
+result = sandbox.processAccessRegistration_(
+  { email: "unknown@example.com", phone: "0501234567" },
+  "app",
+  { deferProvisionalGrant: true }
+);
+assert.equal(result.route, "DETAILS_REQUIRED");
+assert.equal(state.queued, 0, "preflight must wait for required identity details");
+
+reset();
+state.contact = null;
+result = sandbox.processAccessRegistration_(
+  {
+    email: "unknown@example.com",
+    phone: "0501234567",
+    firstName: "ישראל",
+    lastName: "ישראלי",
+    role: "רופא",
+    department: "ילדים א׳"
+  },
+  "app",
+  { submitUnknownDetails: true }
+);
+assert.equal(result.route, "PENDING_ADMIN");
+assert.equal(state.queued, 1);
+assert.equal(state.queuedValues.firstName, "ישראל");
+assert.equal(state.queuedValues.department, "ילדים א׳");
+
+reset();
+result = sandbox.processAccessRegistration_(
+  {
+    email: "late-match@example.com",
+    phone: "0501234567",
+    firstName: "ישראל",
+    lastName: "ישראלי"
+  },
+  "app",
+  { submitUnknownDetails: true }
+);
+assert.equal(result.route, "RETRY_PHONE_CHECK");
+assert.equal(state.upserts, 0, "an anonymous details request must never grant access");
 
 reset();
 state.allowedUser = {

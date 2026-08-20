@@ -4057,6 +4057,62 @@ body.directorySheetOpen {
   font-weight: 750;
 }
 
+#login .authRegistrationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 10px;
+}
+
+#login .authRegistrationFull {
+  grid-column: 1 / -1;
+}
+
+#login .authRegistrationDetailsStep .authModeDescription {
+  margin-bottom: 10px;
+}
+
+#login .authRegistrationDetailsStep .selectedAuthEmail {
+  margin-bottom: 3px;
+}
+
+#login .authRegistrationDetailsStep .authInputShell input,
+#login .authRegistrationDetailsStep .authInputShell select {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 13px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #1d3029;
+  font: inherit;
+  font-size: 15px;
+  text-align: right;
+}
+
+#login .authRegistrationDetailsStep .authInputShell select {
+  appearance: none;
+  cursor: pointer;
+}
+
+#login .authRegistrationHoneypot {
+  position: fixed !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 520px) {
+  #login .authRegistrationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  #login .authRegistrationFull {
+    grid-column: auto;
+  }
+}
+
 #login .authInputShell {
   min-height: 52px;
   border: 1px solid #d7e1dc;

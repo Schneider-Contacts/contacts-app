@@ -323,6 +323,31 @@ assert.match(
   "Anonymous registration must only preflight; final authorization must require a Firebase identity"
 );
 assert.match(
+  indexSource,
+  /id="authRegistrationDetailsStep"[\s\S]*?id="registrationFirstName"[\s\S]*?id="registrationLastName"[\s\S]*?id="registrationTitlePrefix"[\s\S]*?id="registrationRole"[\s\S]*?id="registrationDepartment"/,
+  "Unknown contacts must receive an in-app registration-details step"
+);
+assert.match(
+  appSource,
+  /route === "DETAILS_REQUIRED"[\s\S]*?showAuthRegistrationDetailsStep_/,
+  "The app must route unknown contacts to the in-app details step"
+);
+assert.match(
+  appSource,
+  /async function submitRegistrationDetails_\(\)[\s\S]*?submitAuthRouterForm_\([\s\S]*?"submitRegistrationDetails"/,
+  "The app must submit unknown-contact details without redirecting to Forms"
+);
+assert.match(
+  read("WebEndpoints.gs"),
+  /submitAccessRegistrationDetailsFromWeb_\([\s\S]*?!firstName \|\| !lastName[\s\S]*?submitUnknownDetails: true/,
+  "The server must require names before queuing an unknown-contact request"
+);
+assert.match(
+  read("FormAccess.gs"),
+  /submitUnknownDetails === true && matchingContact[\s\S]*?RETRY_PHONE_CHECK/,
+  "An anonymous details submission must never grant access if the contact state changed"
+);
+assert.match(
   read("FormAccess.gs"),
   /function processAccessRegistration_\([\s\S]*?getAccessReviewReason_\([\s\S]*?upsertAllowedUserPairAtomically_/,
   "App and legacy Form registration must share one authoritative processor"

@@ -107,6 +107,8 @@ let pendingEmailAuthRoutePromise = null;
 let authEmailFlowToken = 0;
 let authAccountSetupEmail = "";
 let provisionalRegistrationPhone = "";
+let pendingRegistrationEmail = "";
+let pendingRegistrationPhone = "";
 let authAccountSetupFallback = false;
 let authRouteUnavailableEmail = "";
 let authReturningUser = false;
@@ -716,7 +718,11 @@ function initAuthInputEnhancements_() {
     "emailInput",
     "phoneInput",
     "passwordInput",
-    "confirmPasswordInput"
+    "confirmPasswordInput",
+    "registrationFirstName",
+    "registrationLastName",
+    "registrationRole",
+    "registrationDepartment"
   ].forEach(inputId => {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -729,7 +735,9 @@ function initAuthInputEnhancements_() {
         ? "emailContinueBtn"
         : ["phone", "password_recovery_claim"].includes(authStage)
           ? "phoneContinueBtn"
-          : "loginButton";
+          : authStage === "registration_details"
+            ? "registrationDetailsSubmitBtn"
+            : "loginButton";
       const activeButton = document.getElementById(activeButtonId);
       if (activeButton && activeButton.disabled) return;
       handlePrimaryAuthAction();
@@ -2785,6 +2793,7 @@ function hideAllAuthFormSteps_() {
   [
     "authEmailStep",
     "authPhoneStep",
+    "authRegistrationDetailsStep",
     "authPasswordStep",
     "authRoutingStep",
     "authNoticeStep"
@@ -2814,6 +2823,8 @@ function showAuthRoutingStep_() {
 function showAuthEmailStep_(options = {}) {
   invalidateEmailAuthFlow_();
   provisionalRegistrationPhone = "";
+  pendingRegistrationEmail = "";
+  pendingRegistrationPhone = "";
   authStage = "email";
   authPurpose = "login";
   authMode = "login";
@@ -2843,6 +2854,83 @@ function showAuthEmailStep_(options = {}) {
   setTimeout(() => {
     if (input) input.focus();
   }, 0);
+}
+
+function showAuthRegistrationDetailsStep_(email, phone) {
+  authStage = "registration_details";
+  pendingRegistrationEmail = normalizeEmail(email);
+  pendingRegistrationPhone = normalizePhone(phone);
+  setVerificationPanelVisible_(false);
+  setPasswordRecoveryPanelVisible_(false);
+  setAuthRedirectPanelVisible_(false);
+  hideAllAuthFormSteps_();
+
+  const form = document.getElementById("authForm");
+  const step = document.getElementById("authRegistrationDetailsStep");
+  const identity = document.getElementById("authRegistrationIdentity");
+  if (form) form.style.display = "block";
+  if (step) step.style.display = "block";
+  if (identity) {
+    identity.textContent = `${pendingRegistrationEmail} · ${formatPhoneForDisplay(pendingRegistrationPhone)}`;
+  }
+  updateAuthProgress_("registration");
+  setLoginStatus("", "");
+  setTimeout(() => document.getElementById("registrationFirstName")?.focus(), 0);
+}
+
+async function submitRegistrationDetails_() {
+  if (authActionInProgress) return;
+  const firstName = String(document.getElementById("registrationFirstName")?.value || "").trim();
+  const lastName = String(document.getElementById("registrationLastName")?.value || "").trim();
+  if (!firstName || !lastName) {
+    setLoginStatus("יש למלא שם פרטי ושם משפחה.", "error");
+    return;
+  }
+  authActionInProgress = true;
+  const button = document.getElementById("registrationDetailsSubmitBtn");
+  if (button) button.disabled = true;
+  setLoginStatus("שולח את הבקשה למנהל...", "loading");
+  try {
+    const result = await submitAuthRouterForm_(
+      "submitRegistrationDetails",
+      {
+        email: pendingRegistrationEmail,
+        phone: pendingRegistrationPhone,
+        firstName,
+        lastName,
+        titlePrefix: document.getElementById("registrationTitlePrefix")?.value || "",
+        role: document.getElementById("registrationRole")?.value || "",
+        department: document.getElementById("registrationDepartment")?.value || "",
+        website: document.getElementById("registrationWebsite")?.value || ""
+      },
+      "contacts-access-registration-details"
+    );
+    const route = String(result && result.route || "");
+    if (route === "RETRY_PHONE_CHECK") {
+      showAuthPhoneStep_(pendingRegistrationEmail, "email_update");
+      setLoginStatus(
+        "המספר נוסף בינתיים לספר. הזינו אותו שוב כדי להשלים את הבדיקה הבטוחה.",
+        "success"
+      );
+      return;
+    }
+    if (route !== "PENDING_ADMIN") {
+      throw new Error("לא הצלחנו לשמור את בקשת ההצטרפות.");
+    }
+    showAuthNotice_(
+      "הבקשה נשלחה למנהל",
+      "לאחר האישור תוכלו לחזור לאפליקציה, לבחור סיסמה ולהיכנס."
+    );
+  } catch (error) {
+    showAuthRegistrationDetailsStep_(
+      pendingRegistrationEmail,
+      pendingRegistrationPhone
+    );
+    setLoginStatus(error && error.message ? error.message : "שליחת הבקשה נכשלה.", "error");
+  } finally {
+    authActionInProgress = false;
+    if (button) button.disabled = false;
+  }
 }
 
 function showAuthPhoneStep_(email, purpose = "email_update") {
@@ -4098,6 +4186,11 @@ async function continueFromPhoneStep() {
     );
     const route = String(result.route || "SYSTEM_ERROR");
 
+    if (route === "DETAILS_REQUIRED") {
+      showAuthRegistrationDetailsStep_(phoneStepEmail, phone);
+      return;
+    }
+
     if (route === "PROVISIONAL_SETUP_READY") {
       authAccountSetupEmail = phoneStepEmail;
       provisionalRegistrationPhone = phone;
@@ -4120,12 +4213,9 @@ async function continueFromPhoneStep() {
     }
 
     if (route === "PENDING_ADMIN") {
-      showAuthRedirectPanel_(
+      showAuthNotice_(
         "הבקשה נשלחה למנהל",
-        "לא נמצאה התאמה בטוחה שמאפשרת כניסה זמנית. הבקשה נשמרה ותמתין לאישור מנהל.",
-        result.formFallbackUrl || REGISTRATION_FORM_URL,
-        "פתיחת טופס ההצטרפות הישן (חלופה)",
-        false
+        "הבקשה נשמרה ותמתין לבדיקה. לאחר אישור תוכלו לחזור ולבחור סיסמה."
       );
       return;
     }
@@ -4968,6 +5058,11 @@ async function handlePrimaryAuthAction() {
   }
 
   if (authStage === "password_recovery_options") {
+    return;
+  }
+
+  if (authStage === "registration_details") {
+    await submitRegistrationDetails_();
     return;
   }
 
