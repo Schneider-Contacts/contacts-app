@@ -1550,6 +1550,153 @@ function createTemporaryAccessPostResponse_(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function sendFirebaseVerificationEmailFromWeb_(parameters) {
+  const identity = verifyFirebaseUserIdToken_(
+    parameters && parameters.idToken
+  );
+
+  if (identity.emailVerified === true) {
+    return {
+      ok: true,
+      alreadyVerified: true
+    };
+  }
+
+  const allowedUser = getAllowedUser_(identity.email);
+  const hasActiveAccessPair = Boolean(
+    allowedUser &&
+    allowedUser.active === true &&
+    isAllowedEmailPhonePairActive_(identity.email, allowedUser)
+  );
+
+  if (!hasActiveAccessPair && !isActiveAdminEmail_(identity.email)) {
+    throw new Error(
+      "לא נמצאה התאמה פעילה בין המייל למספר הטלפון הרשום."
+    );
+  }
+
+  const firebaseUser = getFirebaseUserByEmailAdmin_(identity.email);
+  if (cleanSheetValue_(firebaseUser.localId) !== identity.uid) {
+    throw new Error("חשבון Firebase אינו תואם לבקשת האימות.");
+  }
+
+  const cache = CacheService.getScriptCache();
+  const cooldownKey =
+    "verification-email-send:" + identity.email.toLowerCase();
+  if (cache.get(cooldownKey)) {
+    return {
+      ok: true,
+      duplicate: true
+    };
+  }
+
+  const appUrl = DEFAULT_MAIN_APP_URL;
+  const response = UrlFetchApp.fetch(
+    "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode",
+    {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken()
+      },
+      payload: JSON.stringify({
+        requestType: "VERIFY_EMAIL",
+        email: identity.email,
+        continueUrl: appUrl,
+        targetProjectId: FIREBASE_PROJECT_ID,
+        returnOobLink: true
+      }),
+      muteHttpExceptions: true
+    }
+  );
+
+  const responseCode = response.getResponseCode();
+  let responsePayload = {};
+  try {
+    responsePayload = JSON.parse(response.getContentText() || "{}");
+  } catch (error) {
+    responsePayload = {};
+  }
+
+  const verificationLink = cleanSheetValue_(responsePayload.oobLink);
+  if (
+    responseCode < 200 ||
+    responseCode >= 300 ||
+    !verificationLink ||
+    !/^https:\/\//i.test(verificationLink)
+  ) {
+    const apiMessage = cleanSheetValue_(
+      responsePayload &&
+      responsePayload.error &&
+      responsePayload.error.message
+    );
+    console.error(
+      "Firebase verification link generation failed:",
+      responseCode,
+      apiMessage || "Missing verification link"
+    );
+    throw new Error("לא הצלחנו להכין כרגע את קישור האימות.");
+  }
+
+  const safeLink = escapeHtmlForOutput_(verificationLink);
+  MailApp.sendEmail({
+    to: identity.email,
+    subject: "אימות כתובת המייל – ספר אנשי הקשר",
+    body:
+      "שלום,\n\n" +
+      "כדי להשלים את ההרשמה לספר אנשי הקשר, יש לפתוח את הקישור הבא:\n\n" +
+      verificationLink +
+      "\n\nאם לא ביקשת להירשם, אפשר להתעלם מהודעה זו.",
+    htmlBody:
+      '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.65;color:#173b2f">' +
+      '<h2 style="margin:0 0 12px">אימות כתובת המייל</h2>' +
+      '<p>כדי להשלים את ההרשמה לספר אנשי הקשר, לחצו על הכפתור:</p>' +
+      '<p style="margin:24px 0"><a href="' + safeLink + '" ' +
+      'style="display:inline-block;padding:12px 20px;border-radius:12px;background:#07865f;color:#fff;text-decoration:none;font-weight:700">' +
+      'אימות כתובת המייל</a></p>' +
+      '<p style="font-size:13px;color:#61776f">אם לא ביקשת להירשם, אפשר להתעלם מהודעה זו.</p>' +
+      '</div>',
+    name: "ספר אנשי הקשר"
+  });
+
+  cache.put(cooldownKey, "1", 60);
+  return {
+    ok: true,
+    deliveredBy: "apps_script"
+  };
+}
+
+function createVerificationEmailPostResponse_(e) {
+  const parameters = e && e.parameter ? e.parameter : {};
+  const nonce = cleanSheetValue_(parameters.nonce).slice(0, 160);
+  let payload;
+
+  try {
+    payload = sendFirebaseVerificationEmailFromWeb_(parameters);
+  } catch (error) {
+    console.error("Verification email delivery failed:", error);
+    payload = {
+      ok: false,
+      message: error && error.message
+        ? String(error.message)
+        : "לא ניתן לשלוח כרגע את מייל האימות."
+    };
+  }
+
+  payload.source = "contacts-verification-email";
+  payload.nonce = nonce;
+  const serialized = JSON.stringify(payload).replace(/</g, "\\u003c");
+  return HtmlService
+    .createHtmlOutput(
+      "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body>" +
+      "<script>window.top.postMessage(" +
+      serialized +
+      ",\"*\"" +
+      ");</script></body></html>"
+    )
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
 function findFirebaseUserByEmailAdmin_(email) {
   const normalizedEmail = normalizeEmail_(email);
   const response = UrlFetchApp.fetch(
@@ -3292,6 +3439,9 @@ function doPost(e) {
   }
   if (action === "activateTemporaryAccess") {
     return createTemporaryAccessPostResponse_(e);
+  }
+  if (action === "sendVerificationEmail") {
+    return createVerificationEmailPostResponse_(e);
   }
   if (action === "invalidateAuthRouteCache") {
     return createAuthRouteCacheInvalidationPostResponse_(e);

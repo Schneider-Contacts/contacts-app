@@ -4751,7 +4751,7 @@ async function resendVerificationFromPanel() {
       );
       return;
     }
-    await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
+    await sendVerificationEmailReliably_(user, email);
     startAuthEmailCooldown("verification", email);
     recordOwnAuthState_("verification_sent");
     setLoginStatus("נשלח מייל אימות חדש. חשוב לבדוק גם בתיקיות ספאם ודואר זבל.", "success");
@@ -4771,10 +4771,46 @@ async function sendVerificationForSignedInUser_(user, email) {
     throw new Error("PERMISSION_INACTIVE");
   }
 
-  await firebaseApi.sendEmailVerification(user, { url: PASSWORD_AUTH_RETURN_URL });
+  await sendVerificationEmailReliably_(user, normalizedEmail);
   startAuthEmailCooldown("verification", normalizedEmail);
   recordOwnAuthState_("verification_sent");
   return true;
+}
+
+async function sendVerificationEmailReliably_(user, email) {
+  const normalizedEmail = normalizeEmail(
+    email || (user && user.email)
+  );
+  if (!user || !normalizedEmail) {
+    throw new Error("חשבון המשתמש אינו זמין לשליחת אימות.");
+  }
+
+  let idToken;
+  try {
+    idToken = await user.getIdToken(true);
+  } catch (error) {
+    idToken = await user.getIdToken(false);
+  }
+
+  try {
+    return await submitAuthRouterForm_(
+      "sendVerificationEmail",
+      { idToken },
+      "contacts-verification-email"
+    );
+  } catch (serverError) {
+    console.warn(
+      "Apps Script verification delivery failed; using Firebase fallback",
+      serverError
+    );
+    await firebaseApi.sendEmailVerification(user, {
+      url: PASSWORD_AUTH_RETURN_URL
+    });
+    return {
+      ok: true,
+      deliveredBy: "firebase_fallback"
+    };
+  }
 }
 
 
@@ -5365,9 +5401,7 @@ async function loginOrCreateWithPassword() {
       }
 
       auth.languageCode = "he";
-      await firebaseApi.sendEmailVerification(createdUser, {
-        url: PASSWORD_AUTH_RETURN_URL
-      });
+      await sendVerificationEmailReliably_(createdUser, email);
       verificationSent = true;
       startAuthEmailCooldown("verification", email);
       recordOwnAuthState_("verification_sent");
@@ -5615,9 +5649,7 @@ async function registerWithPassword() {
     auth.languageCode = "he";
 
     try {
-      await firebaseApi.sendEmailVerification(createdUser, {
-        url: PASSWORD_AUTH_RETURN_URL
-      });
+      await sendVerificationEmailReliably_(createdUser, email);
       verificationSent = true;
     } catch (error) {
       verificationError = error;

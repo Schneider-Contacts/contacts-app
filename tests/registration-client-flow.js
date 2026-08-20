@@ -84,7 +84,9 @@ const sandbox = {
   getEmailEntryEligibility_: async () => ({ allowed: true }),
   submitAuthRouterForm_: async (action, payload, sourceName) => {
     calls.push(["router", action, payload, sourceName]);
-    return { route: "PROVISIONAL_READY" };
+    return action === "finalizeProvisionalAccess"
+      ? { route: "PROVISIONAL_READY" }
+      : { ok: true, deliveredBy: "apps_script" };
   },
   getCurrentUserPermission: async () => ({
     active: true,
@@ -111,7 +113,13 @@ const sandbox = {
 };
 
 vm.createContext(sandbox);
-vm.runInContext(extractFunction("registerWithPassword"), sandbox);
+vm.runInContext(
+  [
+    extractFunction("sendVerificationEmailReliably_"),
+    extractFunction("registerWithPassword")
+  ].join("\n"),
+  sandbox
+);
 
 (async () => {
   await sandbox.registerWithPassword();
@@ -127,11 +135,12 @@ vm.runInContext(extractFunction("registerWithPassword"), sandbox);
   assert.equal(routerCall[2].idToken, "verified-firebase-id-token");
   assert.equal(routerCall[2].phone, "+972501234567");
   assert.equal(routerCall[3], "contacts-provisional-access-finalize");
-  assert.deepEqual(calls.find(call => call[0] === "verify"), [
-    "verify",
-    "new@example.com",
-    "https://example.invalid/return"
-  ]);
+  const verificationCall = calls.find(
+    call => call[0] === "router" && call[1] === "sendVerificationEmail"
+  );
+  assert.equal(verificationCall[2].idToken, "verified-firebase-id-token");
+  assert.equal(verificationCall[3], "contacts-verification-email");
+  assert(!calls.some(call => call[0] === "verify"));
   assert(calls.some(call => call[0] === "verification-panel"));
   assert(!calls.some(call => call[0] === "delete"));
 
