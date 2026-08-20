@@ -140,7 +140,11 @@ function upsertAllowedUserPairAtomically_(
     }
   }
   if (grantProvisional) {
-    userUpdateFields.push("accessLevel", "provisionalAt");
+    userUpdateFields.push(
+      "accessLevel",
+      "provisionalAt",
+      "provisionalActivatedAt"
+    );
     if (!isNewGrant) {
       userUpdateFields.push(
         "accessReviewRequired",
@@ -196,6 +200,10 @@ function upsertAllowedUserPairAtomically_(
           ? existingUser.provisionalAt
           : now
     };
+    userFields.provisionalActivatedAt =
+      existingUser && existingUser.provisionalActivatedAt
+        ? { timestampValue: existingUser.provisionalActivatedAt }
+        : { nullValue: null };
     userFields.accessReviewRequired = { booleanValue: true };
     userFields.accessReviewStatus = {
       stringValue: ACCESS_REVIEW_STATUS_PENDING
@@ -488,6 +496,11 @@ function getAllowedUser_(email) {
     provisionalAt:
       fields.provisionalAt && fields.provisionalAt.timestampValue
         ? fields.provisionalAt.timestampValue
+        : "",
+    provisionalActivatedAt:
+      fields.provisionalActivatedAt &&
+      fields.provisionalActivatedAt.timestampValue
+        ? fields.provisionalActivatedAt.timestampValue
         : "",
     accessGrantedAt:
       fields.accessGrantedAt && fields.accessGrantedAt.timestampValue

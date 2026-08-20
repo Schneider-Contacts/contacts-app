@@ -93,10 +93,10 @@ service cloud.firestore {
             ).data.accessLevel == "provisional"
             && get(
               /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
-            ).data.provisionalAt is timestamp
+            ).data.provisionalActivatedAt is timestamp
             && get(
               /databases/$(database)/documents/allowedUsers/$(request.auth.token.email)
-            ).data.provisionalAt + duration.value(24, 'h') > request.time
+            ).data.provisionalActivatedAt + duration.value(24, 'h') > request.time
             && (
               hasVerifiedEmail()
               || (

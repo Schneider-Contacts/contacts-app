@@ -4893,6 +4893,7 @@ async function getCurrentUserPermission(email) {
     accessReviewStatus: String(data.accessReviewStatus || ""),
     accessLevel: String(data.accessLevel || ""),
     provisionalAt: data.provisionalAt || null,
+    provisionalActivatedAt: data.provisionalActivatedAt || null,
     temporaryAccessUntil: data.temporaryAccessUntil || null,
     temporaryAccessReason: String(data.temporaryAccessReason || ""),
     temporaryAccessGrantedAt: data.temporaryAccessGrantedAt || null,
@@ -4908,7 +4909,7 @@ async function getCurrentUserPermission(email) {
 
 function permissionHasProvisionalAccess_(permission) {
   const provisionalStartedAt = getAdminTimestampMillis_(
-    permission && permission.provisionalAt
+    permission && permission.provisionalActivatedAt
   );
   const verifiedOrManagerApproved = Boolean(
     permission &&
@@ -6107,7 +6108,8 @@ function updateProvisionalAccessUi_() {
   const expiry = document.getElementById("provisionalAccessExpiry");
   if (expiry && provisional) {
     const startedAt = getAdminTimestampMillis_(
-      currentUserPermissionData && currentUserPermissionData.provisionalAt
+      currentUserPermissionData &&
+        currentUserPermissionData.provisionalActivatedAt
     );
     const expiresAt = startedAt + PROVISIONAL_ACCESS_DURATION_MS;
     expiry.textContent = expiresAt > Date.now()
@@ -6334,6 +6336,7 @@ async function handleAuthenticatedUser(user, options = {}) {
           activation &&
           (
             activation.temporary === true ||
+            activation.provisional === true ||
             activation.permanent === true
           )
         ) {
@@ -6778,7 +6781,7 @@ function startPermissionListener(user) {
             accessReviewRequired: data.accessReviewRequired === true,
             accessReviewStatus: String(data.accessReviewStatus || ""),
             accessLevel: String(data.accessLevel || ""),
-            provisionalAt: data.provisionalAt || null
+            provisionalActivatedAt: data.provisionalActivatedAt || null
           }
         : null;
       const provisionalAccess = permissionHasProvisionalAccess_(
@@ -6822,6 +6825,7 @@ function startPermissionListener(user) {
         accessReviewStatus: String(data.accessReviewStatus || ""),
         accessLevel: String(data.accessLevel || ""),
         provisionalAt: data.provisionalAt || null,
+        provisionalActivatedAt: data.provisionalActivatedAt || null,
         temporaryAccessUntil: data.temporaryAccessUntil || null
       };
       updateProvisionalAccessUi_();
@@ -6832,7 +6836,7 @@ function startPermissionListener(user) {
         );
       } else if (provisionalAccess) {
         const provisionalStartedAt = getAdminTimestampMillis_(
-          data.provisionalAt
+          data.provisionalActivatedAt
         );
         schedulePermissionExpiryCheck_(
           email,
@@ -7338,6 +7342,7 @@ async function loadAdminUsersData_() {
       accessReviewStatus: String(data.accessReviewStatus || ""),
       accessLevel: String(data.accessLevel || ""),
       provisionalAt: data.provisionalAt || null,
+      provisionalActivatedAt: data.provisionalActivatedAt || null,
       temporaryAccessUntil: data.temporaryAccessUntil || null,
       temporaryAccessReason: String(data.temporaryAccessReason || ""),
       temporaryAccessGrantedAt: data.temporaryAccessGrantedAt || null,
@@ -8897,6 +8902,11 @@ function renderAdminAttentionAccessCard_(item) {
   const phone = contact && contact.phone ? contact.phone : user.phone;
   const isTemporary = accessState.key === "temporary";
   const allowTemporary = accessState.key === "pending";
+  const provisionalStatusLine = request.provisional
+    ? user.provisionalActivatedAt
+      ? `גישה זמנית מאז ${escapeHtml(formatAdminRelativeTime_(user.provisionalActivatedAt))}<br>`
+      : "ממתין לאימות מייל או לאישור מנהל<br>"
+    : "בקשת אישור כניסה<br>";
 
   return `
     <article class="adminCard adminFocusCard">
@@ -8905,7 +8915,7 @@ function renderAdminAttentionAccessCard_(item) {
           <div class="adminCardName">${escapeHtml(request.name || (contact && contact.name) || user.email)}</div>
           <div class="adminCardMeta">
             ${request.role || contact && contact.role ? escapeHtml(request.role || contact.role) : ""}${request.department || contact && contact.dept ? `${request.role || contact && contact.role ? " · " : ""}${escapeHtml(request.department || contact.dept)}` : ""}<br>
-            ${request.provisional ? `גישה זמנית מאז ${escapeHtml(formatAdminRelativeTime_(request.provisionalAt || user.provisionalAt))}<br>` : "בקשת אישור כניסה<br>"}
+            ${provisionalStatusLine}
             ${request.reviewRequestedNow ? "<strong>ביקש אישור קבוע כעת</strong><br>" : ""}
             ${escapeHtml(user.email)}
             ${phone ? "<br>" + escapeHtml(formatPhoneForDisplay(phone)) : ""}
@@ -10816,12 +10826,36 @@ function getUserAccessState_(user) {
       status === "pending" &&
       String(user.accessLevel || "") === "provisional"
     ) {
+      const provisionalActivatedAt = getAdminTimestampMillis_(
+        user.provisionalActivatedAt
+      );
+      const provisionalUntil = provisionalActivatedAt
+        ? provisionalActivatedAt + PROVISIONAL_ACCESS_DURATION_MS
+        : 0;
+      if (!provisionalActivatedAt) {
+        return {
+          key: "pending",
+          label: "ממתין לאימות מייל או לאישור מנהל",
+          note: "הגישה הזמנית טרם הופעלה.",
+          badgeClass: "pending"
+        };
+      }
+      if (provisionalUntil <= Date.now()) {
+        return {
+          key: "pending",
+          label: "הגישה הזמנית הסתיימה — ממתין לאישור",
+          note: "הגישה הסתיימה " + formatAdminTimestamp_(
+            new Date(provisionalUntil)
+          ),
+          badgeClass: "pending"
+        };
+      }
       return {
         key: "pending",
         label: "גישה זמנית פעילה — ממתין לאישור קבוע",
-        note: user.provisionalAt
-          ? "גישה זמנית מאז " + formatAdminTimestamp_(user.provisionalAt)
-          : "המשתמש יכול להיכנס, ללא הורדה מרוכזת.",
+        note: "פתוחה עד " + formatAdminTimestamp_(
+          new Date(provisionalUntil)
+        ),
         badgeClass: "pending"
       };
     }

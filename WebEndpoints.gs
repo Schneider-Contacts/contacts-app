@@ -1185,19 +1185,6 @@ function activateTemporaryAccessFromWeb_(parameters) {
     };
   }
 
-  // גישה זמנית חדשה אינה הופכת לקבועה בעקבות אימות מייל. רק מנהל
-  // רשאי להעביר provisional ל-active, ולכן אין להפעיל כאן את מסלול
-  // האישור האוטומטי הישן.
-  if (allowedUser.accessLevel === "provisional") {
-    return {
-      ok: true,
-      permanent: false,
-      temporary: false,
-      provisional: true,
-      needsManager: true
-    };
-  }
-
   // חסימה או דחייה מפורשת של מנהל גוברות תמיד על אימות Firebase.
   if (
     allowedUser.accessReviewStatus === ACCESS_REVIEW_STATUS_REJECTED ||
@@ -1208,6 +1195,98 @@ function activateTemporaryAccessFromWeb_(parameters) {
       permanent: false,
       temporary: false,
       blockedByManager: true
+    };
+  }
+
+  // אימות המייל מפעיל הרשאת provisional ל-24 שעות בלבד. רק מנהל
+  // רשאי להפוך אותה לקבועה ולפתוח הורדות מרוכזות.
+  if (allowedUser.accessLevel === "provisional") {
+    if (identity.emailVerified !== true) {
+      return {
+        ok: true,
+        permanent: false,
+        temporary: false,
+        provisional: false,
+        needsManager: true
+      };
+    }
+
+    const existingActivation = allowedUser.provisionalActivatedAt
+      ? new Date(allowedUser.provisionalActivatedAt)
+      : null;
+    const existingActivationMillis = existingActivation &&
+      !Number.isNaN(existingActivation.getTime())
+        ? existingActivation.getTime()
+        : 0;
+    const provisionalDurationMs = 24 * 60 * 60 * 1000;
+    if (existingActivationMillis) {
+      const existingUntil = new Date(
+        existingActivationMillis + provisionalDurationMs
+      );
+      if (existingUntil.getTime() <= Date.now()) {
+        return {
+          ok: true,
+          permanent: false,
+          temporary: false,
+          provisional: false,
+          expired: true,
+          needsManager: true
+        };
+      }
+      return {
+        ok: true,
+        permanent: false,
+        temporary: false,
+        provisional: true,
+        approvedUntil: existingUntil.toISOString()
+      };
+    }
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const approvedUntil = new Date(now.getTime() + provisionalDurationMs);
+    const actionId = Utilities.getUuid().replace(/-/g, "");
+    commitFirestoreWrites_([
+      {
+        update: {
+          name: getFirestoreDocumentName_("allowedUsers", identity.email),
+          fields: {
+            provisionalActivatedAt: { timestampValue: nowIso },
+            emailVerifiedAt: { timestampValue: nowIso },
+            updatedAt: { timestampValue: nowIso }
+          }
+        },
+        updateMask: {
+          fieldPaths: [
+            "provisionalActivatedAt",
+            "emailVerifiedAt",
+            "updatedAt"
+          ]
+        },
+        currentDocument: allowedUser.updateTime
+          ? { updateTime: allowedUser.updateTime }
+          : { exists: true }
+      },
+      {
+        update: {
+          name: getFirestoreDocumentName_("admin_actions", actionId),
+          fields: {
+            action: { stringValue: "provisional_access_activated" },
+            targetEmail: { stringValue: identity.email },
+            source: { stringValue: "firebase_email_verification" },
+            timestamp: { timestampValue: nowIso }
+          }
+        },
+        currentDocument: { exists: false }
+      }
+    ]);
+
+    return {
+      ok: true,
+      permanent: false,
+      temporary: false,
+      provisional: true,
+      approvedUntil: approvedUntil.toISOString()
     };
   }
 

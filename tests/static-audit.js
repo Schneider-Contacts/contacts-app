@@ -379,7 +379,7 @@ assert.match(
 );
 assert.match(
   rulesSource,
-  /accessReviewStatus == "pending"[\s\S]*?accessLevel == "provisional"[\s\S]*?provisionalAt \+ duration\.value\(24, 'h'\) > request\.time[\s\S]*?hasVerifiedEmail/,
+  /accessReviewStatus == "pending"[\s\S]*?accessLevel == "provisional"[\s\S]*?provisionalActivatedAt \+ duration\.value\(24, 'h'\) > request\.time[\s\S]*?hasVerifiedEmail/,
   "Firestore rules must limit provisional access to 24 hours after verified email or manager approval"
 );
 assert.match(
@@ -391,6 +391,11 @@ assert.match(
   appSource,
   /hasProvisionalAccess = permissionHasProvisionalAccess_[\s\S]*?user\.getIdToken\(true\)/,
   "Verified provisional entry must refresh the Firebase token before Firestore reads"
+);
+assert.match(
+  read("WebEndpoints.gs"),
+  /allowedUser\.accessLevel === "provisional"[\s\S]*?identity\.emailVerified !== true[\s\S]*?provisionalActivatedAt[\s\S]*?provisional_access_activated[\s\S]*?approvedUntil/,
+  "Verified email must start, rather than merely consume, the 24-hour provisional window"
 );
 assert.match(
   read("FormAccess.gs"),
