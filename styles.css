@@ -4020,6 +4020,10 @@ body.directorySheetOpen {
   text-align: center;
 }
 
+#login #authEmailStep > .authModeHeading {
+  color: #087a58;
+}
+
 #login #authEmailStep > .authModeDescription {
   max-width: 310px;
   margin-inline: auto;
