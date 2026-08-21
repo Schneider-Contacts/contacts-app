@@ -13,6 +13,9 @@ function upsertAllowedUserPairAtomically_(
   const permanentApproval = settings.permanentApproval === true;
   const provisionalApproval = settings.provisionalApproval === true;
   const approvedBy = normalizeEmail_(settings.approvedBy || "");
+  const approvalReason = cleanSheetValue_(
+    settings.approvalReason || "אישור מנהל לבקשת הצטרפות"
+  ).slice(0, 300);
 
   if (!normalizedEmail || !isValidEmail_(normalizedEmail)) {
     throw new Error("כתובת מייל אינה תקינה: " + email);
@@ -132,12 +135,24 @@ function upsertAllowedUserPairAtomically_(
       "temporaryAccessGrantedAt",
       "temporaryAccessGrantedBy"
     );
-    if (permanentApproval) {
-      userUpdateFields.push(
-        "permanentApprovedAt",
-        "permanentApprovedBy"
-      );
-    }
+  }
+  if (permanentApproval) {
+    userUpdateFields.push(
+      "accessReviewRequired",
+      "accessReviewStatus",
+      "temporaryAccessUntil",
+      "temporaryAccessReason",
+      "temporaryAccessGrantedAt",
+      "temporaryAccessGrantedBy",
+      "permanentApprovedAt",
+      "permanentApprovedBy",
+      "manualApproved",
+      "manualApprovedAt",
+      "manualApprovedBy",
+      "manualApprovalReason",
+      "accessLevel",
+      "provisionalActivatedAt"
+    );
   }
   if (grantProvisional) {
     userUpdateFields.push(
@@ -184,12 +199,31 @@ function upsertAllowedUserPairAtomically_(
     userFields.temporaryAccessGrantedAt = { nullValue: null };
     userFields.temporaryAccessGrantedBy = { stringValue: "" };
 
-    if (permanentApproval) {
-      userFields.permanentApprovedAt = { timestampValue: now };
-      userFields.permanentApprovedBy = {
-        stringValue: approvedBy || "admin"
-      };
-    }
+  }
+
+  if (permanentApproval) {
+    userFields.accessReviewRequired = { booleanValue: false };
+    userFields.accessReviewStatus = {
+      stringValue: ACCESS_REVIEW_STATUS_APPROVED
+    };
+    userFields.temporaryAccessUntil = { nullValue: null };
+    userFields.temporaryAccessReason = { stringValue: "" };
+    userFields.temporaryAccessGrantedAt = { nullValue: null };
+    userFields.temporaryAccessGrantedBy = { stringValue: "" };
+    userFields.permanentApprovedAt = { timestampValue: now };
+    userFields.permanentApprovedBy = {
+      stringValue: approvedBy || "admin"
+    };
+    userFields.manualApproved = { booleanValue: true };
+    userFields.manualApprovedAt = { timestampValue: now };
+    userFields.manualApprovedBy = {
+      stringValue: approvedBy || "admin"
+    };
+    userFields.manualApprovalReason = {
+      stringValue: approvalReason || "אישור מנהל לבקשת הצטרפות"
+    };
+    userFields.accessLevel = { stringValue: "active" };
+    userFields.provisionalActivatedAt = { nullValue: null };
   }
 
   if (grantProvisional) {
@@ -240,7 +274,7 @@ function upsertAllowedUserPairAtomically_(
         fields: userFields
       },
       updateMask: {
-        fieldPaths: userUpdateFields
+        fieldPaths: [...new Set(userUpdateFields)]
       },
       currentDocument:
         existingUser && existingUser.updateTime

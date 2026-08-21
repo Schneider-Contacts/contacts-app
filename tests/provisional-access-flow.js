@@ -39,7 +39,8 @@ const state = {
   allowedPhone: null,
   queued: 0,
   queuedValues: null,
-  upserts: 0
+  upserts: 0,
+  queuedUnknownEligible: false
 };
 const sandbox = {
   console,
@@ -70,6 +71,18 @@ const sandbox = {
     state.queuedValues = values;
     return { requestId: "pending-1", duplicate: false };
   },
+  getQueuedUnknownRegistrationForFinalization_: () =>
+    state.queuedUnknownEligible
+      ? {
+          requestId: "pending-1",
+          profile: {
+            name: "ישראל ישראלי",
+            role: "רופא",
+            department: "ילדים א׳",
+            contactId: ""
+          }
+        }
+      : null,
   upsertAllowedUserPairAtomically_: () => {
     state.upserts += 1;
     return {
@@ -95,6 +108,64 @@ vm.runInContext(
   sandbox
 );
 
+const queuedRequestState = { request: null };
+const queuedRequestSandbox = {
+  normalizeEmail_: value => String(value || "").trim().toLowerCase(),
+  normalizeIsraeliPhone: value => {
+    const digits = String(value || "").replace(/\D/g, "");
+    return digits.startsWith("972") ? `0${digits.slice(3)}` : digits;
+  },
+  cleanSheetValue_: value => String(value || "").trim(),
+  getAccessRequestId_: () => "access-request-1",
+  getAuthFlowDocument_: () => queuedRequestState.request
+};
+vm.createContext(queuedRequestSandbox);
+vm.runInContext(
+  extractFunction("getQueuedUnknownRegistrationForFinalization_"),
+  queuedRequestSandbox
+);
+
+queuedRequestState.request = {
+  data: {
+    status: "pending",
+    requestType: "contact_add",
+    grantAccessOnApproval: true,
+    email: "unknown@example.com",
+    phone: "+972501234567",
+    firstName: "ישראל",
+    lastName: "ישראלי",
+    role: "רופא",
+    department: "ילדים א׳"
+  }
+};
+const queuedProfile =
+  queuedRequestSandbox.getQueuedUnknownRegistrationForFinalization_(
+    "unknown@example.com",
+    "0501234567"
+  );
+assert.equal(queuedProfile.profile.name, "ישראל ישראלי");
+assert.equal(queuedProfile.profile.department, "ילדים א׳");
+
+queuedRequestState.request.data.status = "rejected";
+assert.equal(
+  queuedRequestSandbox.getQueuedUnknownRegistrationForFinalization_(
+    "unknown@example.com",
+    "0501234567"
+  ),
+  null,
+  "a rejected manager request must not authorize provisional setup"
+);
+queuedRequestState.request.data.status = "pending";
+queuedRequestState.request.data.phone = "0509999999";
+assert.equal(
+  queuedRequestSandbox.getQueuedUnknownRegistrationForFinalization_(
+    "unknown@example.com",
+    "0501234567"
+  ),
+  null,
+  "the queued request must match the verified email and phone pair"
+);
+
 function reset() {
   state.contact = { phone: "0501234567", name: "Test Contact" };
   state.allowedUser = null;
@@ -102,6 +173,7 @@ function reset() {
   state.queued = 0;
   state.queuedValues = null;
   state.upserts = 0;
+  state.queuedUnknownEligible = false;
 }
 
 reset();
@@ -218,10 +290,48 @@ result = sandbox.processAccessRegistration_(
   "app",
   { submitUnknownDetails: true }
 );
-assert.equal(result.route, "PENDING_ADMIN");
+assert.equal(result.route, "PROVISIONAL_SETUP_READY");
 assert.equal(state.queued, 1);
 assert.equal(state.queuedValues.firstName, "ישראל");
 assert.equal(state.queuedValues.department, "ילדים א׳");
+
+reset();
+state.contact = null;
+state.queuedUnknownEligible = true;
+result = sandbox.processAccessRegistration_(
+  { email: "unknown@example.com", phone: "0501234567" },
+  "app",
+  { allowQueuedUnknownRegistration: true }
+);
+assert.equal(result.route, "PROVISIONAL_READY");
+assert.equal(state.upserts, 1);
+
+reset();
+state.contact = null;
+assert.throws(
+  () => sandbox.processAccessRegistration_(
+    { email: "unknown@example.com", phone: "0501234567" },
+    "app",
+    { allowQueuedUnknownRegistration: true }
+  ),
+  /בקשת ההצטרפות אינה זמינה/
+);
+
+reset();
+state.contact = null;
+state.queuedUnknownEligible = true;
+state.allowedPhone = {
+  active: true,
+  email: "someone-else@example.com"
+};
+result = sandbox.processAccessRegistration_(
+  { email: "unknown@example.com", phone: "0501234567" },
+  "app",
+  { allowQueuedUnknownRegistration: true }
+);
+assert.equal(result.route, "PENDING_ADMIN");
+assert.equal(result.reason, "phone_linked_to_other_email");
+assert.equal(state.upserts, 0);
 
 assert.throws(
   () => sandbox.processAccessRegistration_(

@@ -330,7 +330,6 @@ function getAccessReviewReason_(
   email,
   phone
 ) {
-  if (!contact) return "phone_not_in_contacts";
   if (
     (allowedUser && allowedUser.active === false) ||
     (phonePermission && phonePermission.active === false) ||
@@ -362,6 +361,7 @@ function getAccessReviewReason_(
   ) {
     return "phone_linked_to_other_email";
   }
+  if (!contact) return "phone_not_in_contacts";
   return "";
 }
 
@@ -593,6 +593,47 @@ function getRegistrationContactProfile_(contact) {
   };
 }
 
+function getQueuedUnknownRegistrationForFinalization_(email, phone) {
+  const normalizedEmail = normalizeEmail_(email);
+  const normalizedPhone = normalizeIsraeliPhone(phone);
+  const requestId = getAccessRequestId_(normalizedPhone, normalizedEmail);
+  const request = getAuthFlowDocument_("contactAddRequests", requestId);
+  const data = request && request.data ? request.data : {};
+  const firstName = cleanSheetValue_(data.firstName);
+  const lastName = cleanSheetValue_(data.lastName);
+  const role = cleanSheetValue_(data.role);
+  const department = cleanSheetValue_(data.department);
+
+  if (
+    !request ||
+    data.status !== "pending" ||
+    data.requestType !== "contact_add" ||
+    data.grantAccessOnApproval !== true ||
+    normalizeEmail_(data.email) !== normalizedEmail ||
+    normalizeIsraeliPhone(data.phone) !== normalizedPhone ||
+    !firstName ||
+    !lastName ||
+    !role ||
+    !department
+  ) {
+    return null;
+  }
+
+  return {
+    requestId,
+    profile: {
+      name: [
+        cleanSheetValue_(data.titlePrefix),
+        firstName,
+        lastName
+      ].filter(Boolean).join(" ").trim(),
+      role,
+      department,
+      contactId: ""
+    }
+  };
+}
+
 function normalizeRegistrationOptionKey_(value) {
   return cleanSheetValue_(value)
     .toLowerCase()
@@ -760,6 +801,20 @@ function processAccessRegistration_(payload, source, options) {
         "מחלקה או מכון"
       );
     }
+    const queuedUnknownRegistration =
+      reviewReason === "phone_not_in_contacts" &&
+      settings.allowQueuedUnknownRegistration === true
+        ? getQueuedUnknownRegistrationForFinalization_(email, phone)
+        : null;
+    if (
+      reviewReason === "phone_not_in_contacts" &&
+      settings.allowQueuedUnknownRegistration === true &&
+      !queuedUnknownRegistration
+    ) {
+      throw new Error(
+        "בקשת ההצטרפות אינה זמינה להשלמה. חזרו לשלב ההרשמה או פנו למנהל."
+      );
+    }
     const contactProfile = getRegistrationContactProfile_(matchingContact);
     const submittedProfile = {
       name: [
@@ -771,7 +826,11 @@ function processAccessRegistration_(payload, source, options) {
       department: cleanSheetValue_(values.department),
       contactId: ""
     };
-    const profile = matchingContact ? contactProfile : submittedProfile;
+    const profile = matchingContact
+      ? contactProfile
+      : queuedUnknownRegistration
+        ? queuedUnknownRegistration.profile
+        : submittedProfile;
 
     if (settings.submitUnknownDetails === true && matchingContact) {
       return {
@@ -796,7 +855,7 @@ function processAccessRegistration_(payload, source, options) {
       };
     }
 
-    if (reviewReason) {
+    if (reviewReason && !queuedUnknownRegistration) {
       const requestResult = queueAccessRequestForAdmin_(
         matchingContact,
         {
@@ -835,6 +894,19 @@ function processAccessRegistration_(payload, source, options) {
         requestedAt: now
       });
       clearPublicAuthRouteCache_("email", email);
+      if (
+        reviewReason === "phone_not_in_contacts" &&
+        settings.submitUnknownDetails === true
+      ) {
+        return {
+          ok: true,
+          route: "PROVISIONAL_SETUP_READY",
+          provisional: false,
+          eligible: true,
+          pendingManagerReview: true,
+          requestId: requestResult.requestId
+        };
+      }
       return {
         ok: true,
         route: "PENDING_ADMIN",

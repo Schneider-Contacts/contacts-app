@@ -3071,7 +3071,8 @@ function approveContactAddRequestFromWeb_(parameters) {
           allowTransfer: true,
           allowReactivate: true,
           permanentApproval: true,
-          approvedBy: admin.email
+          approvedBy: admin.email,
+          approvalReason: "אישור בקשת הצטרפות ואיש קשר"
         }
       );
       clearPublicAuthRouteCache_("email", contact.email);
@@ -3197,7 +3198,7 @@ function finalizeProvisionalAccessFromWeb_(parameters) {
     email: identity.email,
     phone: parameters && parameters.phone,
     submittedAt: new Date().toISOString()
-  }, "app");
+  }, "app", { allowQueuedUnknownRegistration: true });
 }
 
 function submitAccessRegistrationDetailsFromWeb_(parameters) {

@@ -3002,7 +3002,7 @@ async function submitRegistrationDetails_() {
   authActionInProgress = true;
   const button = document.getElementById("registrationDetailsSubmitBtn");
   if (button) button.disabled = true;
-  setLoginStatus("שולח את הבקשה למנהל...", "loading");
+  setLoginStatus("שומר את הפרטים...", "loading");
   try {
     const result = await submitAuthRouterForm_(
       "submitRegistrationDetails",
@@ -3029,12 +3029,19 @@ async function submitRegistrationDetails_() {
       );
       return;
     }
-    if (route !== "PENDING_ADMIN") {
+    if (route !== "PROVISIONAL_SETUP_READY") {
       throw new Error("לא הצלחנו לשמור את בקשת ההצטרפות.");
     }
-    showAuthNotice_(
-      "הבקשה נשלחה למנהל",
-      "לאחר האישור תוכלו לחזור לאפליקציה, לבחור סיסמה ולהיכנס."
+    authAccountSetupEmail = pendingRegistrationEmail;
+    provisionalRegistrationPhone = pendingRegistrationPhone;
+    authAccountSetupFallback = false;
+    clearCachedAuthRoute_("email", pendingRegistrationEmail);
+    showAuthPasswordStep_(pendingRegistrationEmail, "register", {
+      preserveFlow: true
+    });
+    setLoginStatus(
+      "הפרטים נשמרו. בחרו סיסמה; לאחר אימות המייל תיפתח גישה זמנית ל־24 שעות עד לאישור מנהל.",
+      "success"
     );
   } catch (error) {
     showAuthRegistrationDetailsStep_(
@@ -5600,10 +5607,8 @@ async function registerWithPassword() {
           },
           "contacts-provisional-access-finalize"
         );
-        if (
-          String(finalized && finalized.route || "") !==
-            "PROVISIONAL_READY"
-        ) {
+        const finalizedRoute = String(finalized && finalized.route || "");
+        if (!["PROVISIONAL_READY", "ACTIVE"].includes(finalizedRoute)) {
           throw new Error(
             "יצירת ההרשאה הזמנית לא הושלמה. נסו שוב או פנו למנהל."
           );
