@@ -1048,6 +1048,21 @@ assert.match(
   "Only admins may see intern edit/delete actions while ordinary users receive the report action"
 );
 assert.match(
+  extractCompleteFunction(appSource, "downloadContact"),
+  /downloadSingleContactVCard_/,
+  "Regular contacts must use the shared single-contact save path"
+);
+assert.match(
+  extractCompleteFunction(appSource, "downloadMonthlyIntern_"),
+  /downloadSingleContactVCard_/,
+  "Monthly interns must use the same single-contact save path as regular contacts"
+);
+assert.doesNotMatch(
+  extractCompleteFunction(appSource, "downloadMonthlyIntern_"),
+  /shareOrDownloadVCard/,
+  "Monthly intern save must not open the file-sharing VCF flow"
+);
+assert.match(
   appSource,
   /function createMonthlyInternId_[\s\S]*?function getMonthlyInternById_[\s\S]*?function updateActiveMonthlyInterns_[\s\S]*?function saveMonthlyInternChanges_[\s\S]*?function deleteMonthlyIntern_/,
   "Monthly interns must have stable identifiers and isolated admin edit/delete operations"

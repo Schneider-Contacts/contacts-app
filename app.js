@@ -14572,6 +14572,11 @@ function downloadContact(id) {
   const safeFileName =
     displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
 
+  downloadSingleContactVCard_(vcard, safeFileName);
+}
+
+function downloadSingleContactVCard_(vcard, safeFileName) {
+
   const blob = new Blob([vcard], {
     type: "text/vcard;charset=utf-8"
   });
@@ -14589,9 +14594,11 @@ function downloadContact(id) {
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 1000);
+
+  return true;
 }
 
-async function downloadMonthlyIntern_(internId) {
+function downloadMonthlyIntern_(internId) {
   const intern = getMonthlyInternById_(internId);
   if (!intern) return;
   const displayName = String(intern.name || "סטאז׳ר").trim();
@@ -14609,7 +14616,7 @@ async function downloadMonthlyIntern_(internId) {
     lastEn: ""
   }) + "\r\n";
   const safeFileName = displayName.replace(/[\\/:*?"<>|]+/g, "-") + ".vcf";
-  const completed = await shareOrDownloadVCard(vcard, safeFileName);
+  const completed = downloadSingleContactVCard_(vcard, safeFileName);
   if (completed) recordContactUse_(intern.phone, "download");
 }
 
