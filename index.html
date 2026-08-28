@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260828-tools-ui-v3">
+<link rel="stylesheet" href="styles.css?v=20260828-directory-refinements-v4">
 
 
 
@@ -383,7 +383,7 @@
           </div>
           <button type="button" id="myProfileBtn" class="directoryMenuItem myProfileBtn" role="menuitem" onclick="closeAllDirectoryMenus_(); openMyProfileModal()">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="m17.6 5.4 1-1a1.4 1.4 0 0 1 2 2l-1 1-2-2ZM16.9 6.1l2 2-4.2 4.2-2.5.5.5-2.5 4.2-4.2Z"/></svg>
-            <span>עריכת הפרטים שלי</span>
+            <span>עדכון הפרטים שלי</span>
           </button>
           <button type="button" id="adminOpenBtn" class="directoryMenuItem adminDashboardBtn" role="menuitem" onclick="closeAllDirectoryMenus_(); openAdminPanel()">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>
@@ -418,7 +418,7 @@
 
   <button type="button" id="monthlyInternsQuickEntry" class="monthlyInternsQuickEntry" onclick="openMonthlyInternsView_()">
     <span class="monthlyInternsQuickIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 20v-1.5a5 5 0 0 1 10 0V20M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
-    <span class="monthlyInternsQuickText"><strong>סטאז׳רים החודש</strong><small id="monthlyInternsQuickMonthLabel"></small></span>
+    <span class="monthlyInternsQuickText"><strong>סטאז׳רים</strong><small id="monthlyInternsQuickMonthLabel"></small></span>
     <span id="monthlyInternsQuickCount" class="monthlyInternsQuickCount" hidden></span>
     <svg class="monthlyInternsQuickArrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
   </button>
@@ -474,7 +474,7 @@
           <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
           <span>הוספת איש קשר למאגר</span>
         </button>
-        <button type="button" id="importAllBtn" class="homeToolButton" onclick="downloadAllContacts()">
+        <button type="button" id="importAllBtn" class="homeToolButton homeToolButtonFeatured" onclick="downloadAllContacts()">
           <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 19h14"/></svg></span>
           <span>הורדת כל אנשי הקשר</span>
         </button>
@@ -484,7 +484,7 @@
         </button>
         <button type="button" id="homeProfileBtn" class="homeToolButton homeProfileTool" onclick="openMyProfileModal()">
           <span class="homeToolIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/><path d="m17.6 5.4 1-1a1.4 1.4 0 0 1 2 2l-1 1-2-2Z"/></svg></span>
-          <span>הפרטים שלי</span>
+          <span>עדכון הפרטים שלי</span>
         </button>
       </div>
     </section>
@@ -525,7 +525,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
       </button>
       <div class="monthlyInternsViewHeading">
-        <h2 id="monthlyInternsTitle">סטאז׳רים החודש</h2>
+        <h2 id="monthlyInternsTitle">סטאז׳רים</h2>
         <p id="monthlyInternsMonthLabel"></p>
       </div>
       <span id="monthlyInternsCount" class="monthlyInternsCount" hidden></span>
@@ -718,7 +718,7 @@
         <div class="toolModalIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/></svg></div>
         <div>
           <div class="toolModalEyebrow">כלים שימושיים</div>
-          <h3 id="myProfileModalTitle" class="adminModalTitle">הפרטים שלי</h3>
+          <h3 id="myProfileModalTitle" class="adminModalTitle">עדכון הפרטים שלי</h3>
           <p class="toolModalSubtitle">בדקו ועדכנו את הפרטים שמופיעים בספר.</p>
         </div>
       </div>
@@ -982,7 +982,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260828-tools-ui-v3"></script>
+  <script src="app.js?v=20260828-directory-refinements-v4"></script>
 
 </body>
 </html>

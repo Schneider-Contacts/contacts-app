@@ -3200,6 +3200,40 @@ body.directorySheetOpen {
   gap: 7px;
 }
 
+#app .laboratoryResultGroupHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 13px 2px 2px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid #dce8e2;
+  color: #214d3e;
+}
+
+#app .laboratoryResultGroupHeading:first-child {
+  margin-top: 2px;
+}
+
+#app .laboratoryResultGroupHeading span {
+  font-size: 14px;
+  font-weight: 850;
+}
+
+#app .laboratoryResultGroupHeading small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #edf7f2;
+  color: #287055;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 #app .contact {
   position: relative;
   display: flex;
@@ -4913,6 +4947,23 @@ body.directorySheetOpen {
 #app .homeToolButton:hover {
   border-color: #bdd9cc;
   background: #f0f8f4;
+}
+
+#app .homeToolButtonFeatured {
+  border-color: #9fd0bb;
+  background: #edf8f2;
+  color: #175f45;
+  box-shadow: 0 5px 14px rgba(5, 150, 105, 0.09);
+}
+
+#app .homeToolButtonFeatured .homeToolIcon {
+  background: #15936a;
+  color: #ffffff;
+}
+
+#app .homeToolButtonFeatured:hover {
+  border-color: #75b99b;
+  background: #e4f5ec;
 }
 
 #app .homeToolButton:active {

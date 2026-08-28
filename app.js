@@ -57,7 +57,6 @@ const PASSWORD_RESET_REQUESTS_COLLECTION_NAME = "passwordResetRequests";
 const USAGE_CONTACT_FLUSH_DELAY_MS = 3 * 60 * 1000;
 const USAGE_PENDING_STORAGE_KEY = "contacts_pending_usage_v3";
 const LAST_LOGIN_EMAIL_STORAGE_KEY = "contacts_last_login_email_v1";
-const AUTH_STATUS_TELEMETRY_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const AUTH_STATUS_TELEMETRY_PREFIX = "contacts_auth_status_write_v1_";
 const USER_SUBMISSION_COOLDOWN_MS = 2 * 60 * 1000;
 const PENDING_PASSWORD_RECOVERY_STORAGE_KEY =
@@ -5284,7 +5283,10 @@ async function recordOwnAuthState_(state) {
   if (normalizedState !== "verification_sent") {
     try {
       const lastWrittenAt = Number(localStorage.getItem(telemetryKey) || 0);
-      if (lastWrittenAt && Date.now() - lastWrittenAt < AUTH_STATUS_TELEMETRY_INTERVAL_MS) {
+      if (
+        lastWrittenAt &&
+        getIsraelDateKey_(new Date(lastWrittenAt)) === getIsraelDateKey_()
+      ) {
         return;
       }
     } catch (error) {
@@ -9698,6 +9700,37 @@ function getAdminNewUsersThisMonth_() {
   });
 }
 
+function getAdminUsersActiveToday_() {
+  const todayKey = getIsraelDateKey_();
+  return adminAllowedUsers
+    .map(user => ({
+      user,
+      lastAccessAt: getAdminTimestampMillis_(
+        user && (user.lastAccessAt || user.lastVerifiedLoginAt)
+      )
+    }))
+    .filter(item =>
+      item.lastAccessAt > 0 &&
+      getIsraelDateKey_(new Date(item.lastAccessAt)) === todayKey
+    )
+    .sort((left, right) => right.lastAccessAt - left.lastAccessAt);
+}
+
+function getAdminActiveUserPresentation_(user) {
+  const email = normalizeEmail(user && user.email || "");
+  const phone = normalizePhone(user && user.phone || "");
+  const contact = contacts.find(item =>
+    (email && normalizeEmail(item && item.email) === email) ||
+    (phone && normalizePhone(item && item.phone) === phone)
+  ) || null;
+  return {
+    email,
+    name: contact
+      ? getContactDisplayName_(contact)
+      : getAccountDisplayName_(email, email || "משתמש ללא שם")
+  };
+}
+
 function renderAdminHomeMetrics_() {
   const todayKey = getIsraelDateKey_();
   const todayMetric = adminDailyActiveUsers.find(item => item.date === todayKey);
@@ -9739,11 +9772,29 @@ function openAdminUsageMetric_(kind) {
   const todayKey = getIsraelDateKey_();
   const metric = adminDailyActiveUsers.find(item => item.date === todayKey);
   const count = Math.max(0, Number(metric && metric.activeUserCount) || 0);
+  const identifiedUsers = getAdminUsersActiveToday_();
+  const unidentifiedCount = Math.max(0, count - identifiedUsers.length);
   openAdminFocusSheet_({
     eyebrow: "שימוש",
     title: "משתמשים היום",
     subtitle: `${count} משתמשים ייחודיים`,
-    html: '<div class="adminFocusNotice">המדד הקיים סופר משתמשים ייחודיים ושומר רק מזהה טכני, ללא רשימת מיילים או פעילות אישית.</div>'
+    html: identifiedUsers.length
+      ? `
+          <div class="adminMetricList">${identifiedUsers.map(({ user }) => {
+            const identity = getAdminActiveUserPresentation_(user);
+            return `
+              <button type="button" onclick="closeAdminFocusSheet_(); openAdminPerson_('', '${escapeJsString(identity.email)}')">
+                <strong>${escapeHtml(identity.name)}</strong>
+              </button>
+            `;
+          }).join("")}</div>
+          ${unidentifiedCount
+            ? `<div class="adminFocusNotice">${unidentifiedCount} משתמשים נוספים נספרו היום, אך טרם נשמר עבורם זיהוי ברשימת הגישה האחרונה.</div>`
+            : ""}
+        `
+      : count
+        ? '<div class="adminFocusNotice">המשתמשים נספרו היום, אך פרטי הזיהוי שלהם טרם עודכנו ברשימת הגישה האחרונה.</div>'
+        : '<div class="adminFocusEmpty"><span aria-hidden="true">✓</span><strong>עדיין לא נרשמו משתמשים היום</strong></div>'
   });
 }
 
@@ -14837,6 +14888,38 @@ function getVisibleDepartment_(contact) {
   return genericLabels.has(normalized) ? "" : department;
 }
 
+function getLaboratoryHospitalGroup_(contact) {
+  const normalizedPhone = normalizePhone(String(contact && contact.phone || ""));
+  const internationalDigits = normalizedPhone.replace(/\D/g, "");
+  const localDigits = internationalDigits.startsWith("972")
+    ? "0" + internationalDigits.slice(3)
+    : internationalDigits;
+
+  if (localDigits.startsWith("03925")) {
+    return { key: "schneider", label: "שניידר", order: 0 };
+  }
+  if (localDigits.startsWith("03937")) {
+    return { key: "beilinson", label: "בלינסון", order: 1 };
+  }
+  return { key: "other", label: "מעבדות נוספות", order: 2 };
+}
+
+function getLaboratoryGroupedDisplayList_(list) {
+  if (activeQuickFilter !== "labs") {
+    return list.map(contact => ({ contact, group: null }));
+  }
+
+  return list
+    .map((contact, index) => ({
+      contact,
+      group: getLaboratoryHospitalGroup_(contact),
+      index
+    }))
+    .sort((left, right) =>
+      left.group.order - right.group.order || left.index - right.index
+    );
+}
+
 function show(list) {
   currentDisplayedContacts = list;
 
@@ -14867,8 +14950,22 @@ function show(list) {
 
   setListStatus("", "");
   let html = "";
+  let lastLaboratoryGroup = "";
 
-  list.forEach(c => {
+  getLaboratoryGroupedDisplayList_(list).forEach(({ contact: c, group }) => {
+    if (group && group.key !== lastLaboratoryGroup) {
+      const groupCount = list.filter(contact =>
+        getLaboratoryHospitalGroup_(contact).key === group.key
+      ).length;
+      html += `
+        <div class="laboratoryResultGroupHeading">
+          <span>${escapeHtml(group.label)}</span>
+          <small>${groupCount}</small>
+        </div>
+      `;
+      lastLaboratoryGroup = group.key;
+    }
+
     const cleanPhone = normalizePhone(c.phone).replace("+", "");
     const displayPhone = formatPhoneForDisplay(c.phone);
     const isSelected = selectionMode && selectedContactIds.has(c.id);

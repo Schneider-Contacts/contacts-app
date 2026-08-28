@@ -962,8 +962,18 @@ assert.match(
 );
 assert.match(
   indexSource,
-  /id="monthlyInternsQuickEntry"[\s\S]*?סטאז׳רים החודש[\s\S]*?id="monthlyInternsView"[\s\S]*?id="monthlyInternsTitle"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsSearchInput"[\s\S]*?id="monthlyInternsSearchClear"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
+  /id="monthlyInternsQuickEntry"[\s\S]*?<strong>סטאז׳רים<\/strong>[\s\S]*?id="monthlyInternsView"[\s\S]*?id="monthlyInternsTitle"[\s\S]*?id="monthlyInternsMonthLabel"[\s\S]*?id="monthlyInternsSearchInput"[\s\S]*?id="monthlyInternsSearchClear"[\s\S]*?id="monthlyInternsStatus"[\s\S]*?id="monthlyInternsList"/,
   "Quick Access must open the current-month interns list in a dedicated app view"
+);
+assert.match(
+  indexSource,
+  /id="importAllBtn" class="homeToolButton homeToolButtonFeatured"/,
+  "Downloading all contacts must remain visually prominent in Useful Tools"
+);
+assert.match(
+  indexSource,
+  /id="homeProfileBtn"[\s\S]*?>עדכון הפרטים שלי</,
+  "The profile tool must use the clearer update-details label"
 );
 assert.doesNotMatch(
   indexSource,
@@ -1350,6 +1360,35 @@ assert.strictEqual(
   ).length,
   1,
   "The laboratories quick filter must retain its existing department semantics"
+);
+
+const laboratoryGroupingSandbox = { activeQuickFilter: "labs" };
+vm.createContext(laboratoryGroupingSandbox);
+vm.runInContext(
+  [
+    extractCompleteFunction(appSource, "normalizePhone"),
+    extractCompleteFunction(appSource, "getLaboratoryHospitalGroup_"),
+    extractCompleteFunction(appSource, "getLaboratoryGroupedDisplayList_")
+  ].join("\n"),
+  laboratoryGroupingSandbox
+);
+assert.strictEqual(
+  laboratoryGroupingSandbox.getLaboratoryHospitalGroup_({ phone: "03-925-1234" }).key,
+  "schneider",
+  "Laboratory numbers beginning 03925 must be grouped under Schneider"
+);
+assert.strictEqual(
+  laboratoryGroupingSandbox.getLaboratoryHospitalGroup_({ phone: "+972-3-937-1234" }).key,
+  "beilinson",
+  "Laboratory numbers beginning 03937 must be grouped under Beilinson"
+);
+assert.deepStrictEqual(
+  Array.from(laboratoryGroupingSandbox.getLaboratoryGroupedDisplayList_([
+    { phone: "03-937-1111" },
+    { phone: "03-925-2222" }
+  ]), item => item.group.key),
+  ["schneider", "beilinson"],
+  "Laboratory results must display Schneider before Beilinson"
 );
 assert.strictEqual(
   directoryFilterSandbox.contacts.filter(contact =>
@@ -1931,6 +1970,33 @@ assert.match(
   adminFocusElements.adminList.innerHTML,
   />7<[\s\S]*?אנשים השתמשו באפליקציה היום[\s\S]*?סטאז׳רים החודש/,
   "The System view must render usage and monthly interns management"
+);
+
+const activeTodaySandbox = {
+  adminAllowedUsers: [
+    { email: "today@example.com", lastAccessAt: "2026-08-28T08:00:00.000Z" },
+    { email: "old@example.com", lastAccessAt: "2026-08-27T08:00:00.000Z" }
+  ],
+  getAdminTimestampMillis_: value => new Date(value).getTime(),
+  getIsraelDateKey_: value => {
+    const date = value ? new Date(value) : new Date("2026-08-28T12:00:00.000Z");
+    return date.toISOString().slice(0, 10);
+  }
+};
+vm.createContext(activeTodaySandbox);
+vm.runInContext(
+  extractCompleteFunction(appSource, "getAdminUsersActiveToday_"),
+  activeTodaySandbox
+);
+assert.strictEqual(
+  activeTodaySandbox.getAdminUsersActiveToday_().length,
+  1,
+  "Today's usage detail must identify users from the existing last-access state"
+);
+assert.match(
+  appSource,
+  /function openAdminUsageMetric_\(kind\)[\s\S]*?getAdminUsersActiveToday_\(\)[\s\S]*?openAdminPerson_/,
+  "Clicking today's users metric must render identifiable users and open their management view"
 );
 
 const focusedAdminRenderSource = [
