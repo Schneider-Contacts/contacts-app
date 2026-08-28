@@ -1112,14 +1112,6 @@ select {
   pointer-events: none;
 }
 
-.adminFilterRow {
-  display: flex;
-  gap: 8px;
-  margin-top: 9px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
 .adminFilterBtn {
   min-height: 34px;
   padding: 7px 11px;
@@ -2447,6 +2439,302 @@ select {
   }
 }
 
+/* ===== Admin home and operational health v2 ===== */
+.adminHomeMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.adminHomeMetric {
+  min-height: 92px;
+  margin: 0;
+  padding: 15px;
+  border: 1px solid #dfeae4;
+  border-radius: 18px;
+  background: #fff;
+  color: #1e4437;
+  box-shadow: 0 8px 24px rgba(25, 63, 50, 0.06);
+  text-align: right;
+}
+
+.adminHomeMetric strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #087a55;
+  font-size: 27px;
+  line-height: 1;
+}
+
+.adminHomeMetric span {
+  color: #526d63;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.adminSectionTitle {
+  margin: 0 2px 10px;
+  color: #294c40;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.adminMetricList {
+  display: grid;
+  gap: 7px;
+}
+
+.adminMetricList button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e1ebe6;
+  border-radius: 13px;
+  background: #fff;
+  color: #294c40;
+  box-shadow: none;
+  text-align: right;
+}
+
+.adminMetricList button span {
+  color: #70837b;
+  font-size: 11px;
+}
+
+.adminFocusNotice {
+  padding: 14px;
+  border-radius: 14px;
+  background: #f4f9f6;
+  color: #526d63;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#app .adminSystemHomeCard {
+  border-color: #f2d593;
+  background: #fffaf0;
+}
+
+#app .adminSystemHomeCard strong {
+  color: #77520c;
+}
+
+.adminHealthCard,
+.adminSystemSection {
+  margin: 0 0 14px;
+  padding: 16px;
+  border: 1px solid #e0eae5;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 9px 28px rgba(25, 63, 50, 0.055);
+}
+
+.adminSystemSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.adminSystemSectionHeader h3 {
+  margin: 0;
+  color: #23483b;
+  font-size: 16px;
+}
+
+.adminSystemSectionHeader p,
+.adminSystemSectionHeader time {
+  margin: 3px 0 0;
+  color: #74877f;
+  font-size: 11.5px;
+}
+
+.adminHealthRows {
+  display: grid;
+  gap: 2px;
+}
+
+.adminHealthRow {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 55px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.adminHealthRow:last-child {
+  border-bottom: 0;
+}
+
+.adminHealthStatusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #eaf8f1;
+  color: #087a55;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.adminHealthRow.failed .adminHealthStatusIcon {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.adminHealthRow.pending .adminHealthStatusIcon {
+  background: #f3f6f4;
+  color: #71827b;
+}
+
+.adminHealthRow strong,
+.adminHealthRow small {
+  display: block;
+}
+
+.adminHealthRow strong {
+  color: #294c40;
+  font-size: 13px;
+}
+
+.adminHealthRow small {
+  margin-top: 2px;
+  color: #70837b;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.adminHealthRefreshBtn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.adminSystemQuietState {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f5faf7;
+  color: #315b4c;
+}
+
+.adminSystemQuietState > span {
+  color: #079669;
+  font-weight: 900;
+}
+
+.adminSystemQuietState strong,
+.adminSystemQuietState small {
+  display: block;
+}
+
+.adminSystemQuietState strong {
+  font-size: 12.5px;
+}
+
+.adminSystemQuietState small {
+  margin-top: 3px;
+  color: #70837b;
+  font-size: 11px;
+}
+
+.adminSystemLinkRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  margin: 0;
+  padding: 10px 11px;
+  border: 0;
+  border-radius: 13px;
+  background: #f7faf8;
+  color: #294c40;
+  box-shadow: none;
+  text-align: right;
+}
+
+.adminSystemLinkRow.warning {
+  background: #fff8e8;
+  color: #76520d;
+}
+
+.adminSystemLinkRow strong,
+.adminSystemLinkRow small {
+  display: block;
+}
+
+.adminSystemLinkRow strong {
+  font-size: 13px;
+}
+
+.adminSystemLinkRow small {
+  margin-top: 3px;
+  color: #74877f;
+  font-size: 11px;
+}
+
+.adminSystemLinkRow svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.adminProblemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.adminProblemRow strong,
+.adminProblemRow span {
+  display: block;
+}
+
+.adminProblemRow > div > span {
+  margin-top: 3px;
+  color: #74877f;
+  font-size: 11px;
+}
+
+@media (max-width: 520px) {
+  .adminHomeMetrics {
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .adminHomeMetric {
+    min-height: 82px;
+    padding: 13px;
+  }
+
+  .adminHealthCard,
+  .adminSystemSection {
+    padding: 14px;
+    border-radius: 17px;
+  }
+}
+
 /* ===== Main Screen + Search UX v2 ===== */
 .srOnly {
   position: absolute !important;
@@ -3724,43 +4012,6 @@ body.directorySheetOpen {
   gap: 12px;
 }
 
-.adminDailyUseCard {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 18px;
-  border: 1px solid var(--green-300);
-  border-radius: 18px;
-  background: linear-gradient(135deg, #ffffff 0%, var(--green-50) 100%);
-  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.08);
-}
-
-.adminDailyUseValue {
-  min-width: 56px;
-  color: var(--green-700);
-  font-size: 34px;
-  font-weight: 950;
-  line-height: 1;
-  text-align: center;
-}
-
-.adminDailyUseCard strong,
-.adminDailyUseCard small {
-  display: block;
-}
-
-.adminDailyUseCard strong {
-  color: #23483d;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.adminDailyUseCard small {
-  margin-top: 4px;
-  color: #6a8078;
-  font-size: 11.5px;
-}
-
 .adminMoreSection {
   overflow: hidden;
   border: 1px solid #dceae4;
@@ -3883,14 +4134,6 @@ body.directorySheetOpen {
     padding-inline: 5px;
     font-size: 11px;
     line-height: 1.25;
-  }
-
-  .adminDailyUseCard {
-    padding: 15px;
-  }
-
-  .adminDailyUseValue {
-    font-size: 31px;
   }
 
   .adminMoreRow,
@@ -5721,13 +5964,6 @@ body.directorySheetOpen {
   gap: 10px;
 }
 
-.adminDailyUseCard {
-  padding: 15px 16px;
-  border-color: #dbe8e2;
-  background: #ffffff;
-  box-shadow: 0 4px 15px rgba(27, 53, 44, 0.035);
-}
-
 .adminSystemFeatureCard {
   display: flex;
   align-items: flex-start;
@@ -6217,6 +6453,501 @@ body.directorySheetOpen {
 .usefulToolSurfaceCard .adminFormField textarea:focus {
   border-color: #56b88e;
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+/* ===== Useful tools surfaces v2 ===== */
+.usefulToolSurfaceCard {
+  max-width: 540px;
+  padding: 20px;
+  border: 1px solid #e2ebe6;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(20, 48, 39, 0.2);
+}
+
+.usefulToolSurfaceCard .toolModalHeader {
+  align-items: flex-start;
+  margin: 0 0 18px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.toolModalHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.toolModalHeading > div:last-child,
+.guideHeaderText {
+  min-width: 0;
+}
+
+.toolModalIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #cfe8dc;
+  border-radius: 14px;
+  background: #eff9f4;
+  color: var(--green-700);
+}
+
+.toolModalIcon svg,
+.toolModalClose svg,
+.guideHeaderBack svg,
+.guidePlatformIcon svg,
+.finalGuideBtn svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolModalEyebrow {
+  margin: 0 0 3px;
+  color: var(--green-700);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+
+.usefulToolSurfaceCard .adminModalTitle {
+  margin: 0;
+  color: #17352d;
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.toolModalSubtitle {
+  margin: 4px 0 0;
+  color: #687d74;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.toolModalClose,
+.guideHeaderBack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e1ebe6;
+  border-radius: 13px;
+  background: #f8fbf9;
+  color: #526b61;
+  box-shadow: none;
+}
+
+.toolModalClose:hover,
+.guideHeaderBack:hover {
+  border-color: #cfe4da;
+  background: #eff8f3;
+  color: #245946;
+}
+
+.usefulToolSurfaceCard .adminFormGrid {
+  gap: 12px;
+}
+
+.usefulToolSurfaceCard .adminFormField label {
+  margin: 0 2px 7px;
+  color: #36584b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.usefulToolSurfaceCard .adminFormField input,
+.usefulToolSurfaceCard .adminFormField select,
+.usefulToolSurfaceCard .adminFormField textarea {
+  min-height: 48px;
+  margin: 0;
+  padding: 12px 13px;
+  border-color: #dce7e1;
+  border-radius: 13px;
+  background: #fbfcfc;
+  color: #213d34;
+  font-size: 15px;
+  text-align: right;
+}
+
+.usefulToolSurfaceCard .adminModalActions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #edf2ef;
+}
+
+.usefulToolSurfaceCard .adminActionBtn {
+  min-height: 48px;
+  border-radius: 14px;
+  font-size: 13.5px;
+}
+
+.usefulToolSurfaceCard .adminActionBtn.primary {
+  box-shadow: 0 8px 18px rgba(5, 150, 105, 0.18);
+}
+
+.contactPickerBox {
+  margin: 0 0 14px;
+  padding: 13px;
+  border: 1px solid #dcebe4;
+  border-radius: 16px;
+  background: #f8fcfa;
+}
+
+.contactPickerBox p {
+  margin: 0 0 10px;
+  color: #5c7269;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.contactPickerBtn {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid #cfe6da;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--green-700);
+  box-shadow: none;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.contactAddNote,
+.myProfileIntro {
+  margin: 0 0 15px;
+  color: #5b7168;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.myProfileHero {
+  margin: 0 0 14px;
+  padding: 12px 13px;
+  border-color: #dcebe4;
+  border-radius: 16px;
+  background: #f8fcfa;
+  box-shadow: none;
+}
+
+.myProfileAvatar {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 14px;
+  box-shadow: none;
+  color: var(--green-700);
+}
+
+.myProfileAvatar svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.myProfileHeroTitle {
+  font-size: 14.5px;
+}
+
+.recentModalCount {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  margin: 0 0 10px;
+  padding: 11px 13px;
+  border-color: #d7eadf;
+  border-radius: 14px;
+  background: #f3faf6;
+  font-size: 13.5px;
+}
+
+.toolInfoDisclosure {
+  margin: 0 0 13px;
+  padding: 0 12px;
+  border: 1px solid #e2ebe6;
+  border-radius: 13px;
+  background: #fbfcfc;
+}
+
+.toolInfoDisclosure summary {
+  padding: 11px 0;
+  color: #456358;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.toolInfoDisclosure .recentModalExplanation {
+  margin: -2px 0 11px;
+  color: #657a71;
+  font-size: 12px;
+}
+
+.recentModalSelectionTools {
+  margin: 0 0 10px;
+}
+
+.recentModalList {
+  max-height: min(38vh, 330px);
+  padding: 2px 4px;
+  border-top: 1px solid #edf2ef;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.recentContactOption {
+  min-height: 48px;
+  padding: 11px 3px;
+}
+
+#importGuidePage {
+  max-width: 540px;
+}
+
+#importGuidePage .guideCard {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid #e2ebe6;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(22, 53, 43, 0.12);
+}
+
+.guideHeader {
+  display: grid;
+  grid-template-columns: 40px 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.guideHeaderBack {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.guideHeaderIcon {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.guideHeaderText {
+  grid-column: 3;
+  grid-row: 1;
+  text-align: right;
+}
+
+.guideHeaderText h1 {
+  margin: 0;
+  color: #17352d;
+  font-size: 21px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.guideSubtitle {
+  margin: 0 0 12px;
+  color: #657a71;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.guideCountBox {
+  margin: 0 0 13px;
+  padding: 11px 13px;
+  border-color: #d7eadf;
+  border-radius: 14px;
+  background: #f3faf6;
+  font-size: 13.5px;
+}
+
+.finalGuideBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  margin: 0 0 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.finalGuideBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.guidePlatformSection {
+  margin: 10px 0;
+  padding: 13px 14px 11px;
+  border-color: #e2ebe6;
+  border-radius: 16px;
+  background: #fbfcfc;
+}
+
+.guidePlatformTitle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 10px;
+  color: #294d40;
+  font-size: 15px;
+}
+
+.guidePlatformIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #eff8f3;
+  color: var(--green-700);
+}
+
+.guidePlatformIcon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.guideSteps {
+  margin: 0;
+  padding-right: 21px;
+  color: #456358;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.guideSteps li {
+  margin-bottom: 7px;
+  padding-right: 2px;
+}
+
+.guideDirectOpenNote {
+  margin-top: 9px;
+  border: 0;
+  background: #f1f8f4;
+  font-size: 11.5px;
+}
+
+.guideBackBtn {
+  min-height: 46px;
+  margin-top: 14px;
+  border-color: #d9e8e0;
+  border-radius: 14px;
+  background: #f7faf8;
+  color: #365d4e;
+}
+
+@media (max-width: 600px) {
+  .adminModal.usefulToolModal {
+    padding: 18px 0 0;
+    align-items: flex-end;
+  }
+
+  .adminModal.usefulToolModal.visible {
+    align-items: flex-end;
+  }
+
+  .usefulToolSurfaceCard {
+    max-height: calc(100dvh - max(18px, env(safe-area-inset-top)));
+    margin: auto 0 0;
+    padding: 18px 15px calc(15px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .usefulToolSurfaceCard .toolModalHeader {
+    position: sticky;
+    top: -18px;
+    z-index: 3;
+    margin: 0 0 15px;
+    padding: 18px 0 14px;
+    background: rgba(255, 255, 255, 0.97);
+  }
+
+  .usefulToolSurfaceCard .adminModalActions {
+    position: sticky;
+    bottom: calc(-15px - env(safe-area-inset-bottom));
+    z-index: 2;
+    margin-right: -15px;
+    margin-left: -15px;
+    padding: 13px 15px calc(15px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.97);
+  }
+
+  .toolModalIcon {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  .usefulToolSurfaceCard .adminModalTitle {
+    font-size: 18px;
+  }
+
+  .toolModalSubtitle {
+    font-size: 11.5px;
+  }
+
+  #importGuidePage .guideCard {
+    margin-top: 0;
+    padding: 17px 14px;
+    border-radius: 20px;
+  }
+
+  .guideHeader {
+    grid-template-columns: 38px 40px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .guideHeaderText h1 {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 370px) {
+  .toolModalIcon,
+  .guideHeaderIcon {
+    display: none;
+  }
+
+  .guideHeader {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .guideHeaderText {
+    grid-column: 2;
+  }
+
+  .toolModalHeading {
+    gap: 0;
+  }
 }
 
 @media (max-width: 520px) {

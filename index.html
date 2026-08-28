@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260820-registration-options-v1">
+<link rel="stylesheet" href="styles.css?v=20260828-admin-health-v2">
 
 
 
@@ -46,16 +46,33 @@
 
 <div id="importGuidePage" style="display:none;">
   <div class="guideCard">
-    <h1 id="guideTitle">הורדת אנשי קשר</h1>
+    <div class="guideHeader">
+      <button type="button" class="guideHeaderBack" onclick="goBackToMainApp()" aria-label="חזרה לאפליקציה">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+      <div class="toolModalIcon guideHeaderIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+      </div>
+      <div class="guideHeaderText">
+        <div class="toolModalEyebrow">כלים שימושיים</div>
+        <h1 id="guideTitle">הורדת אנשי קשר</h1>
+      </div>
+    </div>
     <div class="guideSubtitle">
-      הקובץ מוכן. הורידו אותו ופעלו לפי ההוראות המתאימות למכשיר שלכם.
+      הקובץ מוכן לשמירה במכשיר. לאחר ההורדה בחרו את ההוראות המתאימות לכם.
     </div>
     <div class="guideCountBox" id="guideCountBox"></div>
 
-    <button type="button" class="finalGuideBtn" id="finalGuideBtn">הורדת קובץ VCF</button>
+    <button type="button" class="finalGuideBtn" id="finalGuideBtn">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+      <span>הורדת קובץ VCF</span>
+    </button>
 
     <section class="guidePlatformSection" aria-labelledby="iphoneGuideTitle">
-      <h2 id="iphoneGuideTitle" class="guidePlatformTitle">📱 iPhone / iPad</h2>
+      <h2 id="iphoneGuideTitle" class="guidePlatformTitle">
+        <span class="guidePlatformIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 5h3M11.4 18.5h1.2"/></svg></span>
+        iPhone / iPad
+      </h2>
       <ol class="guideSteps">
         <li>לחצו על <b>הורדת קובץ VCF</b> ושמרו או הורידו את הקובץ אל <b>קבצים / Files</b>. בדרך כלל הוא יופיע בתיקיית <b>הורדות / Downloads</b>.</li>
         <li>פתחו את אפליקציית <b>קבצים / Files</b> ולחצו על קובץ ה-VCF שהורדתם.</li>
@@ -68,7 +85,10 @@
     </section>
 
     <section class="guidePlatformSection" aria-labelledby="androidGuideTitle">
-      <h2 id="androidGuideTitle" class="guidePlatformTitle">🤖 Android</h2>
+      <h2 id="androidGuideTitle" class="guidePlatformTitle">
+        <span class="guidePlatformIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="12" rx="3"/><path d="m8 4-1.5-2M16 4l1.5-2M9 11h.01M15 11h.01M8 19v3M16 19v3M3 10v6M21 10v6"/></svg></span>
+        Android
+      </h2>
       <ol class="guideSteps">
         <li>לחצו על <b>הורדת קובץ VCF</b>.</li>
         <li>פתחו את הקובץ מתוך הודעת ההורדה או מתוך <b>קבצים / Files</b> → <b>הורדות / Downloads</b>.</li>
@@ -431,10 +451,18 @@
 
     <section id="adminPendingHomeCard" class="adminPendingHomeCard" hidden>
       <div>
-        <strong>משתמשים ממתינים לאישור</strong>
+        <strong>ניהול</strong>
         <small id="adminPendingHomeSummary"></small>
       </div>
       <button type="button" onclick="openAdminPanel()">פתיחת לטיפול</button>
+    </section>
+
+    <section id="adminSystemHomeCard" class="adminPendingHomeCard adminSystemHomeCard" hidden>
+      <div>
+        <strong>נדרשת בדיקה במערכת</strong>
+        <small id="adminSystemHomeSummary"></small>
+      </div>
+      <button type="button" onclick="openAdminSystemHealth_()">בדיקה</button>
     </section>
 
     <section class="homeModule homeToolsModule toolsMenu" aria-labelledby="homeToolsTitle">
@@ -585,7 +613,7 @@
   <div class="adminStickyControls">
     <div class="adminTabs" role="tablist" aria-label="תחומי ניהול">
       <button type="button" role="tab" id="adminAttentionTab" class="adminTabBtn active" onclick="setAdminTab('attention')">
-        לטיפול
+        בית
         <span id="adminAttentionPendingBadge" class="adminTabBadge" hidden></span>
       </button>
       <button type="button" role="tab" id="adminPeopleTab" class="adminTabBtn" onclick="setAdminTab('people')">אנשים</button>
@@ -596,20 +624,6 @@
       <div class="adminSearchWrap" id="adminSearchWrap">
         <span class="adminSearchIcon" aria-hidden="true">⌕</span>
         <input type="text" id="adminSearchInput" placeholder="חיפוש לפי שם, מייל או טלפון" oninput="handleAdminSearchInput_()">
-      </div>
-
-      <div id="adminAttentionFilters" class="adminFilterRow">
-        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול <span id="adminFilterCountAll"></span></button>
-        <button type="button" class="adminFilterBtn" data-filter="access" onclick="setAdminFilter('access')">כניסה <span id="adminFilterCountAccess"></span></button>
-        <button type="button" class="adminFilterBtn" data-filter="reset" onclick="setAdminFilter('reset')">איפוס <span id="adminFilterCountReset"></span></button>
-        <button type="button" class="adminFilterBtn" data-filter="contacts" onclick="setAdminFilter('contacts')">אנשי קשר <span id="adminFilterCountContacts"></span></button>
-        <button type="button" class="adminFilterBtn" data-filter="reports" onclick="setAdminFilter('reports')">דיווחים <span id="adminFilterCountReports"></span></button>
-      </div>
-
-      <div id="adminPeopleFilters" class="adminFilterRow" style="display:none;">
-        <button type="button" class="adminFilterBtn active" data-filter="all" onclick="setAdminFilter('all')">הכול</button>
-        <button type="button" class="adminFilterBtn" data-filter="access" onclick="setAdminFilter('access')">גישה פעילה</button>
-        <button type="button" class="adminFilterBtn" data-filter="restricted" onclick="setAdminFilter('restricted')">חסומים / הוסרו</button>
       </div>
 
       <div class="adminToolbarTop">
@@ -665,14 +679,24 @@
 </div>
 
 
-<div id="recentContactsModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="recentContactsModalTitle">
+<div id="recentContactsModal" class="adminModal usefulToolModal" role="dialog" aria-modal="true" aria-labelledby="recentContactsModalTitle">
   <div class="adminModalCard usefulToolSurfaceCard">
-    <div class="adminModalHeader">
-      <h3 id="recentContactsModalTitle" class="adminModalTitle">אנשי קשר שנוספו לאחרונה</h3>
-      <button type="button" class="adminModalClose" onclick="closeRecentContactsModal()" aria-label="סגירה">×</button>
+    <div class="adminModalHeader toolModalHeader">
+      <div class="toolModalHeading">
+        <div class="toolModalIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v4l2.5 1.5M4.9 4.9A10 10 0 1 1 2 12M2 5v5h5"/></svg></div>
+        <div>
+          <div class="toolModalEyebrow">כלים שימושיים</div>
+          <h3 id="recentContactsModalTitle" class="adminModalTitle">אנשי קשר שנוספו לאחרונה</h3>
+          <p class="toolModalSubtitle">בחרו אילו אנשי קשר חדשים לשמור במכשיר.</p>
+        </div>
+      </div>
+      <button type="button" class="adminModalClose toolModalClose" onclick="closeRecentContactsModal()" aria-label="סגירה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
-    <p id="recentContactsExplanation" class="recentModalExplanation"></p>
     <div id="recentContactsCount" class="recentModalCount"></div>
+    <details class="toolInfoDisclosure">
+      <summary>איך הרשימה נקבעת?</summary>
+      <p id="recentContactsExplanation" class="recentModalExplanation"></p>
+    </details>
     <div id="recentContactsSelectionTools" class="recentModalSelectionTools">
       <button type="button" class="recentModalSelectionBtn" onclick="selectAllRecentContacts_()">בחירת הכול</button>
       <button type="button" class="recentModalSelectionBtn" onclick="clearRecentContactsSelection_()">ניקוי בחירה</button>
@@ -687,11 +711,18 @@
 
 
 
-<div id="myProfileModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="myProfileModalTitle">
+<div id="myProfileModal" class="adminModal usefulToolModal" role="dialog" aria-modal="true" aria-labelledby="myProfileModalTitle">
   <div class="adminModalCard usefulToolSurfaceCard">
-    <div class="adminModalHeader">
-      <h3 id="myProfileModalTitle" class="adminModalTitle">הפרטים שלי</h3>
-      <button type="button" class="adminModalClose" onclick="closeMyProfileModal()" aria-label="סגירה">×</button>
+    <div class="adminModalHeader toolModalHeader">
+      <div class="toolModalHeading">
+        <div class="toolModalIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2ZM5 20a7 7 0 0 1 14 0"/></svg></div>
+        <div>
+          <div class="toolModalEyebrow">כלים שימושיים</div>
+          <h3 id="myProfileModalTitle" class="adminModalTitle">הפרטים שלי</h3>
+          <p class="toolModalSubtitle">בדקו ועדכנו את הפרטים שמופיעים בספר.</p>
+        </div>
+      </div>
+      <button type="button" class="adminModalClose toolModalClose" onclick="closeMyProfileModal()" aria-label="סגירה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
 
     <div class="myProfileHero">
@@ -744,11 +775,18 @@
   </div>
 </div>
 
-<div id="contactAddModal" class="adminModal" role="dialog" aria-modal="true" aria-labelledby="contactAddModalTitle">
+<div id="contactAddModal" class="adminModal usefulToolModal" role="dialog" aria-modal="true" aria-labelledby="contactAddModalTitle">
   <div class="adminModalCard usefulToolSurfaceCard">
-    <div class="adminModalHeader">
-      <h3 id="contactAddModalTitle" class="adminModalTitle">הוספת איש קשר</h3>
-      <button type="button" class="adminModalClose" onclick="closeContactAddModal_()" aria-label="סגירה">×</button>
+    <div class="adminModalHeader toolModalHeader">
+      <div class="toolModalHeading">
+        <div class="toolModalIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.5 20a6 6 0 0 1 12 0M18 8v6M15 11h6"/></svg></div>
+        <div>
+          <div class="toolModalEyebrow">כלים שימושיים</div>
+          <h3 id="contactAddModalTitle" class="adminModalTitle">הוספת איש קשר</h3>
+          <p class="toolModalSubtitle">הזינו פרטים ושלחו אותם לבדיקה לפני הפרסום.</p>
+        </div>
+      </div>
+      <button type="button" class="adminModalClose toolModalClose" onclick="closeContactAddModal_()" aria-label="סגירה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
 
     <div id="contactPickerBox" class="contactPickerBox">
@@ -944,7 +982,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260820-verification-mail-v1"></script>
+  <script src="app.js?v=20260828-admin-health-v2"></script>
 
 </body>
 </html>

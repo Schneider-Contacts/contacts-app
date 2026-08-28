@@ -1976,8 +1976,6 @@ const adminTabElements = {
   adminPeopleTab: createAdminTabElement(),
   adminSystemTab: createAdminTabElement(),
   adminToolbar: createAdminTabElement(),
-  adminAttentionFilters: createAdminTabElement(),
-  adminPeopleFilters: createAdminTabElement(),
   adminSearchInput: { value: "", placeholder: "" },
   adminPanel: { style: { display: "block" } }
 };
@@ -1998,25 +1996,9 @@ vm.runInContext(
 
 adminTabsSandbox.updateAdminTabs();
 assert.strictEqual(adminTabElements.adminToolbar.style.display, "block");
-assert.strictEqual(
-  adminTabElements.adminAttentionFilters.style.display,
-  "flex"
-);
-assert.strictEqual(
-  adminTabElements.adminPeopleFilters.style.display,
-  "none"
-);
 
 adminTabsSandbox.adminActiveTab = "people";
 adminTabsSandbox.updateAdminTabs();
-assert.strictEqual(
-  adminTabElements.adminAttentionFilters.style.display,
-  "none"
-);
-assert.strictEqual(
-  adminTabElements.adminPeopleFilters.style.display,
-  "flex"
-);
 assert.strictEqual(
   adminTabElements.adminSearchInput.placeholder,
   "שם, מחלקה, מייל או טלפון"
@@ -2052,8 +2034,13 @@ assert.strictEqual(
 );
 assert.match(
   indexSource,
-  /id="adminAttentionTab"[\s\S]*?>\s*לטיפול[\s\S]*?id="adminPeopleTab"[\s\S]*?>אנשים<[\s\S]*?id="adminSystemTab"[\s\S]*?>מערכת</,
-  "Admin navigation must be organized as Attention, People, and System"
+  /id="adminAttentionTab"[\s\S]*?>\s*בית[\s\S]*?id="adminPeopleTab"[\s\S]*?>אנשים<[\s\S]*?id="adminSystemTab"[\s\S]*?>מערכת</,
+  "Admin navigation must be organized as Home, People, and System"
+);
+assert.doesNotMatch(
+  indexSource,
+  /id="adminAttentionFilters"|id="adminPeopleFilters"/,
+  "Admin Home and People must not expose legacy filter rows"
 );
 assert.doesNotMatch(indexSource, /id="adminSystemTab"[^>]*>עוד</);
 assert.doesNotMatch(

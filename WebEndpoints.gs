@@ -704,6 +704,25 @@ function createPublicAuthRouteJsonp_(e) {
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
+function createOperationalHealthJsonp_(e) {
+  let callback = e && e.parameter
+    ? cleanSheetValue_(e.parameter.callback)
+    : "";
+  if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callback)) {
+    callback = "receiveOperationalHealth";
+  }
+  const payload = {
+    ok: true,
+    serverTime: new Date().toISOString(),
+    build: "admin-health-v2"
+  };
+  return ContentService
+    .createTextOutput(
+      callback + "(" + JSON.stringify(payload).replace(/</g, "\\u003c") + ");"
+    )
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
 /**
  * בדיקת אבחון ידנית: הזינו מייל מורשה בעורך הסקריפט.
  * הפונקציה אינה משנה נתונים.
@@ -3504,6 +3523,14 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  if (
+    e &&
+    e.parameter &&
+    cleanSheetValue_(e.parameter.action) === "health"
+  ) {
+    return createOperationalHealthJsonp_(e);
+  }
+
   if (
     e &&
     e.parameter &&

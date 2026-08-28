@@ -855,6 +855,95 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // אירועי כשל תפעוליים מצומצמים. משתמש מורשה רשאי לכתוב רק
+    // אירועים המשויכים ל-UID שלו וללא מייל, סיסמה, אסימון או מטען גולמי.
+    match /operationalFailures/{eventId} {
+      function validOperationalFailure() {
+        return request.resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            "uid",
+            "stage",
+            "reason",
+            "classification",
+            "firstSeenAt",
+            "lastSeenAt",
+            "count",
+            "source"
+          ])
+          && request.resource.data.stage in [
+            "auth_route",
+            "login",
+            "registration",
+            "account_creation",
+            "verification",
+            "password_recovery",
+            "directory_load"
+          ]
+          && request.resource.data.reason in [
+            "invalid_credentials",
+            "invalid_email",
+            "weak_password",
+            "too_many_requests",
+            "user_disabled",
+            "network_error",
+            "firebase_config_error",
+            "auth_router_unavailable",
+            "registration_backend_failed",
+            "verification_delivery_failed",
+            "directory_load_failed",
+            "search_self_test_failed",
+            "unknown"
+          ]
+          && (
+            (
+              request.resource.data.reason in [
+                "invalid_credentials",
+                "invalid_email",
+                "weak_password",
+                "user_disabled"
+              ]
+              && request.resource.data.classification == "user"
+            )
+            || (
+              request.resource.data.reason in [
+                "firebase_config_error",
+                "directory_load_failed",
+                "search_self_test_failed"
+              ]
+              && request.resource.data.classification == "system"
+            )
+            || (
+              request.resource.data.reason in [
+                "too_many_requests",
+                "network_error",
+                "auth_router_unavailable",
+                "registration_backend_failed",
+                "verification_delivery_failed",
+                "unknown"
+              ]
+              && request.resource.data.classification == "warning"
+            )
+          )
+          && request.resource.data.firstSeenAt is string
+          && request.resource.data.lastSeenAt is timestamp
+          && request.resource.data.source == "authenticated_client"
+          && request.resource.data.count is number
+          && request.resource.data.count >= 1
+          && request.resource.data.count <= 999;
+      }
+
+      allow read: if isSuperAdmin();
+
+      allow create: if (isAllowed() || isAdmin())
+        && validOperationalFailure();
+
+      allow update: if (isAllowed() || isAdmin())
+        && resource.data.uid == request.auth.uid
+        && validOperationalFailure();
+
+      allow delete: if false;
+    }
+
     // משתמשים ייחודיים שביצעו פעולה שימושית על פרטי איש קשר.
     // כל חשבון נרשם פעם אחת ביום בלבד, ללא שמירת איש הקשר או סוג הפעולה.
     match /dailyContactUsers/{dateKey}/users/{uid} {

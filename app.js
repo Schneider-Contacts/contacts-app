@@ -48,6 +48,9 @@ const RECENT_CONTACTS_DEFAULT_DAYS = 30;
 const USAGE_DAILY_COLLECTION_NAME = "usageDaily";
 const DAILY_ACTIVE_USERS_COLLECTION_NAME = "dailyActiveUsers";
 const DAILY_ACTIVE_USERS_STORAGE_PREFIX = "contacts_daily_active_user_v1_";
+const OPERATIONAL_FAILURES_COLLECTION_NAME = "operationalFailures";
+const OPERATIONAL_FAILURE_DEDUPE_MS = 15 * 60 * 1000;
+const OPERATIONAL_FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DAILY_CONTACT_USERS_COLLECTION_NAME = "dailyContactUsers";
 const DAILY_CONTACT_USERS_STORAGE_PREFIX = "contacts_daily_contact_user_v1_";
 const PASSWORD_RESET_REQUESTS_COLLECTION_NAME = "passwordResetRequests";
@@ -71,6 +74,7 @@ let db = null;
 let contacts = [];
 let isLoadingContacts = false;
 let hasLoadError = false;
+let lastDirectoryLoadFailure = null;
 let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
@@ -137,6 +141,10 @@ let adminAllowedPhones = [];
 let adminManagers = [];
 let adminActivity = [];
 let adminDailyActiveUsers = [];
+let adminOperationalFailures = [];
+let adminHealthState = null;
+let adminHealthLastCheckedAt = 0;
+let pendingOperationalFailures = [];
 let adminPasswordResetRequests = [];
 let adminReports = [];
 let adminContactAddRequests = [];
@@ -2146,10 +2154,18 @@ async function loadContacts() {
   try {
     const rawContacts = await loadContactsFromOptimizedBundle_();
     applyRawContacts_(rawContacts);
+    lastDirectoryLoadFailure = null;
     return contacts;
   } catch (error) {
     console.error(error);
     hasLoadError = true;
+    lastDirectoryLoadFailure = {
+      at: new Date().toISOString(),
+      reason: "directory_load_failed"
+    };
+    recordOperationalFailure_("directory_load", error, {
+      reason: "directory_load_failed"
+    });
     throw error;
   } finally {
     isLoadingContacts = false;
@@ -2411,6 +2427,101 @@ function getAuthErrorMessage(error) {
   }
 
   return "לא הצלחנו להשלים את הפעולה. בדקו את הפרטים ונסו שוב.";
+}
+
+function normalizeOperationalFailureReason_(error, fallback = "unknown") {
+  const code = String(error && (error.code || error.message) || "").toLowerCase();
+  if (/invalid-credential|invalid-login-credentials|wrong-password|user-not-found/.test(code)) return "invalid_credentials";
+  if (/invalid-email/.test(code)) return "invalid_email";
+  if (/weak-password|password-does-not-meet/.test(code)) return "weak_password";
+  if (/too-many-requests/.test(code)) return "too_many_requests";
+  if (/user-disabled/.test(code)) return "user_disabled";
+  if (/invalid-api-key|app-not-authorized|configuration-not-found/.test(code)) return "firebase_config_error";
+  if (/auth_route_timeout|auth_route_network|auth_route_busy|auth router|נתב/.test(code)) return "auth_router_unavailable";
+  if (/network-request-failed|network|failed to fetch/.test(code)) return "network_error";
+  if (/verification|continue-uri|מייל האימות/.test(code)) return "verification_delivery_failed";
+  return fallback;
+}
+
+function getOperationalFailureClassification_(reason) {
+  if (["invalid_credentials", "invalid_email", "weak_password", "user_disabled"].includes(reason)) return "user";
+  if (["firebase_config_error", "directory_load_failed", "search_self_test_failed"].includes(reason)) return "system";
+  return "warning";
+}
+
+function recordOperationalFailure_(stage, error, options = {}) {
+  const allowedStages = new Set([
+    "auth_route", "login", "registration", "account_creation",
+    "verification", "password_recovery", "directory_load"
+  ]);
+  const safeStage = allowedStages.has(stage) ? stage : "auth_route";
+  const reason = normalizeOperationalFailureReason_(
+    error,
+    String(options.reason || "unknown")
+  );
+  const identityEmail = normalizeEmail(
+    options.email ||
+    (auth && auth.currentUser && auth.currentUser.email) ||
+    (document.getElementById("emailInput") && document.getElementById("emailInput").value)
+  );
+  const bucket = Math.floor(Date.now() / OPERATIONAL_FAILURE_DEDUPE_MS);
+  const eventKey = `${identityEmail || "anonymous"}|${safeStage}|${reason}|${bucket}`;
+  const existing = pendingOperationalFailures.find(item => item.key === eventKey);
+  if (existing) {
+    existing.count = Math.min(99, Number(existing.count || 1) + 1);
+    existing.lastSeenAt = new Date().toISOString();
+    return;
+  }
+  pendingOperationalFailures = pendingOperationalFailures.slice(-19);
+  pendingOperationalFailures.push({
+    key: eventKey,
+    identityEmail,
+    stage: safeStage,
+    reason,
+    classification: getOperationalFailureClassification_(reason),
+    firstSeenAt: new Date().toISOString(),
+    count: 1,
+    bucket
+  });
+}
+
+async function flushOperationalFailures_(user) {
+  const uid = String(user && user.uid || "");
+  const email = normalizeEmail(user && user.email);
+  if (!uid || !email || !currentUserHasAppAccess || !firebaseApi || !db) return;
+  const ownEvents = pendingOperationalFailures.filter(item =>
+    item && item.identityEmail === email
+  );
+  if (!ownEvents.length) return;
+
+  try {
+    await Promise.all(ownEvents.map(item => {
+      const docId = [uid, item.bucket, item.stage, item.reason]
+        .join("_")
+        .replace(/[^A-Za-z0-9_-]/g, "_")
+        .slice(0, 180);
+      return firebaseApi.setDoc(
+        firebaseApi.doc(db, OPERATIONAL_FAILURES_COLLECTION_NAME, docId),
+        {
+          uid,
+          stage: item.stage,
+          reason: item.reason,
+          classification: item.classification,
+          firstSeenAt: item.firstSeenAt,
+          lastSeenAt: firebaseApi.serverTimestamp(),
+          count: firebaseApi.increment(Math.max(1, Number(item.count) || 1)),
+          source: "authenticated_client"
+        },
+        { merge: true }
+      );
+    }));
+    const flushedKeys = new Set(ownEvents.map(item => item.key));
+    pendingOperationalFailures = pendingOperationalFailures.filter(item =>
+      !flushedKeys.has(item.key)
+    );
+  } catch (error) {
+    // Monitoring must never delay or block a successful login.
+  }
 }
 
 function setLoginButtonLabel_(label) {
@@ -3048,6 +3159,10 @@ async function submitRegistrationDetails_() {
       pendingRegistrationEmail,
       pendingRegistrationPhone
     );
+    recordOperationalFailure_("registration", error, {
+      email: pendingRegistrationEmail,
+      reason: "registration_backend_failed"
+    });
     setLoginStatus(error && error.message ? error.message : "שליחת הבקשה נכשלה.", "error");
   } finally {
     authActionInProgress = false;
@@ -3287,6 +3402,10 @@ function requestPublicAuthRoute_(kind, value, options = {}) {
 
     const timer = setTimeout(() => {
       cleanup();
+      recordOperationalFailure_("auth_route", new Error("AUTH_ROUTE_TIMEOUT"), {
+        email: kind === "email" ? normalizedValue : "",
+        reason: "auth_router_unavailable"
+      });
       reject(new Error("AUTH_ROUTE_TIMEOUT"));
     }, AUTH_ROUTE_TIMEOUT_MS);
 
@@ -3313,6 +3432,10 @@ function requestPublicAuthRoute_(kind, value, options = {}) {
     script.async = true;
     script.onerror = () => {
       cleanup();
+      recordOperationalFailure_("auth_route", new Error("AUTH_ROUTE_NETWORK"), {
+        email: kind === "email" ? normalizedValue : "",
+        reason: "auth_router_unavailable"
+      });
       reject(new Error("AUTH_ROUTE_NETWORK"));
     };
     document.head.appendChild(script);
@@ -3625,6 +3748,21 @@ function submitAuthRouterForm_(action, fields, expectedSource) {
       }
     };
     const timeout = setTimeout(() => {
+      const stageByAction = {
+        registerAccess: "registration",
+        submitRegistrationDetails: "registration",
+        finalizeProvisionalAccess: "registration",
+        sendVerificationEmail: "verification",
+        preparePasswordRecovery: "password_recovery",
+        approvePasswordRecovery: "password_recovery",
+        consumePasswordRecovery: "password_recovery"
+      };
+      recordOperationalFailure_(stageByAction[action] || "auth_route", new Error("AUTH_ROUTE_TIMEOUT"), {
+        email: fields && fields.email,
+        reason: action === "sendVerificationEmail"
+          ? "verification_delivery_failed"
+          : "auth_router_unavailable"
+      });
       finish(
         reject,
         new Error("הפעולה נמשכה זמן רב מדי. בדקו את החיבור ונסו שוב.")
@@ -4810,9 +4948,21 @@ async function sendVerificationEmailReliably_(user, email) {
       "Apps Script verification delivery failed; using Firebase fallback",
       serverError
     );
-    await firebaseApi.sendEmailVerification(user, {
-      url: PASSWORD_AUTH_RETURN_URL
+    recordOperationalFailure_("verification", serverError, {
+      email: normalizedEmail,
+      reason: "verification_delivery_failed"
     });
+    try {
+      await firebaseApi.sendEmailVerification(user, {
+        url: PASSWORD_AUTH_RETURN_URL
+      });
+    } catch (fallbackError) {
+      recordOperationalFailure_("verification", fallbackError, {
+        email: normalizedEmail,
+        reason: "verification_delivery_failed"
+      });
+      throw fallbackError;
+    }
     return {
       ok: true,
       deliveredBy: "firebase_fallback"
@@ -5723,6 +5873,12 @@ async function registerWithPassword() {
     }
   } catch (error) {
     console.error("Registration failed", error);
+    recordOperationalFailure_(createdUser ? "verification" : "account_creation", error, {
+      email,
+      reason: createdUser
+        ? "verification_delivery_failed"
+        : "registration_backend_failed"
+    });
 
     if (createdUser && !verificationSent) {
       // החשבון כבר נוצר, אך שליחת מייל האימות נכשלה. אין למחוק אותו:
@@ -5849,6 +6005,7 @@ async function loginWithPassword() {
     await handleAuthenticatedUser(credential.user);
   } catch (error) {
     console.error("Password sign-in failed", error);
+    recordOperationalFailure_("login", error, { email });
     const code = error && error.code ? error.code : "";
     if (["auth/invalid-credential", "auth/invalid-login-credentials", "auth/wrong-password", "auth/user-not-found"].includes(code)) {
       const flowToken = authEmailFlowToken;
@@ -5941,6 +6098,7 @@ async function sendPasswordReset() {
     );
   } catch (error) {
     console.error("Password reset failed", error);
+    recordOperationalFailure_("password_recovery", error, { email });
     setPasswordResetHelpStatus_(getAuthErrorMessage(error), true);
   } finally {
     setPasswordRecoveryActionsBusy_(false);
@@ -6477,6 +6635,7 @@ async function handleAuthenticatedUser(user, options = {}) {
       scheduleUsageFlush_(USAGE_CONTACT_FLUSH_DELAY_MS);
     }
     recordDailyActiveUser_(user);
+    flushOperationalFailures_(user).catch(() => {});
 
     const hasCachedContacts = loadContactsFromCache_();
 
@@ -7106,16 +7265,18 @@ function updateAdminPendingBadges_() {
 
   const homeCard = document.getElementById("adminPendingHomeCard");
   const homeSummary = document.getElementById("adminPendingHomeSummary");
-  const highPriorityCount = adminVerificationRequests.filter(request =>
-    request.status === "pending" && request.reviewRequestedNow === true
-  ).length;
   if (homeCard) {
-    homeCard.hidden = !currentUserIsAdmin || counts.verificationRequests < 1;
+    homeCard.hidden = !currentUserIsAdmin || !counts.loaded || counts.total < 1;
   }
   if (homeSummary) {
-    homeSummary.textContent = highPriorityCount > 0
-      ? `${counts.verificationRequests} ממתינים · ${highPriorityCount} ביקשו טיפול כעת`
-      : `${counts.verificationRequests} ממתינים לאישור גישה`;
+    const types = [];
+    if (counts.verificationRequests) types.push("בקשת גישה");
+    if (counts.passwordResetRequests) types.push("איפוס סיסמה");
+    if (counts.contactRequests) types.push("עדכון איש קשר");
+    if (counts.contactReports) types.push("דיווח");
+    homeSummary.textContent = counts.total > 0
+      ? `${counts.total} דברים מחכים לך${types.length ? ` · ${types.slice(0, 2).join(", ")}${types.length > 2 ? " ועוד" : ""}` : ""}`
+      : "";
   }
 
   const headerBadge = document.getElementById("adminHeaderPendingBadge");
@@ -7144,10 +7305,6 @@ function updateAdminTabs() {
   const peopleTab = document.getElementById("adminPeopleTab");
   const systemTab = document.getElementById("adminSystemTab");
   const adminToolbar = document.getElementById("adminToolbar");
-  const attentionFilters = document.getElementById(
-    "adminAttentionFilters"
-  );
-  const peopleFilters = document.getElementById("adminPeopleFilters");
 
   [
     [attentionTab, "attention"],
@@ -7163,15 +7320,6 @@ function updateAdminTabs() {
   if (adminToolbar) {
     adminToolbar.style.display =
       adminActiveTab === "system" ? "none" : "block";
-  }
-
-  if (attentionFilters) {
-    attentionFilters.style.display =
-      adminActiveTab === "attention" ? "flex" : "none";
-  }
-  if (peopleFilters) {
-    peopleFilters.style.display =
-      adminActiveTab === "people" ? "flex" : "none";
   }
 
   const searchInput = document.getElementById("adminSearchInput");
@@ -7246,6 +7394,9 @@ function resetAdminDataCache_() {
   adminManagers = [];
   adminActivity = [];
   adminDailyActiveUsers = [];
+  adminOperationalFailures = [];
+  adminHealthState = null;
+  adminHealthLastCheckedAt = 0;
   adminPasswordResetRequests = [];
   adminReports = [];
   adminContactAddRequests = [];
@@ -7283,6 +7434,19 @@ async function loadAdminGeneralData_() {
   ]);
 
   adminDailyActiveUsers = activeUsers;
+}
+
+async function loadAdminOperationalFailures_() {
+  const failuresQuery = firebaseApi.query(
+    firebaseApi.collection(db, OPERATIONAL_FAILURES_COLLECTION_NAME),
+    firebaseApi.orderBy("lastSeenAt", "desc"),
+    firebaseApi.limit(60)
+  );
+  const snapshot = await firebaseApi.getDocs(failuresQuery);
+  const cutoff = Date.now() - OPERATIONAL_FAILURE_WINDOW_MS;
+  adminOperationalFailures = snapshot.docs
+    .map(document => ({ docId: document.id, ...(document.data() || {}) }))
+    .filter(item => getAdminTimestampMillis_(item.lastSeenAt || item.firstSeenAt) >= cutoff);
 }
 
 async function loadAdminContactsData_() {
@@ -7661,6 +7825,7 @@ async function loadAdminDataPart_(section, loader) {
 
 async function loadAdminAttentionData_() {
   await Promise.all([
+    loadAdminDataPart_("general", loadAdminGeneralData_),
     loadAdminDataPart_("users", loadAdminUsersData_),
     loadAdminDataPart_("reports", loadAdminReportsData_),
     // התראות על הוספת עובד או שינוי מייל נשמרות ביומן הפעילות הקיים.
@@ -7678,6 +7843,7 @@ async function loadAdminPeopleData_() {
 async function loadAdminSystemData_() {
   const loaders = [
     loadAdminDataPart_("general", loadAdminGeneralData_),
+    loadAdminDataPart_("users", loadAdminUsersData_),
     loadAdminDataPart_("activity", loadAdminActivityData_),
     loadAdminDataPart_("interns", loadAdminInternsData_)
   ];
@@ -7693,11 +7859,11 @@ async function loadAdminSystemData_() {
 
 function getAdminCompositeParts_(section) {
   return {
-    attention: ["users", "reports"],
+    attention: ["general", "users", "reports"],
     people: ["contacts", "users"],
     system: currentUserIsSuperAdmin
-      ? ["general", "activity", "interns", "managers"]
-      : ["general", "activity", "interns"]
+      ? ["general", "users", "activity", "interns", "managers"]
+      : ["general", "users", "activity", "interns"]
   }[section] || [];
 }
 
@@ -7766,6 +7932,15 @@ async function loadAdminData(options = null) {
     await loadPromise;
   } catch (error) {
     console.error("Admin data load failed", error);
+    if (section === "system") {
+      adminHealthState = {
+        ...(adminHealthState || {}),
+        checkedAt: Date.now(),
+        firebase: { ok: false }
+      };
+      adminHealthLastCheckedAt = Date.now();
+      updateAdminSystemHomeAlert_();
+    }
     if (adminActiveTab === section) {
       setAdminStatus(
         "לא הצלחנו לטעון את הנתונים בלשונית הזו. נסו לרענן.",
@@ -9505,16 +9680,80 @@ function openAdminAttentionItem_(kind, itemId) {
   });
 }
 
+function getAdminRegistrationTimestamp_(user) {
+  const values = [
+    getAdminTimestampMillis_(user && user.accessGrantedAt),
+    getAdminTimestampMillis_(user && user.provisionalAt)
+  ].filter(Boolean);
+  return values.length ? Math.min(...values) : 0;
+}
+
+function getAdminNewUsersThisMonth_() {
+  const monthKey = getIsraelDateKey_().slice(0, 7);
+  return adminAllowedUsers.filter(user => {
+    const timestamp = getAdminRegistrationTimestamp_(user);
+    return timestamp > 0 &&
+      timestamp <= Date.now() &&
+      getIsraelDateKey_(new Date(timestamp)).startsWith(monthKey);
+  });
+}
+
+function renderAdminHomeMetrics_() {
+  const todayKey = getIsraelDateKey_();
+  const todayMetric = adminDailyActiveUsers.find(item => item.date === todayKey);
+  const todayCount = Math.max(0, Number(todayMetric && todayMetric.activeUserCount) || 0);
+  const newUsers = getAdminNewUsersThisMonth_();
+  return `
+    <section class="adminHomeMetrics" aria-label="נתוני שימוש">
+      <button type="button" class="adminHomeMetric" onclick="openAdminUsageMetric_('today')">
+        <strong>${escapeHtml(String(todayCount))}</strong>
+        <span>משתמשים היום</span>
+      </button>
+      <button type="button" class="adminHomeMetric" onclick="openAdminUsageMetric_('new')">
+        <strong>${escapeHtml(String(newUsers.length))}</strong>
+        <span>חדשים החודש</span>
+      </button>
+    </section>
+  `;
+}
+
+function openAdminUsageMetric_(kind) {
+  if (kind === "new") {
+    const users = getAdminNewUsersThisMonth_()
+      .sort((a, b) => getAdminRegistrationTimestamp_(b) - getAdminRegistrationTimestamp_(a));
+    openAdminFocusSheet_({
+      eyebrow: "שימוש",
+      title: "חדשים החודש",
+      subtitle: users.length ? `${users.length} משתמשים` : "אין משתמשים חדשים החודש",
+      html: users.length
+        ? `<div class="adminMetricList">${users.map(user => `
+            <button type="button" onclick="closeAdminFocusSheet_(); openAdminPerson_('', '${escapeJsString(user.email)}')">
+              <strong>${escapeHtml(getAccountDisplayName_(user.email, user.email))}</strong>
+              <span>${escapeHtml(formatAdminRelativeTime_(getAdminRegistrationTimestamp_(user)))}</span>
+            </button>
+          `).join("")}</div>`
+        : '<div class="adminFocusEmpty"><span aria-hidden="true">✓</span><strong>אין משתמשים חדשים החודש</strong></div>'
+    });
+    return;
+  }
+  const todayKey = getIsraelDateKey_();
+  const metric = adminDailyActiveUsers.find(item => item.date === todayKey);
+  const count = Math.max(0, Number(metric && metric.activeUserCount) || 0);
+  openAdminFocusSheet_({
+    eyebrow: "שימוש",
+    title: "משתמשים היום",
+    subtitle: `${count} משתמשים ייחודיים`,
+    html: '<div class="adminFocusNotice">המדד הקיים סופר משתמשים ייחודיים ושומר רק מזהה טכני, ללא רשימת מיילים או פעילות אישית.</div>'
+  });
+}
+
 function renderAdminAttention_() {
   const query = getAdminSearchQuery();
+  const homeMetricsHtml = typeof renderAdminHomeMetrics_ === "function"
+    ? renderAdminHomeMetrics_()
+    : "";
   const items = getAdminAttentionItems_()
-    .filter(item => {
-      if (adminActiveFilter === "access" && item.kind !== "access") return false;
-      if (adminActiveFilter === "reset" && item.kind !== "reset") return false;
-      if (adminActiveFilter === "contacts" && item.kind !== "contact") return false;
-      if (adminActiveFilter === "reports" && item.kind !== "report") return false;
-      return adminAttentionItemMatchesQuery_(item, query);
-    });
+    .filter(item => adminAttentionItemMatchesQuery_(item, query));
   const visibleItems = getVisibleAdminItems_(items);
 
   document.getElementById("adminSummary").textContent =
@@ -9524,10 +9763,11 @@ function renderAdminAttention_() {
 
   if (!items.length) {
     document.getElementById("adminList").innerHTML = `
+      ${homeMetricsHtml}
+      <h3 class="adminSectionTitle">לטיפול</h3>
       <div class="adminFocusEmpty">
         <span aria-hidden="true">✓</span>
-        <strong>אין כרגע פריטי ניהול חדשים</strong>
-        <small>בקשות ועדכוני עובדים חדשים יופיעו כאן באופן מרוכז.</small>
+        <strong>אין כרגע דברים שמחכים לטיפול</strong>
       </div>
     `;
     return;
@@ -9536,6 +9776,8 @@ function renderAdminAttention_() {
   const html = visibleItems.map(renderAdminInboxRow_).join("");
 
   document.getElementById("adminList").innerHTML =
+    homeMetricsHtml +
+    '<h3 class="adminSectionTitle">לטיפול</h3>' +
     html + renderAdminLoadMore_(items.length, visibleItems.length);
 }
 
@@ -9738,6 +9980,10 @@ function openAdminPerson_(contactDocId, userEmail) {
   const email = (user && user.email) || (contact && contact.email) || "";
   const phone = (contact && contact.phone) || (user && user.phone) || "";
   const accessState = user ? getUserAccessState_(user) : null;
+  const registrationTimestamp = getAdminRegistrationTimestamp_(user);
+  const lastSeenTimestamp = getAdminTimestampMillis_(
+    user && (user.lastAccessAt || user.lastVerifiedLoginAt)
+  );
   const verificationRequest = user
     ? getEffectiveVerificationRequestForUser_(user)
     : null;
@@ -9825,7 +10071,7 @@ function openAdminPerson_(contactDocId, userEmail) {
       <section class="adminPersonSection">
         <div class="adminPersonSectionHeader">
           <span aria-hidden="true">${getAdminIconSvg_("contact")}</span>
-          <div><h4>בספר אנשי הקשר</h4><p>${escapeHtml(contactStatus)}</p></div>
+          <div><h4>פרטי איש קשר</h4><p>${escapeHtml(contactStatus)}</p></div>
         </div>
         ${contact && (contact.role || contact.dept || contact.hospital) ? `<div class="adminPersonSectionMeta">${escapeHtml([contact.role, contact.dept, contact.hospital].filter(Boolean).join(" · "))}</div>` : ""}
         ${routineContactAction ? `<div class="adminPersonSectionActions">${routineContactAction}</div>` : ""}
@@ -9836,19 +10082,21 @@ function openAdminPerson_(contactDocId, userEmail) {
           <div><h4>גישה לאפליקציה</h4><p>${escapeHtml(accessState ? accessState.label : "ללא הרשאת כניסה")}</p></div>
         </div>
         ${accessState && accessState.note ? `<div class="adminPersonSectionMeta">${escapeHtml(accessState.note)}</div>` : ""}
+        ${registrationTimestamp ? `<div class="adminPersonSectionMeta">נרשם: ${escapeHtml(formatAdminRelativeTime_(registrationTimestamp))}</div>` : ""}
+        ${lastSeenTimestamp ? `<div class="adminPersonSectionMeta">נראה לאחרונה: ${escapeHtml(formatAdminRelativeTime_(lastSeenTimestamp))}</div>` : ""}
         ${isSelf ? '<div class="adminPersonSectionMeta">זהו חשבון המנהל הנוכחי.</div>' : ""}
         ${accessActions.length ? `<div class="adminPersonSectionActions">${accessActions.join("")}</div>` : ""}
       </section>
       <section class="adminPersonSection">
         <div class="adminPersonSectionHeader">
           <span aria-hidden="true">${getAdminIconSvg_("reset")}</span>
-          <div><h4>סיסמה ואימות</h4><p>${escapeHtml(passwordStatus)}</p></div>
+          <div><h4>חשבון</h4><p>${escapeHtml(passwordStatus)}</p></div>
         </div>
         ${passwordAction ? `<div class="adminPersonSectionActions">${passwordAction}</div>` : ""}
       </section>
       ${advancedActions.length ? `
         <details class="adminAdvancedActions">
-          <summary>פעולות מתקדמות</summary>
+          <summary>פעולות נוספות</summary>
           <p>פעולות אלה משנות או מסירות מידע והרשאות. יש להשתמש בהן רק כשנדרש.</p>
           <div>${advancedActions.join("")}</div>
         </details>
@@ -9860,24 +10108,7 @@ function openAdminPerson_(contactDocId, userEmail) {
 function renderAdminPeople_() {
   const query = getAdminSearchQuery();
   const people = getAdminPeople_()
-    .filter(person => {
-      if (
-        adminActiveFilter === "access" &&
-        (!person.user || !person.user.active)
-      ) {
-        return false;
-      }
-      if (
-        adminActiveFilter === "restricted" &&
-        !(
-          (person.contact && person.contact.deleted) ||
-          (person.user && !person.user.active)
-        )
-      ) {
-        return false;
-      }
-      return adminPersonMatchesQuery_(person, query);
-    })
+    .filter(person => adminPersonMatchesQuery_(person, query))
     .sort((a, b) => {
       const aLabel =
         (a.contact && a.contact.name) ||
@@ -10048,40 +10279,286 @@ function renderAdminInternsSystemCard_() {
   `;
 }
 
+function requestAppsScriptHealth_() {
+  return new Promise(resolve => {
+    const startedAt = performance.now();
+    const callbackName = `__contactsHealth_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const script = document.createElement("script");
+    let finished = false;
+    const finish = payload => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch (error) { window[callbackName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve({
+        ok: Boolean(payload && payload.ok === true),
+        latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+        build: String(payload && payload.build || "")
+      });
+    };
+    const timer = setTimeout(() => finish({ ok: false }), 8000);
+    window[callbackName] = finish;
+    const params = new URLSearchParams({
+      action: "health",
+      callback: callbackName,
+      _: String(Date.now())
+    });
+    script.src = `${AUTH_ROUTER_URL}?${params.toString()}`;
+    script.async = true;
+    script.onerror = () => finish({ ok: false });
+    document.head.appendChild(script);
+  });
+}
+
+async function probeFrontendAsset_() {
+  if (window.location.protocol === "file:") return { ok: true, local: true };
+  try {
+    const assetUrl = new URL("app-logo.png", window.location.href);
+    assetUrl.searchParams.set("health", String(Date.now()));
+    const response = await fetch(assetUrl.toString(), {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    return { ok: response.ok };
+  } catch (error) {
+    return { ok: false };
+  }
+}
+
+function runDirectorySearchSelfTest_() {
+  if (!Array.isArray(contacts) || !contacts.length) {
+    return { ok: false, reason: "directory_empty" };
+  }
+  const candidate = contacts.find(contact => {
+    const index = getContactSearchIndex_(contact);
+    return Boolean(index.fullHe || index.fullEn || index.phoneLocal);
+  });
+  if (!candidate) return { ok: false, reason: "no_searchable_contact" };
+  const index = getContactSearchIndex_(candidate);
+  const queryValue = index.fullHe || index.fullEn || index.phoneLocal;
+  const priority = getSearchPriority(candidate, queryValue, queryValue);
+  return { ok: priority !== null, reason: priority === null ? "search_self_test_failed" : "" };
+}
+
+function getOperationalReasonLabel_(reason) {
+  return {
+    invalid_credentials: "פרטי כניסה שגויים",
+    invalid_email: "כתובת מייל לא תקינה",
+    weak_password: "סיסמה אינה עומדת בדרישות",
+    too_many_requests: "ניסיונות רבים בזמן קצר",
+    user_disabled: "החשבון מושבת",
+    network_error: "בעיית חיבור",
+    firebase_config_error: "הגדרת Firebase אינה זמינה",
+    auth_router_unavailable: "שרת ההרשמה לא הגיב",
+    registration_backend_failed: "ההרשמה לא הושלמה",
+    verification_delivery_failed: "שליחת מייל האימות נכשלה",
+    directory_load_failed: "טעינת ספר אנשי הקשר נכשלה",
+    search_self_test_failed: "בדיקת החיפוש נכשלה"
+  }[reason] || "הפעולה לא הושלמה";
+}
+
+function getAdminOperationalFailureSummary_() {
+  const hourAgo = Date.now() - 60 * 60 * 1000;
+  const recentHour = adminOperationalFailures.filter(item =>
+    getAdminTimestampMillis_(item.lastSeenAt || item.firstSeenAt) >= hourAgo
+  );
+  const authStages = new Set([
+    "auth_route",
+    "login",
+    "registration",
+    "account_creation",
+    "verification",
+    "password_recovery"
+  ]);
+  const affectedUsers = new Set(
+    adminOperationalFailures.map(item => String(item.uid || "")).filter(Boolean)
+  );
+  const routerUsers = new Set(
+    recentHour
+      .filter(item => item.reason === "auth_router_unavailable")
+      .map(item => String(item.uid || ""))
+      .filter(Boolean)
+  );
+  return {
+    affectedUsers: affectedUsers.size,
+    hasAuthPattern:
+      recentHour.some(item =>
+        authStages.has(item.stage) && item.classification === "system"
+      ) || routerUsers.size >= 2,
+    hasSystemPattern:
+      recentHour.some(item => item.classification === "system") ||
+      routerUsers.size >= 2
+  };
+}
+
+async function refreshAdminHealth_(force = false) {
+  if (!currentUserIsAdmin || adminActiveTab !== "system") return;
+  if (!force && adminHealthLastCheckedAt && Date.now() - adminHealthLastCheckedAt < 3 * 60 * 1000) return;
+  const button = document.getElementById("adminHealthRefreshBtn");
+  if (button) button.disabled = true;
+  try {
+    if (currentUserIsSuperAdmin) {
+      await loadAdminOperationalFailures_().catch(error => {
+        console.error("Operational failures could not be loaded", error);
+        adminOperationalFailures = [];
+      });
+    } else {
+      adminOperationalFailures = [];
+    }
+    const [appsScript, frontend] = await Promise.all([
+      requestAppsScriptHealth_(),
+      probeFrontendAsset_()
+    ]);
+    adminHealthState = {
+      checkedAt: Date.now(),
+      firebase: { ok: true },
+      appsScript,
+      frontend,
+      directory: {
+        ok: contacts.length > 0 && !hasLoadError,
+        count: contacts.length,
+        failure: lastDirectoryLoadFailure
+      },
+      search: runDirectorySearchSelfTest_()
+    };
+    adminHealthLastCheckedAt = Date.now();
+    updateAdminSystemHomeAlert_();
+    renderAdminSystem_();
+  } finally {
+    const currentButton = document.getElementById("adminHealthRefreshBtn");
+    if (currentButton) currentButton.disabled = false;
+  }
+}
+
+function updateAdminSystemHomeAlert_() {
+  const card = document.getElementById("adminSystemHomeCard");
+  const summary = document.getElementById("adminSystemHomeSummary");
+  if (!card || !summary) return;
+  const health = adminHealthState;
+  const failureSummary = currentUserIsSuperAdmin
+    ? getAdminOperationalFailureSummary_()
+    : { affectedUsers: 0, hasSystemPattern: false };
+  const hasSystemIssue = Boolean(
+    failureSummary.hasSystemPattern ||
+    (health && (!health.firebase.ok || !health.appsScript.ok || !health.frontend.ok || !health.directory.ok || !health.search.ok))
+  );
+  card.hidden = !currentUserIsAdmin || !hasSystemIssue;
+  summary.textContent = failureSummary.hasSystemPattern
+    ? `${failureSummary.affectedUsers} משתמשים נתקלו בקושי בשעה האחרונה`
+    : hasSystemIssue
+      ? "אחת מבדיקות החיבור או ספר אנשי הקשר נכשלה"
+      : "";
+}
+
+function openAdminSystemHealth_() {
+  openAdminPanel();
+  setAdminTab("system");
+}
+
 function renderAdminSystem_() {
   const todayKey = getIsraelDateKey_();
   const activeUsersByDate = new Map(
     adminDailyActiveUsers.map(item => [item.date, item.activeUserCount])
   );
   const todayActiveUsers = activeUsersByDate.get(todayKey) || 0;
+  const directoryContacts = typeof contacts !== "undefined" && Array.isArray(contacts)
+    ? contacts
+    : [];
+  const health = typeof adminHealthState !== "undefined"
+    ? adminHealthState
+    : null;
+  const latestRegistrationAt = adminAllowedUsers.reduce(
+    (latest, user) => Math.max(
+      latest,
+      typeof getAdminRegistrationTimestamp_ === "function"
+        ? getAdminRegistrationTimestamp_(user)
+        : 0
+    ),
+    0
+  );
+  const failureSummary = typeof getAdminOperationalFailureSummary_ === "function" && currentUserIsSuperAdmin
+    ? getAdminOperationalFailureSummary_()
+    : { affectedUsers: 0, hasAuthPattern: false, hasSystemPattern: false };
+  const statusRow = (label, ok, detail, pending = false) => `
+    <div class="adminHealthRow ${pending ? "pending" : ok ? "healthy" : "failed"}">
+      <span class="adminHealthStatusIcon" aria-hidden="true">${pending ? "…" : ok ? "✓" : "!"}</span>
+      <div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div>
+    </div>
+  `;
+  const loginDetail = latestRegistrationAt
+    ? `${todayActiveUsers} אנשים השתמשו באפליקציה היום · ${failureSummary.affectedUsers} נתקלו בקושי · הרשמה אחרונה ${formatAdminRelativeTime_(latestRegistrationAt)}`
+    : `${todayActiveUsers} אנשים השתמשו באפליקציה היום · ${failureSummary.affectedUsers} נתקלו בקושי`;
+  const operationalFailures = typeof adminOperationalFailures !== "undefined"
+    ? adminOperationalFailures
+    : [];
+  const recentProblemsHtml = operationalFailures.length
+    ? `<button type="button" class="adminSystemLinkRow warning" onclick="openAdminRecentProblems_()"><span><strong>${new Set(operationalFailures.map(item => item.uid).filter(Boolean)).size} משתמשים נתקלו בקושי</strong><small>הצגת תקלות מ־24 השעות האחרונות</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>`
+    : '<div class="adminSystemQuietState"><span aria-hidden="true">✓</span><div><strong>לא זוהו תקלות מערכתיות ב־24 השעות האחרונות</strong><small>טעויות הקלדה בודדות אינן מסמנות תקלה מערכתית.</small></div></div>';
   document.getElementById("adminSummary").textContent = "";
   document.getElementById("adminList").innerHTML = `
     <div class="adminMorePage">
-      <section class="adminDailyUseCard" aria-label="שימוש היום">
-        <span class="adminDailyUseValue">${escapeHtml(String(todayActiveUsers))}</span>
-        <div>
-          <strong>אנשים השתמשו באפליקציה היום</strong>
-          <small>כל משתמש נספר פעם אחת בלבד.</small>
+      <section class="adminHealthCard" aria-labelledby="adminHealthTitle">
+        <div class="adminSystemSectionHeader">
+          <div><h3 id="adminHealthTitle">מצב האפליקציה</h3><p>בדיקות קצרות של החיבורים והשימוש בפועל.</p></div>
+          ${health ? `<time>${escapeHtml(formatAdminRelativeTime_(health.checkedAt))}</time>` : ""}
         </div>
+        <div class="adminHealthRows">
+          <span class="srOnly">${escapeHtml(String(todayActiveUsers))}</span>
+          ${statusRow("כניסה והרשמה", !failureSummary.hasAuthPattern, loginDetail)}
+          ${statusRow("Firebase", health ? health.firebase.ok : true, health ? health.firebase.ok ? "מחובר" : "החיבור נכשל" : "נתוני הניהול נטענו")}
+          ${statusRow("שרת ההרשמה / Apps Script", health ? health.appsScript.ok && health.frontend.ok : false, health ? health.appsScript.ok ? `Apps Script מגיב · ${health.appsScript.latencyMs}ms${health.frontend.ok ? " · אתר זמין" : " · קובצי האתר אינם זמינים"}` : "שרת ההרשמה אינו זמין" : "טרם נבדק", !health)}
+          ${statusRow("ספר אנשי הקשר וחיפוש", health ? health.directory.ok && health.search.ok : directoryContacts.length > 0, health ? `${health.directory.count.toLocaleString("he-IL")} אנשי קשר · ${health.search.ok ? "חיפוש תקין" : "בדיקת החיפוש נכשלה"}` : `${directoryContacts.length.toLocaleString("he-IL")} אנשי קשר נטענו`, !health)}
+        </div>
+        <button type="button" id="adminHealthRefreshBtn" class="adminActionBtn secondary adminHealthRefreshBtn" onclick="refreshAdminHealth_(true)">בדוק חיבורים עכשיו</button>
+      </section>
+
+      <section class="adminSystemSection" aria-labelledby="adminProblemsTitle">
+        <div class="adminSystemSectionHeader"><div><h3 id="adminProblemsTitle">תקלות אחרונות</h3><p>24 השעות האחרונות</p></div></div>
+        ${recentProblemsHtml}
       </section>
 
       ${renderAdminInternsSystemCard_()}
 
-      <details class="adminMoreSection" open>
-        <summary>
-          <span>פעילות אחרונה</span>
-          <small>${escapeHtml(String(Math.min(10, adminActivity.length)))} פעולות</small>
-        </summary>
-        <div class="adminMoreSectionBody">
-          ${renderAdminMoreActivityHtml_()}
-        </div>
-      </details>
-
       ${renderAdminMoreManagersHtml_()}
+
+      <section class="adminSystemSection">
+        <button type="button" class="adminSystemLinkRow" onclick="openAdminActivityLog_()">
+          <span><strong>יומן פעילות</strong><small>${escapeHtml(String(adminActivity.length))} פעולות אחרונות זמינות</small></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </section>
 
       <button type="button" id="adminRefreshBtn" class="adminRefreshBtn adminMoreRefresh" onclick="refreshAdminPage()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8.2A7 7 0 0 1 18.7 7M17.9 15.8A7 7 0 0 1 5.3 17"/></svg> רענון נתוני העמוד</button>
     </div>
   `;
+  if (!health && typeof refreshAdminHealth_ === "function") {
+    setTimeout(() => refreshAdminHealth_(false), 0);
+  }
+}
+
+function openAdminActivityLog_() {
+  openAdminFocusSheet_({
+    eyebrow: "מערכת",
+    title: "יומן פעילות",
+    subtitle: `${adminActivity.length} פעולות אחרונות`,
+    html: `<div class="adminMoreSectionBody">${renderAdminMoreActivityHtml_()}</div>`
+  });
+}
+
+function openAdminRecentProblems_() {
+  const rows = adminOperationalFailures.map(item => `
+    <div class="adminProblemRow">
+      <div><strong>${escapeHtml(getOperationalReasonLabel_(item.reason))}</strong><span>${escapeHtml(formatAdminRelativeTime_(item.lastSeenAt || item.firstSeenAt))} · ${escapeHtml(String(Math.max(1, Number(item.count) || 1)))} ניסיונות</span></div>
+      <span class="adminMiniStatus ${item.classification === "system" ? "blocked" : item.classification === "warning" ? "pending" : ""}">${item.classification === "system" ? "מערכת" : item.classification === "warning" ? "אזהרה" : "משתמש"}</span>
+    </div>
+  `).join("");
+  openAdminFocusSheet_({
+    eyebrow: "מערכת",
+    title: "תקלות אחרונות",
+    subtitle: "24 השעות האחרונות",
+    html: rows || '<div class="adminFocusEmpty"><span aria-hidden="true">✓</span><strong>לא זוהו תקלות</strong></div>'
+  });
 }
 
 function requestAdminConfirmation_(options = {}) {
