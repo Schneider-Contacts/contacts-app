@@ -1,0 +1,16 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Test;Schneider One;;Dr.;
+FN:Dr. Schneider Test One
+ORG:Schneider Children's Medical Center
+TEL;TYPE=CELL:+972501111111
+EMAIL:test1@example.com
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Test;Schneider Two;;Dr.;
+FN:Dr. Schneider Test Two
+ORG:Schneider Children's Medical Center
+TEL;TYPE=CELL:+972502222222
+EMAIL:test2@example.com
+END:VCARD
