@@ -143,6 +143,8 @@ let adminDailyActiveUsers = [];
 let adminOperationalFailures = [];
 let adminHealthState = null;
 let adminHealthLastCheckedAt = 0;
+let adminHealthCheckPromise = null;
+let adminHomeHealthIssueKind = "";
 let pendingOperationalFailures = [];
 let adminPasswordResetRequests = [];
 let adminReports = [];
@@ -6380,6 +6382,7 @@ function showAppForUser(user) {
   setLoginStatus("", "");
   renderCurrentSearchResults();
   loadCurrentMonthInterns_().catch(() => {});
+  scheduleAdminHomeHealthCheck_();
 }
 
 function isPermissionDeniedError(error) {
@@ -10330,7 +10333,7 @@ function renderAdminInternsSystemCard_() {
   `;
 }
 
-function requestAppsScriptHealth_() {
+function requestAppsScriptHealth_(timeoutMs = 8000) {
   return new Promise(resolve => {
     const startedAt = performance.now();
     const callbackName = `__contactsHealth_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
@@ -10348,7 +10351,7 @@ function requestAppsScriptHealth_() {
         build: String(payload && payload.build || "")
       });
     };
-    const timer = setTimeout(() => finish({ ok: false }), 8000);
+    const timer = setTimeout(() => finish({ ok: false }), timeoutMs);
     window[callbackName] = finish;
     const params = new URLSearchParams({
       action: "health",
@@ -10360,6 +10363,26 @@ function requestAppsScriptHealth_() {
     script.onerror = () => finish({ ok: false });
     document.head.appendChild(script);
   });
+}
+
+async function requestAppsScriptHealthWithRetry_() {
+  const firstAttempt = await requestAppsScriptHealth_(8000);
+  if (
+    firstAttempt.ok ||
+    (typeof navigator !== "undefined" && navigator.onLine === false)
+  ) {
+    return { ...firstAttempt, attempts: 1 };
+  }
+
+  // Apps Script עשוי להתעורר לאט אחרי זמן ללא שימוש. בדיקה שנייה מונעת
+  // התראת שווא למנהל, אך אינה מעכבת את פתיחת האפליקציה.
+  await new Promise(resolve => setTimeout(resolve, 600));
+  const secondAttempt = await requestAppsScriptHealth_(12000);
+  return {
+    ...secondAttempt,
+    attempts: 2,
+    latencyMs: firstAttempt.latencyMs + secondAttempt.latencyMs
+  };
 }
 
 async function probeFrontendAsset_() {
@@ -10443,63 +10466,223 @@ function getAdminOperationalFailureSummary_() {
   };
 }
 
+function scheduleAdminHomeHealthCheck_() {
+  if (!currentUserIsAdmin) return;
+  updateAdminSystemHomeAlert_();
+  setTimeout(() => {
+    refreshAdminHealth_(false).catch(error => {
+      console.error("Background admin health check failed", error);
+    });
+  }, 0);
+}
+
 async function refreshAdminHealth_(force = false) {
-  if (!currentUserIsAdmin || adminActiveTab !== "system") return;
-  if (!force && adminHealthLastCheckedAt && Date.now() - adminHealthLastCheckedAt < 3 * 60 * 1000) return;
-  const button = document.getElementById("adminHealthRefreshBtn");
-  if (button) button.disabled = true;
-  try {
-    if (currentUserIsSuperAdmin) {
-      await loadAdminOperationalFailures_().catch(error => {
-        console.error("Operational failures could not be loaded", error);
-        adminOperationalFailures = [];
-      });
-    } else {
-      adminOperationalFailures = [];
-    }
-    const [appsScript, frontend] = await Promise.all([
-      requestAppsScriptHealth_(),
-      probeFrontendAsset_()
-    ]);
-    adminHealthState = {
-      checkedAt: Date.now(),
-      firebase: { ok: true },
-      appsScript,
-      frontend,
-      directory: {
-        ok: contacts.length > 0 && !hasLoadError,
-        count: contacts.length,
-        failure: lastDirectoryLoadFailure
-      },
-      search: runDirectorySearchSelfTest_()
-    };
-    adminHealthLastCheckedAt = Date.now();
+  if (!currentUserIsAdmin) return null;
+  if (
+    !force &&
+    adminHealthLastCheckedAt &&
+    Date.now() - adminHealthLastCheckedAt < 3 * 60 * 1000
+  ) {
     updateAdminSystemHomeAlert_();
-    renderAdminSystem_();
+    return adminHealthState;
+  }
+  if (adminHealthCheckPromise) return adminHealthCheckPromise;
+
+  const runCheck = (async () => {
+    ["adminHealthRefreshBtn", "adminSystemHomeRetryBtn"].forEach(id => {
+      const button = document.getElementById(id);
+      if (button) button.disabled = true;
+    });
+    try {
+      if (currentUserIsSuperAdmin) {
+        await loadAdminOperationalFailures_().catch(error => {
+          console.error("Operational failures could not be loaded", error);
+          adminOperationalFailures = [];
+        });
+      } else {
+        adminOperationalFailures = [];
+      }
+      const [appsScript, frontend] = await Promise.all([
+        requestAppsScriptHealthWithRetry_(),
+        probeFrontendAsset_()
+      ]);
+      adminHealthState = {
+        checkedAt: Date.now(),
+        firebase: { ok: true },
+        appsScript,
+        frontend,
+        directory: {
+          ok: contacts.length > 0 && !hasLoadError,
+          count: contacts.length,
+          failure: lastDirectoryLoadFailure
+        },
+        search: runDirectorySearchSelfTest_()
+      };
+      adminHealthLastCheckedAt = Date.now();
+      updateAdminSystemHomeAlert_();
+      if (
+        adminActiveTab === "system" &&
+        document.getElementById("adminPanel")?.style.display === "block"
+      ) {
+        renderAdminSystem_();
+      }
+      return adminHealthState;
+    } finally {
+      ["adminHealthRefreshBtn", "adminSystemHomeRetryBtn"].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.disabled = false;
+      });
+    }
+  })();
+
+  adminHealthCheckPromise = runCheck;
+  try {
+    return await runCheck;
   } finally {
-    const currentButton = document.getElementById("adminHealthRefreshBtn");
-    if (currentButton) currentButton.disabled = false;
+    adminHealthCheckPromise = null;
   }
 }
 
-function updateAdminSystemHomeAlert_() {
-  const card = document.getElementById("adminSystemHomeCard");
-  const summary = document.getElementById("adminSystemHomeSummary");
-  if (!card || !summary) return;
+function getAdminHomeHealthIssue_() {
   const health = adminHealthState;
   const failureSummary = currentUserIsSuperAdmin
     ? getAdminOperationalFailureSummary_()
     : { affectedUsers: 0, hasSystemPattern: false };
-  const hasSystemIssue = Boolean(
-    failureSummary.hasSystemPattern ||
-    (health && (!health.firebase.ok || !health.appsScript.ok || !health.frontend.ok || !health.directory.ok || !health.search.ok))
-  );
-  card.hidden = !currentUserIsAdmin || !hasSystemIssue;
-  summary.textContent = failureSummary.hasSystemPattern
-    ? `${failureSummary.affectedUsers} משתמשים נתקלו בקושי בשעה האחרונה`
-    : hasSystemIssue
-      ? "אחת מבדיקות החיבור או ספר אנשי הקשר נכשלה"
-      : "";
+
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return {
+      kind: "offline",
+      title: "אין חיבור לרשת",
+      summary: "לא ניתן לבדוק כרגע את שירותי ההרשמה והעדכון.",
+      actionLabel: ""
+    };
+  }
+  if (health && health.appsScript && !health.appsScript.ok) {
+    return {
+      kind: "apps_script",
+      title: "שרת ההרשמה אינו זמין",
+      summary: "הרשמה, אימות מייל ושינוי מייל עלולים להיכשל עד לתיקון.",
+      actionLabel: currentUserIsSuperAdmin ? "פתיחת תיקון Google" : "פרטי התקלה"
+    };
+  }
+  if (health && health.frontend && !health.frontend.ok) {
+    return {
+      kind: "frontend",
+      title: "קובצי האפליקציה לא נטענו במלואם",
+      summary: "רענון בטוח בדרך כלל פותר את התקלה בלי לנתק את החשבון.",
+      actionLabel: "רענון בטוח"
+    };
+  }
+  if (health && health.directory && !health.directory.ok) {
+    return {
+      kind: "directory",
+      title: "ספר אנשי הקשר לא נטען",
+      summary: "אפשר לנסות לטעון מחדש את הרשימה בלי לצאת מהחשבון.",
+      actionLabel: "טעינת הרשימה מחדש"
+    };
+  }
+  if (health && health.search && !health.search.ok) {
+    return {
+      kind: "search",
+      title: "בדיקת החיפוש נכשלה",
+      summary: "נטען מחדש את אנשי הקשר ונבדוק את החיפוש שוב.",
+      actionLabel: "תיקון ורענון"
+    };
+  }
+  if (health && health.firebase && !health.firebase.ok) {
+    return {
+      kind: "firebase",
+      title: "החיבור ל־Firebase נכשל",
+      summary: "יש לפתוח את מצב המערכת ולבדוק את פרטי החיבור.",
+      actionLabel: "פתיחת מצב המערכת"
+    };
+  }
+  if (failureSummary.hasSystemPattern) {
+    return {
+      kind: "operational",
+      title: "זוהו תקלות חוזרות אצל משתמשים",
+      summary: `${failureSummary.affectedUsers} משתמשים נתקלו בקושי בשעה האחרונה.`,
+      actionLabel: "הצגת התקלות"
+    };
+  }
+  return null;
+}
+
+function updateAdminSystemHomeAlert_() {
+  const card = document.getElementById("adminSystemHomeCard");
+  const title = document.getElementById("adminSystemHomeTitle");
+  const summary = document.getElementById("adminSystemHomeSummary");
+  const quickFixButton = document.getElementById("adminSystemHomeQuickFixBtn");
+  const hint = document.getElementById("adminSystemHomeHint");
+  if (!card || !summary || !title) return;
+  const issue = currentUserIsAdmin ? getAdminHomeHealthIssue_() : null;
+  adminHomeHealthIssueKind = issue ? issue.kind : "";
+  card.hidden = !issue;
+  if (!issue) {
+    title.textContent = "נדרשת בדיקה במערכת";
+    summary.textContent = "";
+    if (hint) hint.hidden = true;
+    return;
+  }
+  title.textContent = issue.title;
+  summary.textContent = issue.summary;
+  if (quickFixButton) {
+    quickFixButton.hidden = !issue.actionLabel;
+    quickFixButton.textContent = issue.actionLabel || "פתרון מהיר";
+  }
+  if (hint) hint.hidden = true;
+}
+
+async function retryDirectoryFromAdminHealth_() {
+  const button = document.getElementById("adminSystemHomeQuickFixBtn");
+  if (button) button.disabled = true;
+  try {
+    await loadContacts();
+    renderCurrentSearchResults();
+  } catch (error) {
+    console.error("Directory quick repair failed", error);
+  } finally {
+    if (button) button.disabled = false;
+    await refreshAdminHealth_(true);
+  }
+}
+
+function openAppsScriptAuthorizationRepair_() {
+  const repairUrl = new URL(AUTH_ROUTER_URL);
+  repairUrl.searchParams.set("action", "health");
+  repairUrl.searchParams.set("callback", "receiveOperationalHealth");
+  window.open(repairUrl.toString(), "_blank", "noopener");
+  const hint = document.getElementById("adminSystemHomeHint");
+  if (hint) {
+    hint.textContent = "אחרי אישור Google חזרו לאפליקציה ולחצו בדיקה חוזרת.";
+    hint.hidden = false;
+  }
+  window.addEventListener("focus", () => {
+    setTimeout(() => refreshAdminHealth_(true), 700);
+  }, { once: true });
+}
+
+function runAdminHomeQuickFix_() {
+  if (!currentUserIsAdmin) return;
+  switch (adminHomeHealthIssueKind) {
+    case "apps_script":
+      if (currentUserIsSuperAdmin) openAppsScriptAuthorizationRepair_();
+      else openAdminSystemHealth_();
+      break;
+    case "frontend":
+      window.location.reload();
+      break;
+    case "directory":
+    case "search":
+      retryDirectoryFromAdminHealth_();
+      break;
+    case "firebase":
+    case "operational":
+      openAdminSystemHealth_();
+      break;
+    default:
+      refreshAdminHealth_(true);
+  }
 }
 
 function openAdminSystemHealth_() {

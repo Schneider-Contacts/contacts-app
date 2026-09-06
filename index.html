@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20260828-directory-refinements-v4">
+<link rel="stylesheet" href="styles.css?v=20260906-admin-home-health-v1">
 
 
 
@@ -457,12 +457,21 @@
       <button type="button" onclick="openAdminPanel()">פתיחת לטיפול</button>
     </section>
 
-    <section id="adminSystemHomeCard" class="adminPendingHomeCard adminSystemHomeCard" hidden>
-      <div>
-        <strong>נדרשת בדיקה במערכת</strong>
-        <small id="adminSystemHomeSummary"></small>
+    <section id="adminSystemHomeCard" class="adminPendingHomeCard adminSystemHomeCard" hidden aria-live="polite">
+      <div class="adminSystemHomeHeading">
+        <span class="adminSystemHomeIcon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4.5M12 17h.01"/></svg>
+        </span>
+        <div>
+          <strong id="adminSystemHomeTitle">נדרשת בדיקה במערכת</strong>
+          <small id="adminSystemHomeSummary"></small>
+        </div>
       </div>
-      <button type="button" onclick="openAdminSystemHealth_()">בדיקה</button>
+      <div class="adminSystemHomeActions">
+        <button type="button" id="adminSystemHomeQuickFixBtn" onclick="runAdminHomeQuickFix_()">פתרון מהיר</button>
+        <button type="button" id="adminSystemHomeRetryBtn" class="secondary" onclick="refreshAdminHealth_(true)">בדיקה חוזרת</button>
+      </div>
+      <small id="adminSystemHomeHint" class="adminSystemHomeHint" hidden></small>
     </section>
 
     <section class="homeModule homeToolsModule toolsMenu" aria-labelledby="homeToolsTitle">
@@ -982,7 +991,7 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="app.js?v=20260828-directory-refinements-v4"></script>
+  <script src="app.js?v=20260906-admin-home-health-v1"></script>
 
 </body>
 </html>

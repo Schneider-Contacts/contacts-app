@@ -86,4 +86,62 @@ assert.match(
   "Search health must reuse production ranking"
 );
 
+assert.match(
+  extractFunction(appSource, "showAppForUser"),
+  /scheduleAdminHomeHealthCheck_\(\)/,
+  "Admin health must start from the main screen"
+);
+
+const healthElements = {
+  adminSystemHomeCard: { hidden: true },
+  adminSystemHomeTitle: { textContent: "" },
+  adminSystemHomeSummary: { textContent: "" },
+  adminSystemHomeQuickFixBtn: { hidden: false, textContent: "" },
+  adminSystemHomeHint: { hidden: true }
+};
+const homeHealthSandbox = {
+  adminHealthState: {
+    appsScript: { ok: false },
+    frontend: { ok: true },
+    firebase: { ok: true },
+    directory: { ok: true },
+    search: { ok: true }
+  },
+  adminHomeHealthIssueKind: "",
+  currentUserIsAdmin: true,
+  currentUserIsSuperAdmin: true,
+  navigator: { onLine: true },
+  document: {
+    getElementById: id => healthElements[id] || null
+  },
+  getAdminOperationalFailureSummary_: () => ({
+    affectedUsers: 0,
+    hasSystemPattern: false
+  })
+};
+vm.createContext(homeHealthSandbox);
+vm.runInContext([
+  extractFunction(appSource, "getAdminHomeHealthIssue_"),
+  extractFunction(appSource, "updateAdminSystemHomeAlert_")
+].join("\n"), homeHealthSandbox);
+
+homeHealthSandbox.updateAdminSystemHomeAlert_();
+assert.strictEqual(healthElements.adminSystemHomeCard.hidden, false);
+assert.strictEqual(
+  healthElements.adminSystemHomeTitle.textContent,
+  "שרת ההרשמה אינו זמין"
+);
+assert.strictEqual(
+  healthElements.adminSystemHomeQuickFixBtn.textContent,
+  "פתיחת תיקון Google"
+);
+
+homeHealthSandbox.adminHealthState.appsScript.ok = true;
+homeHealthSandbox.updateAdminSystemHomeAlert_();
+assert.strictEqual(
+  healthElements.adminSystemHomeCard.hidden,
+  true,
+  "Healthy state must stay quiet on the main screen"
+);
+
 console.log("admin health flow: OK");

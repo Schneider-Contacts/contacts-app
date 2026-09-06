@@ -2516,13 +2516,70 @@ select {
   line-height: 1.6;
 }
 
-#app .adminSystemHomeCard {
+#app .adminPendingHomeCard.adminSystemHomeCard {
   border-color: #f2d593;
   background: #fffaf0;
 }
 
 #app .adminSystemHomeCard strong {
   color: #77520c;
+}
+
+#app .adminSystemHomeHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+#app .adminSystemHomeIcon {
+  display: grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 11px;
+  background: #fff0c9;
+  color: #8a5a08;
+}
+
+#app .adminSystemHomeIcon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app .adminSystemHomeActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+#app .adminSystemHomeActions .secondary {
+  border: 1px solid #e2c783;
+  background: #fff;
+  color: #77520c;
+  box-shadow: none;
+}
+
+#app .adminSystemHomeActions button[disabled] {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+#app .adminSystemHomeHint {
+  padding-top: 2px;
+  color: #77520c;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+#app .adminSystemHomeHint[hidden],
+#app .adminSystemHomeActions button[hidden] {
+  display: none !important;
 }
 
 .adminHealthCard,
