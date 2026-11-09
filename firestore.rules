@@ -435,6 +435,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // No public access. Monthly data is separate from directory and login permissions.
+    // Only the existing administrators can publish a reviewed, atomic month.
+    match /pharmacologyRosters/{monthId} {
+      allow get: if monthId.matches('^20[0-9][0-9]-(0[1-9]|1[0-2])$')
+        && (isAllowed() || isAdmin());
+      allow list, delete: if false;
+      allow create, update: if isAdmin()
+        && monthId.matches('^20[0-9][0-9]-(0[1-9]|1[0-2])$')
+        && request.resource.data.keys().hasOnly([
+          "schemaVersion", "month", "timeZone", "notes", "entries", "version",
+          "reviewed", "publishedAt", "publishedBy"
+        ])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.month == monthId
+        && request.resource.data.timeZone == "Asia/Jerusalem"
+        && request.resource.data.notes is string
+        && request.resource.data.notes.size() <= 1200
+        && request.resource.data.entries is list
+        && request.resource.data.entries.size() > 0
+        && request.resource.data.entries.size() <= 100
+        && request.resource.data.reviewed == true
+        && request.resource.data.version is string
+        && request.resource.data.version.size() >= 3
+        && request.resource.data.version.size() <= 120
+        && request.resource.data.publishedAt == request.time
+        && request.resource.data.publishedBy == request.auth.token.email;
+    }
+
     match /allowedUsers/{docId} {
       allow get: if isAdmin()
         || (

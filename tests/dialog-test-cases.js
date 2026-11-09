@@ -10,7 +10,7 @@ async function runDialogRegressionTests(win, doc, loadModule, report = () => {})
   const trigger = doc.createElement('button'); trigger.textContent='Synthetic opener'; main.prepend(trigger);
   let confirmResult = false, confirmations = 0, confirmValue;
   win.confirm = () => { confirmations++; return confirmResult; };
-  const mappings = {contactDetailSheet:'closeContactDetail_', departmentSheet:'closeDepartmentBrowser_',adminFocusSheet:'closeAdminFocusSheet_', monthlyInternsAdminModal:'closeMonthlyInternsAdmin_',recentContactsModal:'closeRecentContactsModal',myProfileModal:'closeMyProfileModal',contactAddModal:'closeContactAddModal_',contactReportModal:'closeContactReportModal',adminManagerModal:'closeManagerModal',adminEditModal:'closeAdminEditModal',adminReasonModal:'closeAdminReasonModal_',adminConfirmModal:'resolveAdminConfirmation_'};
+  const mappings = {contactDetailSheet:'closeContactDetail_', departmentSheet:'closeDepartmentBrowser_',adminFocusSheet:'closeAdminFocusSheet_', monthlyInternsAdminModal:'closeMonthlyInternsAdmin_',pharmacologyAdminModal:'closePharmacologyAdmin_',recentContactsModal:'closeRecentContactsModal',myProfileModal:'closeMyProfileModal',contactAddModal:'closeContactAddModal_',contactReportModal:'closeContactReportModal',adminManagerModal:'closeManagerModal',adminEditModal:'closeAdminEditModal',adminReasonModal:'closeAdminReasonModal_',adminConfirmModal:'resolveAdminConfirmation_'};
   for (const [id, name] of Object.entries(mappings)) win[name] = value => {
     if (!win.confirmDialogClose_(id)) return;
     if (id === 'adminConfirmModal') confirmValue = value;
@@ -73,6 +73,18 @@ async function runDialogRegressionTests(win, doc, loadModule, report = () => {})
     await close('contactAddModal');check(doc.activeElement===trigger,'Sheet-to-form dismissal restores original opener');
     for(let i=0;i<3;i++){await open('departmentSheet');press('Escape');await pause();}
     check(!main.inert && doc.body.style.overflow==='' && !win.history.state?.contactsDialog,'Repeated open/close leaves no lock or current history marker');
+    await open('pharmacologyAdminModal');
+    const rosterDialog=doc.getElementById('pharmacologyAdminModal');
+    check(rosterDialog.contains(doc.activeElement) && doc.activeElement.tagName==='H3','Pharmacology starts at neutral heading');
+    const summary=rosterDialog.querySelector('summary');summary.focus();
+    const summaryTab=new win.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});doc.dispatchEvent(summaryTab);
+    check(!summaryTab.defaultPrevented && doc.activeElement===summary,'Pharmacology instructions retain natural Tab order');
+    press('Escape');await pause();
+    check(!rosterDialog.classList.contains('visible') && !main.inert,'Escape closes pharmacology dialog');
+    await open('pharmacologyAdminModal');win.history.back();await pause();await pause();
+    check(!rosterDialog.classList.contains('visible') && !main.inert,'Browser Back closes pharmacology dialog');
+    win.history.forward();await pause();await pause();
+    check(!rosterDialog.classList.contains('visible') && !main.inert,'Forward does not reopen pharmacology draft');
     results.textContent=lines.join('\n')+'\n\nALL '+lines.length+' CHECKS PASSED';
     return lines;
   } catch(error) { results.textContent=lines.join('\n')+'\nFAIL: '+error.stack;throw error; }

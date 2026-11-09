@@ -1776,6 +1776,7 @@ function renderMonthlyInterns_() {
 }
 
 function openMonthlyInternsView_() {
+  if (typeof closePharmacologyView_ === "function") closePharmacologyView_();
   closeAllDirectoryMenus_();
   closeDepartmentBrowser_();
   const appElement = document.getElementById("app");
@@ -6135,6 +6136,7 @@ async function sendPasswordReset() {
 }
 
 function showLoginScreen() {
+  if (typeof resetPharmacology_ === "function") resetPharmacology_();
   document.getElementById("login").style.display = "block";
   document.getElementById("app").style.display = "none";
 }
@@ -7131,6 +7133,7 @@ function startPermissionListener(user) {
 }
 
 function openAdminPanel() {
+  if (typeof closePharmacologyView_ === "function") closePharmacologyView_();
   if (!currentUserIsAdmin) {
     alert("אין הרשאת מנהל.");
     return;
@@ -7150,7 +7153,9 @@ function openAdminPanel() {
 }
 
 function closeAdminPanel() {
+  if (typeof pharmacologyAdmin !== "undefined" && pharmacologyAdmin.open && pharmacologyAdmin.publishing) return;
   if (closeAdminEditModal() === false || closeContactAddModal_() === false) return;
+  if (typeof closePharmacologyAdmin_ === "function") closePharmacologyAdmin_();
   document.getElementById("adminPanel").style.display = "none";
   document.getElementById("app").style.display = "block";
   closeAdminFocusSheet_(false);
@@ -10923,6 +10928,7 @@ function renderAdminSystem_() {
       </section>
 
       ${renderAdminInternsSystemCard_()}
+      ${typeof renderAdminPharmacologyCard_ === "function" ? renderAdminPharmacologyCard_() : ""}
 
       ${renderAdminMoreManagersHtml_()}
 
@@ -13838,6 +13844,7 @@ async function initializeFirebase() {
     collection: firestoreModule.collection,
     doc: firestoreModule.doc,
     getDoc: firestoreModule.getDoc,
+    getDocFromServer: firestoreModule.getDocFromServer,
     getDocs: firestoreModule.getDocs,
     getCountFromServer: firestoreModule.getCountFromServer,
     setDoc: firestoreModule.setDoc,

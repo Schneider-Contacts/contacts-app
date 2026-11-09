@@ -7283,3 +7283,45 @@ body.directorySheetOpen {
 #authSetupBack[hidden] { display: none; }
 
 #directoryNoResultsActions[hidden], #directorySearchAllBtn[hidden] { display: none; }
+/* Monthly shortcuts retain a full touch target in two compact columns. */
+#app .monthlyQuickEntries { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 8px; }
+#app .monthlyQuickEntries .monthlyInternsQuickEntry { gap: 7px; padding: 10px 8px; min-height: 68px; }
+#app .monthlyQuickEntries .monthlyInternsQuickIcon { width: 30px; height: 34px; }
+#app .monthlyQuickEntries .monthlyInternsQuickArrow,
+#app .monthlyQuickEntries .monthlyInternsQuickCount { display: none; }
+#app .monthlyQuickEntries .monthlyInternsQuickText strong { font-size: 13px; line-height: 1.35; }
+#app .monthlyQuickEntries .monthlyInternsQuickText small { font-size: 10.5px; line-height: 1.4; }
+#app.pharmacologyViewActive > :not(#pharmacologyView) { display: none !important; }
+#app .pharmacologyView[hidden] { display: none !important; }
+.pharmacologyDateControls { display: flex; gap: 6px; align-items: center; padding: 16px 0 8px; }
+.pharmacologyDateControls input { min-width: 0; flex: 1; border: 1px solid #ceddd6; border-radius: 10px; padding: 10px 5px; background: white; font: inherit; color: #244b3d; }
+#app .pharmacologyDateControls button, #app .pharmacologyRefresh { width: auto; min-width: 44px; min-height: 44px; margin: 0; padding: 8px 12px; color: #176b4e; background: #edf5f0; border: 1px solid #d1e4da; border-radius: 10px; box-shadow: none; font-size: 13px; }
+#app .pharmacologyRefresh { margin: 0 0 12px; }
+.pharmacologyList { display: grid; gap: 10px; }
+.pharmacologyCard { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #dce9e3; border-radius: 16px; background: #fff; padding: 16px; text-align: right; }
+.pharmacologyCard.current { border-color: #53a586; background: #f3faf6; }
+.pharmacologyPerson { display: grid; min-width: 0; gap: 6px; overflow-wrap: anywhere; }
+.pharmacologyPerson strong { color: #244b3d; font-size: 18px; }
+.pharmacologyPerson span, .pharmacologyPerson small { font-size: 13px; color: #566c61; white-space: pre-wrap; }
+.pharmacologyPerson [dir="ltr"] { text-align: right; }
+.pharmacologyPerson .pharmacologyBadge { color: #176b4e; font-weight: 700; }
+.pharmacologyCall { flex: 0 0 auto; min-width: 64px; min-height: 56px; padding: 10px; display: grid; gap: 4px; justify-items: center; border-radius: 14px; background: #e8f5ee; color: #176b4e; text-decoration: none; font-size: 12px; font-weight: 700; }
+.pharmacologyCall svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.pharmacologyWarning, .pharmacologyPerson .pharmacologyWarning { color: #86550e; font-size: 13px; line-height: 1.65; }
+.pharmacologyNotes { white-space: pre-wrap; font-size: 13px; line-height: 1.7; color: #52685e; }
+.pharmacologyAdminModal { z-index: 1450; }
+.pharmacologyAdminCard { width: min(720px, 100%); max-height: 90dvh; overflow-y: auto; text-align: right; }
+.pharmacologyAdminCard > p { font-size: 14px; line-height: 1.7; color: #52685e; }
+.pharmacologyAdminCard textarea { box-sizing: border-box; display: block; width: 100%; resize: vertical; border: 1px solid #c9dbd1; border-radius: 10px; padding: 12px; margin: 8px 0 14px; font-size: 13px; background: #fff; color: #203e34; }
+.pharmacologyPrompt { margin: 12px 0; }
+.pharmacologyPrompt summary { cursor: pointer; padding: 8px 0; color: #176b4e; }
+.pharmacologyAdminStatus { white-space: pre-wrap; margin: 14px 0; line-height: 1.65; font-size: 14px; }
+#pharmacologyPreview h4 { font-size: 18px; }
+#pharmacologyPreview h5 { font-size: 14px; margin: 18px 0 8px; }
+#pharmacologyPreview .pharmacologyCard { margin-bottom: 7px; }
+.pharmacologyReviewLabel { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; font-size: 13px; line-height: 1.65; }
+.pharmacologyReviewLabel input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 3px; }
+@media (max-width: 360px) {
+  #app .monthlyQuickEntries .monthlyInternsQuickIcon { display: none; }
+  #app .monthlyQuickEntries .monthlyInternsQuickEntry { padding: 10px; }
+}

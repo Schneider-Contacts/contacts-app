@@ -6,6 +6,7 @@
     departmentSheet: "closeDepartmentBrowser_",
     adminFocusSheet: "closeAdminFocusSheet_",
     monthlyInternsAdminModal: "closeMonthlyInternsAdmin_",
+    pharmacologyAdminModal: "closePharmacologyAdmin_",
     recentContactsModal: "closeRecentContactsModal",
     myProfileModal: "closeMyProfileModal",
     contactAddModal: "closeContactAddModal_",
@@ -188,7 +189,7 @@
     }
     if (event.key !== "Tab") return;
     const focusable = [...activeDialog.querySelectorAll(
-      'a[href], button, input, select, textarea, [tabindex]'
+      'a[href], button, input, select, textarea, summary, [tabindex]'
     )].filter(element => !element.disabled && element.tabIndex >= 0 &&
       !element.classList.contains("directorySheetBackdrop") && visible(element));
     const first = focusable[0];

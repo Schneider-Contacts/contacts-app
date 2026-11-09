@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20261109-ux-corrections-v1">
+<link rel="stylesheet" href="styles.css?v=20261110-combined-v1">
 
 
 
@@ -417,12 +417,18 @@
     <button type="button" id="departmentsFilterBtn" class="quickFilterBtn" onclick="handleDepartmentsFilterClick_()" aria-pressed="false">מחלקות</button>
   </div>
 
+  <div class="monthlyQuickEntries">
   <button type="button" id="monthlyInternsQuickEntry" class="monthlyInternsQuickEntry" onclick="openMonthlyInternsView_()">
     <span class="monthlyInternsQuickIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 20v-1.5a5 5 0 0 1 10 0V20M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
     <span class="monthlyInternsQuickText"><strong>סטאז׳רים</strong><small id="monthlyInternsQuickMonthLabel"></small></span>
     <span id="monthlyInternsQuickCount" class="monthlyInternsQuickCount" hidden></span>
     <svg class="monthlyInternsQuickArrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
   </button>
+  <button type="button" id="pharmacologyQuickEntry" class="monthlyInternsQuickEntry pharmacologyQuickEntry" onclick="openPharmacologyView_()">
+    <span class="monthlyInternsQuickIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 3h6m-5 0v6L4.5 18a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3M8 14h8"/></svg></span>
+    <span class="monthlyInternsQuickText"><strong>כונן פרמקולוגיה</strong><small>הלוח והחיוג להיום</small></span>
+  </button>
+  </div>
 
   <div id="activeDirectoryFilter" class="activeDirectoryFilter" hidden>
     <span id="activeDirectoryFilterText"></span>
@@ -554,6 +560,23 @@
     <div id="monthlyInternsStatus" class="monthlyInternsStatus" role="status" aria-live="polite">טוען את הרשימה…</div>
     <div id="monthlyInternsList" class="monthlyInternsList"></div>
   </section>
+  <section id="pharmacologyView" class="monthlyInternsView pharmacologyView" aria-labelledby="pharmacologyTitle" hidden>
+    <header class="monthlyInternsViewHeader">
+      <button type="button" id="pharmacologyBack" class="monthlyInternsViewBack" onclick="closePharmacologyView_()" aria-label="חזרה למסך הבית"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+      <div class="monthlyInternsViewHeading"><h2 id="pharmacologyTitle">כוננות פרמקולוגיה</h2><p id="pharmacologyDateLabel"></p></div>
+    </header>
+    <div class="pharmacologyDateControls">
+      <button type="button" onclick="shiftPharmacologyDate_(-1)" aria-label="היום הקודם">→</button>
+      <label class="srOnly" for="pharmacologyDateInput">תאריך הלוח</label>
+      <input type="date" id="pharmacologyDateInput" min="2000-01-01" max="2099-12-31" onchange="setPharmacologyDate_(this.value)">
+      <button type="button" onclick="shiftPharmacologyDate_(1)" aria-label="היום הבא">←</button>
+      <button type="button" onclick="showPharmacologyToday_()">היום</button>
+    </div>
+    <div id="pharmacologyStatus" class="monthlyInternsStatus" role="status" aria-live="polite"></div>
+    <button type="button" class="pharmacologyRefresh" onclick="loadPharmacology_()">רענון הלוח</button>
+    <div id="pharmacologyList" class="pharmacologyList"></div>
+  </section>
+
 </div>
 
 <div id="contactDetailSheet" class="directorySheet" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="contactDetailName">
@@ -676,6 +699,21 @@
       <button type="button" class="adminActionBtn secondary" onclick="resolveAdminConfirmation_(false)">ביטול</button>
       <button type="button" id="adminConfirmActionBtn" class="adminActionBtn danger" onclick="resolveAdminConfirmation_(true)">אישור</button>
     </div>
+  </div>
+</div>
+
+<div id="pharmacologyAdminModal" class="adminModal pharmacologyAdminModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="pharmacologyAdminTitle">
+  <div class="adminModalCard pharmacologyAdminCard">
+    <div class="adminModalHeader"><div><div class="adminModalEyebrow">מערכת</div><h3 id="pharmacologyAdminTitle" class="adminModalTitle">לוח כוננות פרמקולוגיה</h3></div><button id="pharmacologyAdminClose" type="button" class="adminModalClose" onclick="closePharmacologyAdmin_()" aria-label="סגירה">×</button></div>
+    <p>מעבירים את תמונת החודש לכלי AI שבחרת, מדביקים כאן את פלט ה־JSON ובודקים מול המקור לפני פרסום. התמונה אינה נשלחת מהאפליקציה.</p>
+    <details class="pharmacologyPrompt"><summary>הוראות להעתקה לכלי AI</summary><label class="srOnly" for="pharmacologyAiPrompt">הוראות לעיבוד התמונה</label><textarea id="pharmacologyAiPrompt" readonly rows="9"></textarea></details>
+    <label for="pharmacologyJsonInput">פלט JSON מהתמונה</label>
+    <textarea id="pharmacologyJsonInput" class="pharmacologyJson" dir="ltr" rows="7" maxlength="102400" autocomplete="off" spellcheck="false" oninput="invalidatePharmacologyPreview_()" placeholder='{"month":"2026-11","entries":[]}'></textarea>
+    <button id="pharmacologyPreviewBtn" type="button" class="adminActionBtn secondary" onclick="previewPharmacology_()">בדיקה ותצוגה מקדימה</button>
+    <div id="pharmacologyAdminStatus" class="pharmacologyAdminStatus" role="status" aria-live="polite"></div>
+    <div id="pharmacologyPreview"></div>
+    <label class="pharmacologyReviewLabel"><input id="pharmacologyReview" type="checkbox" onchange="updatePharmacologyPublishButton_()">בדקתי את כל התאריכים, השמות והמספרים מול התמונה. פרטים שלא ניתן לאמת מסומנים כחסרים או לא ודאיים, ללא השלמה משוערת.</label>
+    <button id="pharmacologyPublishBtn" type="button" class="adminActionBtn primary" onclick="publishPharmacology_()" disabled>פרסום הלוח למשתמשים המורשים</button>
   </div>
 </div>
 
@@ -1014,8 +1052,10 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="dialog-accessibility.js?v=20261109-ux-corrections-v1"></script>
-  <script src="app.js?v=20261109-ux-corrections-v1"></script>
+  <script src="dialog-accessibility.js?v=20261110-combined-v1"></script>
+  <script src="pharmacology-roster.js?v=20261110-combined-v1"></script>
+  <script src="pharmacology-ui.js?v=20261110-combined-v1"></script>
+  <script src="app.js?v=20261110-combined-v1"></script>
 
 </body>
 </html>

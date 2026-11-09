@@ -2238,8 +2238,11 @@ assert.match(
 
 const functionPattern =
   /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+const pharmacologyUiSource = read("pharmacology-ui.js");
+new vm.Script(pharmacologyUiSource, { filename: "pharmacology-ui.js" });
+new vm.Script(read("pharmacology-roster.js"), { filename: "pharmacology-roster.js" });
 const appFunctions = new Set(
-  [...appSource.matchAll(functionPattern)].map(match => match[1])
+  [...(appSource + "\n" + pharmacologyUiSource).matchAll(functionPattern)].map(match => match[1])
 );
 const inlineHandlers = [
   ...indexSource.matchAll(/\son[a-z]+="([^"]*)"/g)
@@ -2484,7 +2487,7 @@ const classNames = new Set(
     .map(match => match[1])
 );
 const renderedSources =
-  indexSource + "\n" + appSource + "\n" + emailUpdateSource;
+  indexSource + "\n" + appSource + "\n" + pharmacologyUiSource + "\n" + emailUpdateSource;
 const unreferencedClasses = [...classNames]
   .filter(className => !renderedSources.includes(className));
 

@@ -1,0 +1,54 @@
+(async () => {
+  const lines=[], out=document.getElementById('results'), frame=document.getElementById('fixture');
+  const pause=()=>new Promise(resolve=>setTimeout(resolve,100));
+  const check=(value,message)=>{if(!value)throw Error(message);lines.push('PASS '+message);out.textContent=lines.join('\n');};
+  const raw=await (await fetch('../index.html')).text();
+  const source=raw.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*href="https?:[^>]*>/gi,'').replace(/(href|src)="(?!https?:|data:|#)([^"]+)"/g,'$1="../$2"');
+  const files=['dialog-accessibility.js','pharmacology-roster.js','pharmacology-ui.js','app.js'];
+  const scripts=await Promise.all(files.map(async name=>{let body=await(await fetch('../'+name)).text();return name==='app.js'?body.replace(/\ninit\(\);\s*$/,'\n// Isolated synthetic test: production initialization disabled.'):body}));
+  for(const width of [320,375,390,430,960]){
+    frame.style.width=width+'px';frame.srcdoc=source;
+    await new Promise(resolve=>frame.onload=resolve);
+    const win=frame.contentWindow,doc=frame.contentDocument;
+    const run=code=>{const script=doc.createElement('script');script.textContent=code;doc.body.append(script)};
+    let errors=[];win.addEventListener('error',event=>errors.push(event.message));
+    for(const code of scripts)run(code);
+    run(`currentUserHasAppAccess=true;currentUserIsAdmin=true;auth={currentUser:{uid:'synthetic',email:'admin@example.test'}};db={};
+      window.qaRecords={};window.qaWrites=0;
+      firebaseApi={doc:(_db,col,id)=>({col,id}),getDocFromServer:async ref=>({exists:()=>Boolean(qaRecords[ref.id]),data:()=>structuredClone(qaRecords[ref.id])}),serverTimestamp:()=>'synthetic-time',runTransaction:async(_db,callback)=>callback({get:async ref=>({exists:()=>Boolean(qaRecords[ref.id]),data:()=>structuredClone(qaRecords[ref.id])}),set:(ref,data)=>{qaWrites++;qaRecords[ref.id]=structuredClone(data)}})};
+      document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';
+      const qaToday=PharmacologyRoster.israelDateKey();
+      qaRecords[qaToday.slice(0,7)]={schemaVersion:1,month:qaToday.slice(0,7),timeZone:'Asia/Jerusalem',notes:'נתונים בדויים לבדיקת תצוגה בלבד',entries:[{date:qaToday,name:'איש קשר לבדיקה',phone:'+972500000000',shift:'כוננות',start:'',end:'',endNextDay:false,uncertain:false,note:''}],version:'qa1',reviewed:true};`);
+    await pause();
+    const roster=doc.getElementById('pharmacologyQuickEntry').getBoundingClientRect(),interns=doc.getElementById('monthlyInternsQuickEntry').getBoundingClientRect();
+    check(Math.round(roster.y)===Math.round(interns.y)&&roster.height>=44&&interns.height>=44,`Aligned accessible shortcuts at ${width}px`);
+    check(doc.documentElement.scrollWidth<=win.innerWidth,`No horizontal overflow at ${width}px`);
+    doc.getElementById('pharmacologyQuickEntry').click();await pause();
+    check(doc.querySelector('.pharmacologyCall')?.getAttribute('href')==='tel:+972500000000',`Named call link at ${width}px`);
+    check(!doc.querySelector('.pharmacologyBadge')&&/חסרות שעות/.test(doc.getElementById('pharmacologyStatus').textContent),`Unknown hours do not invent current caller at ${width}px`);
+    doc.getElementById('pharmacologyBack').click();check(doc.getElementById('pharmacologyView').hidden,`Return home at ${width}px`);
+    if(width===390){
+      run(`document.getElementById('app').style.display='none';document.getElementById('adminPanel').style.display='block';openPharmacologyAdmin_();`);await pause();
+      check(doc.activeElement.id==='pharmacologyAdminTitle','Roster editor starts with neutral focus');
+      const input=doc.getElementById('pharmacologyJsonInput');input.value=JSON.stringify({month:'2026-12',entries:[{date:'2026-12-09',name:'אדם בדוי',phone:'0500000000',shift:'לילה',start:'21:00',end:'08:00',endNextDay:true}]});
+      input.dispatchEvent(new win.Event('input',{bubbles:true}));doc.getElementById('pharmacologyPreviewBtn').click();await pause();
+      check(doc.getElementById('pharmacologyPublishBtn').disabled,'Review required before publication');
+      doc.getElementById('pharmacologyReview').click();doc.getElementById('pharmacologyPublishBtn').click();await pause();
+      const confirm=doc.getElementById('adminConfirmActionBtn'),rect=confirm.getBoundingClientRect();
+      check(confirm.contains(doc.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)),'Confirmation is above importer');
+      doc.getElementById('adminConfirmModal').querySelector('button').click();await pause();check(win.qaWrites===0,'Cancel makes no write');
+      doc.getElementById('pharmacologyPublishBtn').click();await pause();doc.getElementById('adminConfirmActionBtn').click();await pause();
+      check(win.qaWrites===1&&/פורסם בהצלחה/.test(doc.getElementById('pharmacologyAdminStatus').textContent),'Synthetic publication succeeds once');
+      doc.getElementById('pharmacologyAdminClose').click();await pause();run('openPharmacologyAdmin_()');await pause();
+      check(input.value==='','Reopen clears old draft');
+      doc.dispatchEvent(new win.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await pause();
+      check(!doc.getElementById('pharmacologyAdminModal').classList.contains('visible'),'Escape closes integrated editor');
+      run('openPharmacologyAdmin_()');await pause();win.history.back();await pause();await pause();
+      check(!doc.getElementById('pharmacologyAdminModal').classList.contains('visible'),'Back closes integrated editor');
+      win.history.forward();await pause();await pause();check(!doc.getElementById('pharmacologyAdminModal').classList.contains('visible'),'Forward does not reopen editor');
+    }
+    check(errors.length===0,`No browser errors at ${width}px: ${errors.join('; ')}`);
+    run('resetPharmacology_()');
+  }
+  out.textContent+='\nALL '+lines.length+' CHECKS PASSED';document.title='PASS: Combined release browser checks';
+})().catch(error=>{document.getElementById('results').textContent+='\nFAIL '+error.stack;document.title='FAIL: Combined release browser checks'});
