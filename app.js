@@ -349,7 +349,7 @@ function findEquivalentOpenReport_(subject) {
     if (isIntern) {
       return report.subjectType === "intern" &&
         String(report.internId || "") === String(subject.id || "") &&
-        (!report.internVersion || String(report.internVersion) === String(monthlyInternsState.version || ""));
+        (!report.internVersion || String(report.internVersion) === String(subject.internVersion ?? monthlyInternsState.version ?? ""));
     }
     return report.subjectType !== "intern" && (
       (subject.docId && String(report.contactDocId || "") === String(subject.docId)) ||
@@ -6151,6 +6151,16 @@ function getMyProfileContact_() {
   ) || null;
 }
 
+const requestModalSessions_ = {};
+
+function startRequestModalSession_(kind, buttonId) {
+  const session = { busy: false, submitted: false, submissionVersion: 0 };
+  requestModalSessions_[kind] = session;
+  const button = document.getElementById(buttonId);
+  if (button) button.disabled = false;
+  return session;
+}
+
 function setMyProfileStatus_(message = "", type = "") {
   setStatus("myProfileStatus", message, type);
 }
@@ -6170,6 +6180,7 @@ function openMyProfileModal() {
     return;
   }
 
+  startRequestModalSession_("profile", "myProfileSubmitBtn");
   myProfileContact = contact;
 
   document.getElementById("myProfileFirstName").value = contact.first || "";
@@ -6203,6 +6214,7 @@ function openMyProfileModal() {
 }
 
 function closeMyProfileModal() {
+  requestModalSessions_.profile = null;
   const modal = document.getElementById("myProfileModal");
   if (modal) modal.classList.remove("visible");
   document.body.style.overflow = "";
@@ -6211,6 +6223,9 @@ function closeMyProfileModal() {
 }
 
 async function submitMyProfileUpdate_() {
+  const session = requestModalSessions_.profile;
+  if (!session || session.busy || session.submitted) return;
+  const isCurrent = () => requestModalSessions_.profile === session;
   if (!myProfileContact || !auth || !auth.currentUser || !currentUserHasAppAccess) {
     setMyProfileStatus_("לא ניתן לשלוח את הבקשה כרגע.", "error");
     return;
@@ -6237,6 +6252,7 @@ async function submitMyProfileUpdate_() {
   }
 
   const submitButton = document.getElementById("myProfileSubmitBtn");
+  session.busy = true;
   submitButton.disabled = true;
   setMyProfileStatus_("שולח את השינויים לאישור מנהל...", "loading");
   const requestId = `self_${String(auth.currentUser.uid || "user")}_${getIsraelDateKey_().replace(/-/g, "")}`;
@@ -6268,11 +6284,14 @@ async function submitMyProfileUpdate_() {
       { merge: false }
     );
 
+    session.submitted = true;
+    if (!isCurrent()) return;
     setMyProfileStatus_("השינויים נשלחו לאישור מנהל. הפרטים יתעדכנו לאחר האישור.", "success");
     submitButton.textContent = "נשלח לאישור";
-    setTimeout(closeMyProfileModal, 1800);
+    setTimeout(() => { if (isCurrent()) closeMyProfileModal(); }, 1800);
   } catch (error) {
     console.error("Self profile update request failed", error);
+    if (!isCurrent()) return;
     const alreadySent = error && ["permission-denied", "firestore/permission-denied"].includes(error.code);
     setMyProfileStatus_(
       alreadySent
@@ -6280,7 +6299,9 @@ async function submitMyProfileUpdate_() {
         : "שליחת השינויים נכשלה. בדקו את החיבור ונסו שוב.",
       alreadySent ? "empty" : "error"
     );
-    submitButton.disabled = false;
+  } finally {
+    session.busy = false;
+    if (isCurrent()) submitButton.disabled = session.submitted;
   }
 }
 
@@ -7200,6 +7221,7 @@ function getAdminPendingCounts_() {
         const request = getEffectiveVerificationRequestForUser_(user);
         const accessState = getUserAccessState_(user);
         return Boolean(
+          !(reportsLoaded && getLinkedJoinRequestForUser_(user)) &&
           request &&
           ["pending", "temporary_active"].includes(request.status) &&
           ["pending", "temporary", "expired"].includes(accessState.key)
@@ -7242,6 +7264,7 @@ function getAdminPendingCounts_() {
     users,
     reports,
     total: users + reports + notifications,
+    unified: usersLoaded && reportsLoaded,
     loaded:
       adminPendingSummary.loaded ||
       usersLoaded ||
@@ -7257,13 +7280,13 @@ function updateAdminPendingBadges_() {
   if (attentionBadge) {
     attentionBadge.hidden = counts.total < 1;
     attentionBadge.textContent =
-      counts.total > 99 ? "99+" : String(counts.total);
+      !counts.unified ? "•" : counts.total > 99 ? "99+" : String(counts.total);
   }
 
   const mainBadge = document.getElementById("adminOpenPendingBadge");
   if (mainBadge) {
     mainBadge.hidden = !counts.loaded || counts.total < 1;
-    mainBadge.textContent = counts.total > 99
+    mainBadge.textContent = !counts.unified ? "ממתין לטיפול" : counts.total > 99
       ? "99+ לטיפול"
       : `${counts.total} לטיפול`;
   }
@@ -7279,7 +7302,9 @@ function updateAdminPendingBadges_() {
     if (counts.passwordResetRequests) types.push("איפוס סיסמה");
     if (counts.contactRequests) types.push("עדכון איש קשר");
     if (counts.contactReports) types.push("דיווח");
-    homeSummary.textContent = counts.total > 0
+    homeSummary.textContent = counts.total > 0 && !counts.unified
+      ? "יש בקשות שממתינות לטיפול. המספר יוצג לאחר טעינת הרשימה המאוחדת."
+      : counts.total > 0
       ? `${counts.total} דברים מחכים לך${types.length ? ` · ${types.slice(0, 2).join(", ")}${types.length > 2 ? " ועוד" : ""}` : ""}`
       : "";
   }
@@ -7287,7 +7312,7 @@ function updateAdminPendingBadges_() {
   const headerBadge = document.getElementById("adminHeaderPendingBadge");
   if (headerBadge) {
     headerBadge.hidden = !counts.loaded || counts.total < 1;
-    headerBadge.textContent = counts.total > 99
+    headerBadge.textContent = !counts.unified ? "ממתין לטיפול" : counts.total > 99
       ? "99+ לטיפול"
       : `${counts.total} לטיפול`;
   }
@@ -7301,7 +7326,7 @@ function updateAdminPendingBadges_() {
   };
   Object.entries(filterCounts).forEach(([elementId, count]) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = counts.loaded ? String(count) : "";
+    if (element) element.textContent = counts.unified ? String(count) : "";
   });
 }
 
@@ -7721,7 +7746,7 @@ async function loadAdminReportsData_() {
     }),
     firebaseApi.getDocs(contactAddRequestsQuery).catch(error => {
       console.error("Contact addition requests load failed", error);
-      return { docs: [] };
+      throw error;
     })
   ]);
 
@@ -7841,7 +7866,8 @@ async function loadAdminAttentionData_() {
 async function loadAdminPeopleData_() {
   await Promise.all([
     loadAdminDataPart_("contacts", loadAdminContactsData_),
-    loadAdminDataPart_("users", loadAdminUsersData_)
+    loadAdminDataPart_("users", loadAdminUsersData_),
+    loadAdminDataPart_("reports", loadAdminReportsData_)
   ]);
 }
 
@@ -7865,7 +7891,7 @@ async function loadAdminSystemData_() {
 function getAdminCompositeParts_(section) {
   return {
     attention: ["general", "users", "reports"],
-    people: ["contacts", "users"],
+    people: ["contacts", "users", "reports"],
     system: currentUserIsSuperAdmin
       ? ["general", "users", "activity", "interns", "managers"]
       : ["general", "users", "activity", "interns"]
@@ -8277,7 +8303,7 @@ function renderAdminActivity() {
           : ""}
         ${approvalTarget
           ? `<div class="adminCardActions activityApprovalActions">
-               <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(approvalTarget.email)}', false, true)">אישור גישה קבועה</button>
+               <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(approvalTarget.email)}', false, true)">${getLinkedJoinRequestForUser_(approvalTarget) ? "אישור איש קשר וגישה קבועה" : "אישור גישה קבועה"}</button>
                <button type="button" class="adminActionBtn secondary" onclick="openAdminPerson_('', '${escapeJsString(approvalTarget.email)}')">פתיחת כרטיס העובד</button>
              </div>`
           : ""}
@@ -8697,9 +8723,9 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       : `לאשר ולהוסיף את ${getContactAddRequestName_({ ...request, ...values }) || formatPhoneForDisplay(values.phone)} לרשימה?`;
 
   if (!await requestAdminConfirmation_({
-    title: isUpdateRequest ? "אישור עדכון פרטים" : existingContact ? "עדכון איש קשר קיים" : "הוספת איש קשר",
+    title: isUpdateRequest ? "אישור עדכון פרטים" : grantsFormAccess ? "אישור הצטרפות וגישה קבועה" : existingContact ? "עדכון איש קשר קיים" : "הוספת איש קשר",
     message: existingMessage,
-    confirmLabel: isUpdateRequest ? "אישור ועדכון" : "אישור והוספה",
+    confirmLabel: isUpdateRequest ? "אישור ועדכון" : grantsFormAccess ? "אישור איש קשר וגישה קבועה" : "אישור והוספה",
     tone: "primary"
   })) return;
 
@@ -8828,7 +8854,9 @@ async function rejectContactAddRequest_(requestId) {
     title: "דחיית הבקשה",
     message: ["self_update", "contact_update"].includes(request.requestType)
       ? "בקשת עדכון הפרטים תסומן כנדחתה."
-      : "בקשת הוספת איש הקשר תסומן כנדחתה.",
+      : request.grantAccessOnApproval === true
+        ? "בקשת ההוספה לספר תסומן כנדחתה. גישה קיימת או זמנית לא תבוטל; בקשת גישה שעדיין ממתינה תישאר לטיפול בנפרד."
+        : "בקשת הוספת איש הקשר תסומן כנדחתה.",
     confirmLabel: "דחיית הבקשה",
     tone: "warning"
   })) return;
@@ -9002,12 +9030,37 @@ function renderAdminReports() {
     reportsHtml + renderAdminLoadMore_(items.length, visibleItems.length);
 }
 
+// Only collapse an unambiguous join request for the same email AND phone.
+// Contact-only edits and unrelated/legacy verification requests stay independent.
+function getLinkedJoinRequestForUser_(user) {
+  if (!user || !user.active || !user.phonePermissionActive) return null;
+  const email = normalizeEmail(user.email);
+  const phone = normalizePhone(user.phone);
+  const verification = getEffectiveVerificationRequestForUser_(user);
+  if (!email || !phone || !verification ||
+      !["pending", "temporary_active"].includes(verification.status) ||
+      !["pending", "temporary", "expired"].includes(getUserAccessState_(user).key) ||
+      normalizeEmail(verification.email) !== email ||
+      (!verification.synthetic && normalizePhone(verification.phone) !== phone)) {
+    return null;
+  }
+  const matches = adminContactAddRequests.filter(request =>
+    request.status === "pending" &&
+    request.requestType === "contact_add" &&
+    request.grantAccessOnApproval === true &&
+    normalizeEmail(request.email) === email &&
+    normalizePhone(request.phone) === phone
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
 function getAdminAttentionItems_() {
   const accessItems = adminAllowedUsers
     .map(user => {
       const accessState = getUserAccessState_(user);
       const request = getEffectiveVerificationRequestForUser_(user);
       if (
+        getLinkedJoinRequestForUser_(user) ||
         !["pending", "temporary", "expired"].includes(accessState.key) ||
         !request ||
         !["pending", "temporary_active"].includes(request.status)
@@ -9035,6 +9088,10 @@ function getAdminAttentionItems_() {
     .filter(request => request.status === "pending")
     .map(request => ({
       kind: "contact",
+      priority: adminAllowedUsers.some(user =>
+        getLinkedJoinRequestForUser_(user) === request &&
+        getEffectiveVerificationRequestForUser_(user).reviewRequestedNow === true
+      ) ? 1 : 0,
       timestamp: getContactAddRequestTimestamp_(request),
       data: request
     }));
@@ -9148,7 +9205,7 @@ function renderAdminAttentionAccessCard_(item) {
             ${allowTemporary
               ? `<button type="button" class="adminActionBtn secondary" onclick="approveManualAccess_('${escapeJsString(user.email)}', true)">אישור עד 23:59</button>`
               : ""}
-            <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false)">אישור קבוע</button>
+            <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור קבוע"}</button>
             <button type="button" class="adminActionBtn warning" onclick="${isTemporary ? "revokeManualAccess_" : "rejectManualAccess_"}('${escapeJsString(user.email)}')">${isTemporary ? "ביטול מיידי" : "דחיית הבקשה"}</button>
           </div>
         </div>
@@ -9531,7 +9588,7 @@ function openAdminAttentionItem_(kind, itemId) {
         ])}
         ${accessState.note ? `<p class="adminFocusDescription">${escapeHtml(accessState.note)}</p>` : ""}
         <div class="adminFocusPrimaryActions">
-          <button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approveManualAccess_('${escapeJsString(user.email)}', false)">אישור קבוע</button>
+          <button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); approveManualAccess_('${escapeJsString(user.email)}', false)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור קבוע"}</button>
           ${isTemporary ? "" : `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); approveManualAccess_('${escapeJsString(user.email)}', true)">אישור עד סוף היום</button>`}
         </div>
         <div class="adminFocusSecondaryActions">
@@ -9601,7 +9658,7 @@ function openAdminAttentionItem_(kind, itemId) {
     const isContactUpdate = request.requestType === "contact_update";
     const isUpdateRequest = isSelfUpdate || isContactUpdate;
     openAdminFocusSheet_({
-      eyebrow: isUpdateRequest ? "בקשת עדכון פרטים" : "בקשת הוספת איש קשר",
+      eyebrow: isUpdateRequest ? "בקשת עדכון פרטים" : request.grantAccessOnApproval === true ? "בקשת הצטרפות ואישור גישה" : "בקשת הוספת איש קשר",
       title: name,
       subtitle: formatAdminRelativeTime_(request.createdAt),
       html: `
@@ -9950,7 +10007,7 @@ function renderAdminPersonManagement_(contact, user) {
   }
   if (canForceApproveAccess) {
     primaryActions.push(
-      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור כניסה קבוע — גם בלי מייל אימות</button>`
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור כניסה קבוע — גם בלי מייל אימות"}</button>`
     );
   }
 
@@ -10082,12 +10139,12 @@ function openAdminPerson_(contactDocId, userEmail) {
   const accessActions = [];
   if (hasPendingAccess) {
     accessActions.push(
-      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור כניסה קבוע — גם בלי מייל אימות</button>`,
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור כניסה קבוע — גם בלי מייל אימות"}</button>`,
       '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת הבקשה המלאה</button>'
     );
   } else if (canForceApproveAccess) {
     accessActions.push(
-      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">אישור כניסה קבוע — גם בלי מייל אימות</button>`
+      `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור כניסה קבוע — גם בלי מייל אימות"}</button>`
     );
   } else if (user && !isSelf) {
     accessActions.push(
@@ -11796,8 +11853,21 @@ async function approveManualAccess_(email, temporary = false, force = false) {
     return;
   }
 
+  if (!temporary && !adminLoadedSections.has("reports")) {
+    try {
+      await loadAdminDataPart_("reports", loadAdminReportsData_);
+    } catch (error) {
+      setAdminStatus("לא ניתן לבדוק את בקשת ההצטרפות. רעננו ונסו שוב לפני אישור גישה קבועה.", "error");
+      return;
+    }
+  }
+
   const normalizedEmail = normalizeEmail(email);
   const user = getAllowedUserByEmail(normalizedEmail);
+  const linkedJoinRequest = temporary ? null : getLinkedJoinRequestForUser_(user);
+  if (linkedJoinRequest) {
+    return approveContactAddRequest_(linkedJoinRequest.docId);
+  }
   const contact = findContactByEmail(normalizedEmail) ||
     findAdminContactByPhone_(user && user.phone);
   const request = getEffectiveVerificationRequestForUser_(user);
@@ -12596,7 +12666,7 @@ function renderAdminUsers() {
         ${accessState.key === "pending"
           ? `<button type="button" class="adminActionBtn secondary" onclick="approveManualAccess_('${escapeJsString(user.email)}', true)">אישור עד 23:59</button>`
           : ""}
-        <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false)">אישור קבוע</button>
+        <button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור קבוע"}</button>
         ${accessState.key === "temporary"
           ? `<button type="button" class="adminActionBtn warning" onclick="revokeManualAccess_('${escapeJsString(user.email)}')">ביטול מיידי</button>`
           : `<button type="button" class="adminActionBtn warning" onclick="rejectManualAccess_('${escapeJsString(user.email)}')">דחיית בקשה</button>`}
@@ -13980,6 +14050,7 @@ function saveImportPayload(vcardContent, fileName, count, titleText, options = {
     titleText,
     markRecentImported: options.markRecentImported === true,
     markRecentImportCutoff: options.markRecentImportCutoff === true,
+    recentImportCutoffAt: Number(options.recentImportCutoffAt) || 0,
     importedRecentPhones: Array.isArray(options.importedRecentPhones)
       ? options.importedRecentPhones.map(normalizePhone).filter(Boolean)
       : [],
@@ -14044,6 +14115,7 @@ function renderImportGuide(importKey) {
 
   const finalBtn = document.getElementById("finalGuideBtn");
   finalBtn.onclick = async function () {
+    // This records a successful export handoff, not an import into the Contacts app.
     const downloadCompleted = await shareOrDownloadVCard(payload.vcardContent, payload.fileName);
     if (downloadCompleted !== true) return;
 
@@ -14051,10 +14123,19 @@ function renderImportGuide(importKey) {
       markRecentContactPhonesImported_(payload.importedRecentPhones || []);
 
       if (payload.markRecentImportCutoff === true) {
-        localStorage.setItem(
-          RECENT_CONTACTS_STORAGE_KEY,
-          String(Date.now())
-        );
+        // A cached directory is not a completeness watermark. Preserve its eligibility
+        // window and exclude only exported phones, including after a later refresh.
+        // Older saved guides did not store the window; reconstruct their default.
+        const snapshotAt = Number(payload.recentImportCutoffAt ||
+          (Number(payload.createdAt) - RECENT_CONTACTS_DEFAULT_DAYS * 24 * 60 * 60 * 1000));
+        const previousCutoff = Number(localStorage.getItem(RECENT_CONTACTS_STORAGE_KEY) || 0);
+        if (Number.isFinite(snapshotAt) && snapshotAt > 0 &&
+            !(Number.isFinite(previousCutoff) && previousCutoff > 0)) {
+          localStorage.setItem(
+            RECENT_CONTACTS_STORAGE_KEY,
+            String(snapshotAt)
+          );
+        }
       }
     }
   };
@@ -14165,6 +14246,8 @@ function bindContactAddDuplicateReset_() {
 }
 
 function openContactAddModal_() {
+  const session = startRequestModalSession_("add", "contactAddSubmitBtn");
+  document.getElementById("contactPickerBtn").disabled = false;
   contactAddModalMode = "user";
   activeContactAddRequestId = "";
   resetContactAddForm_();
@@ -14180,7 +14263,7 @@ function openContactAddModal_() {
   document.getElementById("contactAddModal").classList.add("visible");
   document.body.style.overflow = "hidden";
   loadUserRequestStatuses_().then(() => {
-    if (activeContactUpdate || contactAddModalMode !== "user") return;
+    if (requestModalSessions_.add !== session || session.busy || session.submitted || activeContactUpdate || contactAddModalMode !== "user") return;
     const latest = userRequestState.contactRequests
       .filter(request => String(request.requestType || "contact_add") === "contact_add")
       .sort((left, right) => getTimestampMillis_(right.updatedAt || right.createdAt) - getTimestampMillis_(left.updatedAt || left.createdAt))[0];
@@ -14195,6 +14278,7 @@ function openContactUpdateModal_(contactId) {
   if (!contact) return;
   contactAddModalMode = "user";
   activeContactAddRequestId = "";
+  const session = startRequestModalSession_("add", "contactAddSubmitBtn");
   activeContactUpdate = contact;
   contactAddSource = "contact_detail";
   bindContactAddDuplicateReset_();
@@ -14224,7 +14308,7 @@ function openContactUpdateModal_(contactId) {
 
   loadUserRequestStatuses_().then(() => {
     const pending = findLatestUserContactRequest_(contact, ["pending"]);
-    if (pending && activeContactUpdate && activeContactUpdate.id === contact.id) {
+    if (pending && requestModalSessions_.add === session && !session.busy && !session.submitted) {
       setContactAddStatus_("כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
     }
   });
@@ -14235,6 +14319,7 @@ function openContactAddRequestForApproval_(requestId, message = "") {
   const request = adminContactAddRequests.find(item => item.docId === requestId);
   if (!request || request.status !== "pending") return;
 
+  startRequestModalSession_("add", "contactAddSubmitBtn");
   contactAddModalMode = "admin";
   activeContactAddRequestId = requestId;
   contactAddSource = request.source || "manual";
@@ -14269,6 +14354,7 @@ function openContactAddRequestForApproval_(requestId, message = "") {
 }
 
 function closeContactAddModal_() {
+  requestModalSessions_.add = null;
   const modal = document.getElementById("contactAddModal");
   if (modal) modal.classList.remove("visible");
   document.body.style.overflow = "";
@@ -14293,12 +14379,18 @@ function splitPickedContactName_(fullName) {
 }
 
 async function pickContactFromDevice_() {
+  const session = requestModalSessions_.add;
+  if (!session || session.busy || session.submitted || session.picking) return;
+  const submissionVersion = session.submissionVersion;
+  const isCurrent = () => requestModalSessions_.add === session;
+  const canApply = () => isCurrent() && session.submissionVersion === submissionVersion && !session.busy && !session.submitted;
   if (!contactPickerSupported_()) {
     setContactAddStatus_("בחירת איש קשר מהמכשיר אינה נתמכת בדפדפן הזה. אפשר למלא את הטופס ידנית.", "error");
     return;
   }
 
   const button = document.getElementById("contactPickerBtn");
+  session.picking = true;
   button.disabled = true;
   setContactAddStatus_("פותח את אנשי הקשר במכשיר...", "loading");
 
@@ -14309,6 +14401,7 @@ async function pickContactFromDevice_() {
       ["name", "tel", "email"],
       { multiple: false }
     );
+    if (!canApply()) return;
     const contact = Array.isArray(selected) ? selected[0] : null;
     if (!contact) {
       setContactAddStatus_("לא נבחר איש קשר.", "");
@@ -14330,6 +14423,7 @@ async function pickContactFromDevice_() {
     setContactAddStatus_("הפרטים הועתקו מהמכשיר. אפשר לתקן או להשלים לפני השליחה.", "success");
   } catch (error) {
     console.error("Contact picker failed", error);
+    if (!canApply()) return;
     const cancelled = error && ["AbortError", "NotAllowedError"].includes(error.name);
     setContactAddStatus_(
       cancelled
@@ -14338,11 +14432,17 @@ async function pickContactFromDevice_() {
       cancelled ? "" : "error"
     );
   } finally {
-    button.disabled = false;
+    session.picking = false;
+    if (isCurrent()) button.disabled = session.busy || session.submitted;
   }
 }
 
 async function submitContactAddRequest_() {
+  const session = requestModalSessions_.add;
+  if (!session || session.busy || session.submitted) return;
+  const isCurrent = () => requestModalSessions_.add === session;
+  const originalContact = activeContactUpdate ? { ...activeContactUpdate } : null;
+  const source = contactAddSource;
   const values = getContactAddFormValues_();
   const hasAnyValue = Object.values(values).some(value => String(value || "").trim());
 
@@ -14366,16 +14466,16 @@ async function submitContactAddRequest_() {
     return;
   }
 
-  const requestType = activeContactUpdate ? "contact_update" : "contact_add";
-  if (activeContactUpdate) {
+  const requestType = originalContact ? "contact_update" : "contact_add";
+  if (originalContact) {
     const currentValues = {
-      firstName: String(activeContactUpdate.first || "").trim(),
-      lastName: String(activeContactUpdate.last || "").trim(),
-      titlePrefix: String(activeContactUpdate.title || "").trim(),
-      role: String(activeContactUpdate.role || "").trim(),
-      department: String(activeContactUpdate.dept || "").trim(),
-      phone: normalizePhone(activeContactUpdate.phone || ""),
-      email: normalizeEmail(activeContactUpdate.email || "")
+      firstName: String(originalContact.first || "").trim(),
+      lastName: String(originalContact.last || "").trim(),
+      titlePrefix: String(originalContact.title || "").trim(),
+      role: String(originalContact.role || "").trim(),
+      department: String(originalContact.dept || "").trim(),
+      phone: normalizePhone(originalContact.phone || ""),
+      email: normalizeEmail(originalContact.email || "")
     };
     const normalizedValues = {
       ...values,
@@ -14403,24 +14503,25 @@ async function submitContactAddRequest_() {
   }
 
   const submitButton = document.getElementById("contactAddSubmitBtn");
+  session.submissionVersion += 1;
+  session.busy = true;
   submitButton.disabled = true;
-  setContactAddStatus_(activeContactUpdate ? "שולח את העדכון לאישור..." : "שולח את הבקשה...", "loading");
+  setContactAddStatus_(originalContact ? "שולח את העדכון לאישור..." : "שולח את הבקשה...", "loading");
 
   try {
     await loadUserRequestStatuses_({ force: true });
     const pendingRequest = findEquivalentPendingContactRequest_(values, {
       requestType,
-      originalContactId: activeContactUpdate
-        ? String(activeContactUpdate.docId || normalizePhone(activeContactUpdate.phone || "").replace(/\D/g, ""))
+      originalContactId: originalContact
+        ? String(originalContact.docId || normalizePhone(originalContact.phone || "").replace(/\D/g, ""))
         : ""
     });
     if (pendingRequest) {
-      setContactAddStatus_("כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
+      if (isCurrent()) setContactAddStatus_("כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
       return;
     }
 
-    const requestId = getCooldownSubmissionDocumentId_(activeContactUpdate ? "update" : "add", currentUser);
-    const originalContact = activeContactUpdate;
+    const requestId = getCooldownSubmissionDocumentId_(originalContact ? "update" : "add", currentUser);
     const requestPayload = {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -14430,9 +14531,9 @@ async function submitContactAddRequest_() {
       phone: values.phone ? normalizePhone(values.phone) : "",
       email: values.email,
       reporterEmail: normalizeEmail(currentUser.email || ""),
-      source: activeContactUpdate
+      source: originalContact
         ? "contact_detail"
-        : contactAddSource === "device_picker" ? "device_picker" : "manual",
+        : source === "device_picker" ? "device_picker" : "manual",
       requestType,
       originalContactId: originalContact
         ? String(originalContact.docId || normalizePhone(originalContact.phone || "").replace(/\D/g, ""))
@@ -14459,16 +14560,19 @@ async function submitContactAddRequest_() {
       updatedAt: new Date()
     });
     userRequestState.loadedAt = Date.now();
+    session.submitted = true;
+    if (!isCurrent()) return;
     setContactAddStatus_(
-      activeContactUpdate
+      originalContact
         ? "העדכון נשלח. מצב: ממתין לאישור."
         : "הבקשה נשלחה. מצב: ממתין לאישור.",
       "success"
     );
     document.getElementById("contactAddSubmitBtn").textContent = "ממתין לאישור";
-    setTimeout(closeContactAddModal_, 1900);
+    setTimeout(() => { if (isCurrent()) closeContactAddModal_(); }, 1900);
   } catch (error) {
     console.error("Contact addition request failed", error);
+    if (!isCurrent()) return;
     const isCooldown = error && [
       "permission-denied",
       "firestore/permission-denied"
@@ -14480,7 +14584,11 @@ async function submitContactAddRequest_() {
       "error"
     );
   } finally {
-    submitButton.disabled = false;
+    session.busy = false;
+    if (isCurrent()) {
+      submitButton.disabled = session.submitted;
+      document.getElementById("contactPickerBtn").disabled = Boolean(session.picking || session.submitted);
+    }
   }
 }
 
@@ -14488,6 +14596,7 @@ function openContactReportModal(id) {
   const contact = contacts.find(item => item.id === id);
   if (!contact) return;
 
+  startRequestModalSession_("report", "contactReportSubmitBtn");
   activeReportContact = { ...contact, reportSubject: "contact" };
   const contactBox = document.getElementById("contactReportContact");
   const details = document.getElementById("contactReportDetails");
@@ -14518,6 +14627,7 @@ function openContactReportModal(id) {
 function openMonthlyInternReport_(internId) {
   const intern = getMonthlyInternById_(internId);
   if (!intern || !auth || !auth.currentUser) return;
+  startRequestModalSession_("report", "contactReportSubmitBtn");
   activeReportContact = { ...intern, reportSubject: "intern" };
   document.getElementById("contactReportModalTitle").textContent = "דיווח על טעות בפרטי סטאז׳ר";
   document.getElementById("contactReportContact").textContent =
@@ -14542,6 +14652,7 @@ function openMonthlyInternReport_(internId) {
 }
 
 function closeContactReportModal() {
+  requestModalSessions_.report = null;
   const modal = document.getElementById("contactReportModal");
   if (modal) modal.classList.remove("visible");
   document.body.style.overflow = "";
@@ -14554,52 +14665,60 @@ function closeContactReportModal() {
 async function submitContactReport() {
   if (!activeReportContact || !auth || !auth.currentUser || !db || !firebaseApi) return;
 
+  const session = requestModalSessions_.report;
+  if (!session || session.busy || session.submitted) return;
+  const isCurrent = () => requestModalSessions_.report === session;
+  const reportContact = { ...activeReportContact };
+  const currentUser = auth.currentUser;
+  const internVersion = String(monthlyInternsState.version || "");
   const typeInput = document.getElementById("contactReportType");
   const detailsInput = document.getElementById("contactReportDetails");
   const button = document.getElementById("contactReportSubmitBtn");
   const issueType = String(typeInput ? typeInput.value : "other");
   const details = String(detailsInput ? detailsInput.value : "").trim();
 
-  if (activeReportContact.reportSubject !== "intern" && details.length < 3) {
+  if (reportContact.reportSubject !== "intern" && details.length < 3) {
     setStatus("contactReportStatus", "כתבו בקצרה מה דורש תיקון.", "error");
     return;
   }
 
+  session.busy = true;
   if (button) button.disabled = true;
   setStatus("contactReportStatus", "שולח את הדיווח...", "loading");
 
   try {
     await loadUserRequestStatuses_({ force: true });
     const equivalentReport = findEquivalentOpenReport_({
-      ...activeReportContact,
+      ...reportContact,
+      internVersion,
       issueType
     });
     if (equivalentReport) {
-      setStatus("contactReportStatus", "כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
+      if (isCurrent()) setStatus("contactReportStatus", "כבר נשלחה בקשה והיא ממתינה לטיפול.", "empty");
       return;
     }
 
     const reportId = getCooldownSubmissionDocumentId_(
       "report",
-      auth.currentUser
+      currentUser
     );
-    const isInternReport = activeReportContact.reportSubject === "intern";
+    const isInternReport = reportContact.reportSubject === "intern";
     const reportPayload = {
-      contactDocId: isInternReport ? "" : String(activeReportContact.docId || ""),
-      contactPhone: String(activeReportContact.phone || ""),
-      contactName: String(activeReportContact.name || ""),
+      contactDocId: isInternReport ? "" : String(reportContact.docId || ""),
+      contactPhone: String(reportContact.phone || ""),
+      contactName: String(reportContact.name || ""),
       issueType,
       details,
-      reporterEmail: normalizeEmail(auth.currentUser.email),
+      reporterEmail: normalizeEmail(currentUser.email),
       status: "open",
       createdAt: firebaseApi.serverTimestamp()
     };
     if (isInternReport) {
       Object.assign(reportPayload, {
         subjectType: "intern",
-        internId: String(activeReportContact.id || ""),
-        internVersion: String(monthlyInternsState.version || ""),
-        internDepartment: String(activeReportContact.department || "")
+        internId: String(reportContact.id || ""),
+        internVersion,
+        internDepartment: String(reportContact.department || "")
       });
     }
     await firebaseApi.setDoc(
@@ -14614,10 +14733,13 @@ async function submitContactReport() {
       createdAt: new Date()
     });
     userRequestState.loadedAt = Date.now();
+    session.submitted = true;
+    if (!isCurrent()) return;
     setStatus("contactReportStatus", "הדיווח נשלח. מצב: ממתין לטיפול.", "success");
-    setTimeout(closeContactReportModal, 1300);
+    setTimeout(() => { if (isCurrent()) closeContactReportModal(); }, 1300);
   } catch (error) {
     console.error("Contact report submission failed", error);
+    if (!isCurrent()) return;
     const isCooldown = error && [
       "permission-denied",
       "firestore/permission-denied"
@@ -14630,7 +14752,8 @@ async function submitContactReport() {
       "error"
     );
   } finally {
-    if (button) button.disabled = false;
+    session.busy = false;
+    if (isCurrent() && button) button.disabled = session.submitted;
   }
 }
 
@@ -14713,7 +14836,7 @@ function openRecentContactsModal() {
 
   if (explanation) {
     explanation.textContent = hasPreviousImport
-      ? "הרשימה כוללת רק מספרי טלפון חדשים שנוספו למערכת מאז ההורדה האחרונה מהמכשיר הזה. שינוי שם, תפקיד, מייל או מחלקה של מספר קיים אינו נכלל. אפשר לבחור אילו אנשי קשר להוריד."
+      ? "הרשימה כוללת מספרי טלפון חדשים שטרם נכללו בהורדת כל אנשי הקשר או בהורדת אנשי קשר חדשים במכשיר הזה. שינוי שם, תפקיד, מייל או מחלקה של מספר קיים אינו נכלל. אפשר לבחור אילו אנשי קשר להוריד."
       : `זהו השימוש הראשון בכפתור, ולכן מוצגים רק מספרי טלפון חדשים שנוספו ב-${RECENT_CONTACTS_DEFAULT_DAYS} הימים האחרונים. שינוי פרטים של מספר קיים אינו נכלל. אפשר לבחור אילו אנשי קשר להוריד.`;
   }
 
@@ -14748,6 +14871,7 @@ async function downloadRecentContacts() {
     alert("הורדת אנשי קשר חדשים זמינה לאחר אישור גישה קבועה.");
     return;
   }
+  const snapshotAt = getRecentContactsCutoff();
   const recentContacts = getRecentContacts();
   const selectedContacts = recentContacts.filter(contact =>
     selectedRecentContactPhones.has(getRecentContactSelectionKey_(contact))
@@ -14770,6 +14894,7 @@ async function downloadRecentContacts() {
     {
       markRecentImported: true,
       markRecentImportCutoff: allRecentSelected,
+      recentImportCutoffAt: snapshotAt,
       importedRecentPhones: selectedPhones
     }
   );
@@ -14785,8 +14910,14 @@ async function downloadAllContacts() {
     return;
   }
 
+  const snapshotAt = getRecentContactsCutoff();
   const multiVCard = contacts.map(buildContactVCard).join("\r\n\r\n") + "\r\n";
-  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "הורדת כל אנשי הקשר");
+  openImportGuide(multiVCard, "all-contacts.vcf", contacts.length, "הורדת כל אנשי הקשר", {
+    markRecentImported: true,
+    markRecentImportCutoff: true,
+    recentImportCutoffAt: snapshotAt,
+    importedRecentPhones: contacts.map(getRecentContactSelectionKey_).filter(Boolean)
+  });
 }
 
 function downloadContact(id) {
@@ -15024,21 +15155,24 @@ function reportActiveContact_() {
 function updateContactDetailRequestStatus_(contact) {
   const element = document.getElementById("contactDetailRequestStatus");
   if (!element) return;
-  const updateRequest = findLatestUserContactRequest_(contact);
+  const updateRequest = findLatestUserContactRequest_(contact, ["pending"]) || findLatestUserContactRequest_(contact);
   const report = userRequestState.reports
     .filter(item => item.subjectType !== "intern" && (
       (contact.docId && String(item.contactDocId || "") === String(contact.docId)) ||
-      normalizePhone(item.contactPhone || "") === normalizePhone(contact.phone || "")
+      (normalizePhone(contact.phone || "") && normalizePhone(item.contactPhone || "") === normalizePhone(contact.phone || ""))
     ))
-    .sort((left, right) => getTimestampMillis_(right.resolvedAt || right.createdAt) - getTimestampMillis_(left.resolvedAt || left.createdAt))[0] || null;
-  const current = updateRequest
-    ? { ...getUserRequestStatusPresentation_(updateRequest.status), prefix: "עדכון פרטים" }
-    : report
-      ? { ...getUserRequestStatusPresentation_(report.status, "report"), prefix: "דיווח" }
-      : null;
+    .sort((left, right) =>
+      Number(getUserRequestStatusPresentation_(right.status, "report").tone === "pending") -
+      Number(getUserRequestStatusPresentation_(left.status, "report").tone === "pending") ||
+      getTimestampMillis_(right.resolvedAt || right.createdAt) - getTimestampMillis_(left.resolvedAt || left.createdAt))[0] || null;
+  const statuses = [
+    updateRequest && { ...getUserRequestStatusPresentation_(updateRequest.status), prefix: "עדכון פרטים" },
+    report && { ...getUserRequestStatusPresentation_(report.status, "report"), prefix: "דיווח" }
+  ].filter(Boolean);
+  const current = statuses.find(status => status.tone === "pending") || statuses[0];
   element.hidden = !current;
   element.className = `userRequestStatus${current ? ` ${current.tone}` : ""}`;
-  element.textContent = current ? `${current.prefix}: ${current.label}` : "";
+  element.textContent = statuses.map(status => `${status.prefix}: ${status.label}`).join(" · ");
 }
 
 function updateActiveContact_() {

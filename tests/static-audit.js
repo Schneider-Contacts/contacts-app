@@ -1820,6 +1820,7 @@ vm.runInContext(
       appSource,
       "getEffectiveVerificationRequestForUser_"
     ),
+    extractCompleteFunction(appSource, "getLinkedJoinRequestForUser_"),
     extractCompleteFunction(appSource, "getAdminAttentionItems_"),
     extractCompleteFunction(appSource, "getAdminPeople_")
   ].join("\n"),

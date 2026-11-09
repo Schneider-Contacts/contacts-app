@@ -2989,7 +2989,7 @@ function completeApprovedContactRequest_(
     timestamp: { timestampValue: now }
   };
 
-  commitFirestoreWrites_([
+  const writes = [
     {
       update: {
         name: getFirestoreDocumentName_(
@@ -3012,7 +3012,37 @@ function completeApprovedContactRequest_(
       },
       currentDocument: { exists: false }
     }
-  ]);
+  ];
+  // Close only the pending access review for this exact approved join identity.
+  // Editing the email/phone must not complete another person's access request.
+  if (grantsFormAccess && request.data.requestType === "contact_add" &&
+      normalizeEmail_(request.data.email) === normalizeEmail_(contact.email) &&
+      normalizeIsraeliPhone(request.data.phone) === normalizeIsraeliPhone(contact.phone)) {
+    const verification = getAuthFlowDocument_("verificationRequests", normalizeEmail_(contact.email));
+    const data = verification && verification.data;
+    if (data && ["pending", "temporary_active"].includes(data.status) &&
+        normalizeEmail_(data.email) === normalizeEmail_(contact.email) &&
+        normalizeIsraeliPhone(data.phone) === normalizeIsraeliPhone(contact.phone)) {
+      const fields = {
+        status: { stringValue: "approved" },
+        temporaryAccessUntil: { nullValue: null },
+        handledAt: { timestampValue: now },
+        handledBy: { stringValue: adminEmail },
+        updatedAt: { timestampValue: now }
+      };
+      writes.push({
+        update: {
+          name: getFirestoreDocumentName_("verificationRequests", normalizeEmail_(contact.email)),
+          fields
+        },
+        updateMask: { fieldPaths: Object.keys(fields) },
+        currentDocument: verification.updateTime
+          ? { updateTime: verification.updateTime }
+          : { exists: true }
+      });
+    }
+  }
+  commitFirestoreWrites_(writes);
 }
 
 function approveContactAddRequestFromWeb_(parameters) {
