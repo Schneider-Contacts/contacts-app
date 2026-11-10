@@ -19,6 +19,7 @@ function setup() {
     escapeHtml:s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x])),formatPhoneForDisplay:s=>s,getDirectoryIconSvg_:()=>'<svg></svg>',
     closeAllDirectoryMenus_(){},closeDepartmentBrowser_(){},closeMonthlyInternsView_(){},
     requestAdminConfirmation_:async()=>true,resolveAdminConfirmation_(){},
+    setAdminStatus:(message,type)=>{el('adminStatus').textContent=message;el('adminStatus').statusType=type;},
     firebaseApi:{doc:(_db,col,id)=>({col,id}),getDocFromServer:async()=>({exists:()=>false}),serverTimestamp:()=> 'server-time',runTransaction:async (_db,cb)=>cb({get:async()=>({exists:()=>false}),set(){}})}
   };
   c.window=c; vm.createContext(c);
@@ -57,15 +58,40 @@ function setup() {
   let writes=0; a.c.firebaseApi.runTransaction=async (_db,cb)=>cb({get:async()=>a.snap(),set(){writes++}});
   await a.c.publishPharmacology_(); assert.equal(writes,0);
   a.el('pharmacologyReview').checked=true; a.c.requestAdminConfirmation_=async()=>false;
+  a.c.updatePharmacologyPublishButton_();
+  assert.equal(a.el('pharmacologyReviewLabel').classList.contains('isReviewed'),true);
+  assert.match(a.el('pharmacologyReviewState').textContent,/✓/);
   await a.c.publishPharmacology_(); assert.equal(writes,0); assert.equal(a.run('pharmacologyAdmin.busy'),false);
-  a.c.requestAdminConfirmation_=async()=>true; await a.c.publishPharmacology_(); assert.equal(writes,1); assert.match(a.el('pharmacologyAdminStatus').textContent,/פורסם בהצלחה/);
+  assert.equal(a.run('pharmacologyAdmin.open'),true,'Cancel keeps the reviewed form open');
+  a.c.requestAdminConfirmation_=async()=>true; await a.c.publishPharmacology_(); assert.equal(writes,1); assert.match(a.el('adminStatus').textContent,/פורסם בהצלחה/);
+  assert.equal(a.run('pharmacologyAdmin.open'),false,'Successful publication closes the editor');
+  assert.equal(a.el('pharmacologyAdminModal').classList.contains('visible'),false);
+  assert.equal(a.el('pharmacologyJsonInput').value,'');
+  assert.equal(a.el('pharmacologyReviewLabel').classList.contains('isReviewed'),false);
   await a.c.publishPharmacology_(); assert.equal(writes,1);
   // Editing invalidates review; concurrent publish fails without writing.
+  a.c.openPharmacologyAdmin_();
   a.el('pharmacologyJsonInput').value=JSON.stringify(fixture()); await a.c.previewPharmacology_(); a.el('pharmacologyReview').checked=true;
   a.c.invalidatePharmacologyPreview_(); assert.equal(a.run('pharmacologyAdmin.draft'),null); assert.equal(a.el('pharmacologyReview').checked,false);
   await a.c.previewPharmacology_(); a.el('pharmacologyReview').checked=true;
   a.c.firebaseApi.runTransaction=async (_db,cb)=>cb({get:async()=>a.snap({version:'changed'}),set(){writes++}});
   await a.c.publishPharmacology_(); assert.equal(writes,1); assert.match(a.el('pharmacologyAdminStatus').textContent,/השתנה/); assert.equal(a.run('pharmacologyAdmin.draft'),null);
+  assert.equal(a.run('pharmacologyAdmin.open'),true,'Conflict keeps the editor open');
+  assert.equal(a.el('pharmacologyReviewLabel').classList.contains('isReviewed'),false);
+  // Pending publication cannot be dismissed or duplicated; failure retains the source.
+  const f=setup(), publication=deferred(); f.c.openPharmacologyAdmin_();
+  const original=JSON.stringify(fixture()); f.el('pharmacologyJsonInput').value=original;
+  await f.c.previewPharmacology_(); f.el('pharmacologyReview').checked=true;
+  let attempts=0; f.c.firebaseApi.runTransaction=()=>{attempts++;return publication.promise;};
+  const publishing=f.c.publishPharmacology_(); await Promise.resolve();
+  f.c.closePharmacologyAdmin_(); await f.c.publishPharmacology_();
+  assert.equal(f.run('pharmacologyAdmin.open'),true); assert.equal(attempts,1);
+  publication.reject(Object.assign(Error('offline'),{code:'unavailable'})); await publishing;
+  assert.equal(f.run('pharmacologyAdmin.open'),true);
+  assert.equal(f.el('pharmacologyJsonInput').value,original);
+  assert.match(f.el('pharmacologyAdminStatus').textContent,/לא התקבל אישור/);
+  assert.equal(f.el('pharmacologyPublishBtn').disabled,true);
+  assert.equal(f.run('pharmacologyAdmin.busy'),false);
   // Closed preview can reopen without delayed old result changing the fresh form.
   const b=setup(), gate=deferred(); b.c.openPharmacologyAdmin_(); b.el('pharmacologyJsonInput').value=JSON.stringify(fixture()); b.c.firebaseApi.getDocFromServer=()=>gate.promise;
   const pending=b.c.previewPharmacology_(); b.c.closePharmacologyAdmin_(); b.c.openPharmacologyAdmin_(); b.el('pharmacologyJsonInput').value='new input';

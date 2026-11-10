@@ -5669,7 +5669,6 @@ body.directorySheetOpen {
 }
 
 .adminInboxRowIcon svg,
-.adminSystemFeatureIcon svg,
 .adminPersonSectionHeader > span svg,
 .internImportSafetyIcon svg,
 .internImportProgressIcon svg {
@@ -5849,8 +5848,7 @@ body.directorySheetOpen {
 
 .adminFocusPrimaryActions,
 .adminFocusSecondaryActions,
-.adminPersonSectionActions,
-.adminSystemFeatureActions {
+.adminPersonSectionActions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -6070,63 +6068,6 @@ body.directorySheetOpen {
 
 .adminMorePage {
   gap: 10px;
-}
-
-.adminSystemFeatureCard {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 15px;
-  border: 1px solid #dce8e2;
-  border-radius: 17px;
-  background: #ffffff;
-  box-shadow: 0 4px 15px rgba(27, 53, 44, 0.035);
-}
-
-.adminSystemFeatureIcon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: #eaf6f0;
-  color: #176b4e;
-}
-
-.adminSystemFeatureContent {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.adminSystemFeatureHeading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.adminSystemFeatureHeading h3,
-.adminSystemFeatureHeading p {
-  margin: 0;
-}
-
-.adminSystemFeatureHeading h3 {
-  color: #24443a;
-  font-size: 14px;
-}
-
-.adminSystemFeatureHeading p {
-  margin-top: 3px;
-  color: #72837c;
-  font-size: 11px;
-}
-
-.adminSystemFeatureDescription {
-  margin: 9px 0 11px;
-  color: #657970;
-  font-size: 11.5px;
-  line-height: 1.5;
 }
 
 .adminMoreSection {
@@ -7111,24 +7052,18 @@ body.directorySheetOpen {
     width: 100%;
   }
 
-  .adminFocusPrimaryActions,
-  .adminSystemFeatureActions {
+  .adminFocusPrimaryActions {
     display: grid;
     grid-template-columns: 1fr;
   }
 
-  .adminFocusPrimaryActions .adminActionBtn,
-  .adminSystemFeatureActions .adminActionBtn {
+  .adminFocusPrimaryActions .adminActionBtn {
     width: 100%;
   }
 
   .adminDiffRow {
     grid-template-columns: 64px minmax(0, 1fr) 14px minmax(0, 1fr);
     font-size: 10.5px;
-  }
-
-  .adminSystemFeatureCard {
-    padding: 13px;
   }
 
   .internPreviewSummary {
@@ -7319,8 +7254,14 @@ body.directorySheetOpen {
 #pharmacologyPreview h4 { font-size: 18px; }
 #pharmacologyPreview h5 { font-size: 14px; margin: 18px 0 8px; }
 #pharmacologyPreview .pharmacologyCard { margin-bottom: 7px; }
-.pharmacologyReviewLabel { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; font-size: 13px; line-height: 1.65; }
-.pharmacologyReviewLabel input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 3px; }
+.pharmacologyReviewLabel { display: flex; align-items: flex-start; gap: 12px; min-height: 48px; padding: 12px; margin: 18px 0; border: 2px solid #73867c; border-radius: 12px; background: #fff; color: #294c40; font-size: 13px; line-height: 1.65; cursor: pointer; }
+.pharmacologyReviewLabel input { -webkit-appearance: checkbox; appearance: auto; accent-color: #146c4e; width: 24px; height: 24px; padding: 0; flex: 0 0 24px; margin: 2px 0 0; cursor: pointer; }
+.pharmacologyReviewLabel input:focus-visible { outline: 3px solid #146c4e; outline-offset: 3px; }
+.pharmacologyReviewLabel > span { min-width: 0; }
+.pharmacologyReviewLabel strong, .pharmacologyReviewLabel > span > span { display: block; }
+.pharmacologyReviewState { margin-top: 6px; color: #53675d; font-weight: 700; }
+.pharmacologyReviewLabel.isReviewed { border-color: #146c4e; background: #eaf7ef; }
+.pharmacologyReviewLabel.isReviewed .pharmacologyReviewState { color: #146c4e; }
 @media (max-width: 360px) {
   #app .monthlyQuickEntries .monthlyInternsQuickIcon { display: none; }
   #app .monthlyQuickEntries .monthlyInternsQuickEntry { padding: 10px; }

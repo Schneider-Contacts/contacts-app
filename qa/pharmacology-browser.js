@@ -53,8 +53,8 @@ const root = path.resolve(__dirname, '..');
         await page.locator('#adminConfirmModal button').first().click();
         assert.equal(await page.evaluate(()=>qaWrites),0);
         await page.locator('#pharmacologyPublishBtn').click(); await page.locator('#adminConfirmActionBtn').click();
-        await page.waitForFunction(()=>qaWrites===1); assert.match(await page.locator('#pharmacologyAdminStatus').textContent(),/פורסם בהצלחה/);
-        await page.locator('#pharmacologyAdminClose').click();
+        await page.waitForFunction(()=>qaWrites===1 && !pharmacologyAdmin.open); assert.match(await page.locator('#adminStatus').textContent(),/פורסם בהצלחה/);
+        assert.equal(await page.locator('#pharmacologyAdminModal').isVisible(),false);
         await page.evaluate(()=>openPharmacologyAdmin_()); assert.equal(await page.locator('#pharmacologyJsonInput').inputValue(),'');
         await page.keyboard.press('Escape'); assert.equal(await page.locator('#pharmacologyAdminModal').isVisible(),false);
       }

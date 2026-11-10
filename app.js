@@ -10490,27 +10490,12 @@ function getPublishedInternCount_(data) {
 }
 
 function renderAdminInternsSystemCard_() {
-  const active = adminMonthlyInternsActive;
-  const activeCount = getPublishedInternCount_(active);
-  const activeLabel = active
-    ? String(formatMonthlyInternMonthLabel_(active.monthKey))
-    : "טרם פורסמה רשימה";
-  const previousCount = getPublishedInternCount_(adminMonthlyInternsPrevious);
   return `
-    <section class="adminSystemFeatureCard adminInternsSystemCard">
-      <span class="adminSystemFeatureIcon" aria-hidden="true">${getAdminIconSvg_("contact")}</span>
-      <div class="adminSystemFeatureContent">
-        <div class="adminSystemFeatureHeading">
-          <div><h3>רשימת סטאז׳רים</h3><p>${escapeHtml(activeLabel)}${active ? ` · ${escapeHtml(String(activeCount))} ברשימה` : ""}</p></div>
-          ${active ? '<span class="adminMiniStatus">פורסם</span>' : '<span class="adminMiniStatus pending">לא פורסם</span>'}
-        </div>
-        ${active && getMonthlyInternsFreshnessHint_(active.monthKey) ? `<p class="monthlyInternsFreshnessHint">${escapeHtml(getMonthlyInternsFreshnessHint_(active.monthKey))}</p>` : ""}
-        <p class="adminSystemFeatureDescription">העלאת Excel יוצרת רשימת חיוג ו־WhatsApp בלבד. היא אינה מוסיפה משתמשים או הרשאות.</p>
-        <div class="adminSystemFeatureActions">
-          <button type="button" class="adminActionBtn primary" onclick="openMonthlyInternsAdmin_()">ניהול והעלאת Excel</button>
-          ${previousCount ? `<button type="button" class="adminActionBtn secondary" onclick="rollbackMonthlyInterns_()">שחזור הרשימה הקודמת</button>` : ""}
-        </div>
-      </div>
+    <section class="adminSystemSection adminInternsSystemCard">
+      <button type="button" class="adminSystemLinkRow" onclick="openMonthlyInternsAdmin_()">
+        <span><strong>רשימת סטאז׳רים</strong><small>העלאת Excel, בדיקה ופרסום רשימה חודשית</small></span>
+        <span aria-hidden="true">‹</span>
+      </button>
     </section>
   `;
 }
@@ -11327,6 +11312,7 @@ function renderMonthlyInternsAdmin_() {
     ${error ? `<div class="internImportError">${escapeHtml(error)}</div>` : ""}
     <div class="internAccessBoundary"><strong>רשימת תצוגה בלבד</strong><span>הקובץ אינו משנה אנשי קשר, משתמשים, סיסמאות או הרשאות כניסה.</span></div>
     <button type="button" class="adminActionBtn primary internChooseFileBtn" onclick="chooseMonthlyInternsWorkbook_()">העלאת קובץ Excel</button>
+    ${getPublishedInternCount_(adminMonthlyInternsPrevious) ? `<button type="button" class="adminActionBtn secondary" onclick="closeMonthlyInternsAdmin_(); rollbackMonthlyInterns_()">שחזור הרשימה הקודמת</button>` : ""}
   `;
 }
 

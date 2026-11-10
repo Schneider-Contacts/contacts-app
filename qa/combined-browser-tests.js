@@ -60,8 +60,8 @@
       check(confirm.contains(doc.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)),'Confirmation is above importer');
       doc.getElementById('adminConfirmModal').querySelector('button').click();await pause();check(win.qaWrites===0,'Cancel makes no write');
       doc.getElementById('pharmacologyPublishBtn').click();await pause();doc.getElementById('adminConfirmActionBtn').click();await pause();
-      check(win.qaWrites===1&&/פורסם בהצלחה/.test(doc.getElementById('pharmacologyAdminStatus').textContent),'Synthetic publication succeeds once');
-      doc.getElementById('pharmacologyAdminClose').click();await pause();run('openPharmacologyAdmin_()');await pause();
+      check(win.qaWrites===1&&/פורסם בהצלחה/.test(doc.getElementById('adminStatus').textContent)&&!doc.getElementById('pharmacologyAdminModal').classList.contains('visible'),'Synthetic publication succeeds once and closes the editor');
+      await pause();run('openPharmacologyAdmin_()');await pause();
       check(input.value==='','Reopen clears old draft');
       doc.dispatchEvent(new win.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await pause();
       check(!doc.getElementById('pharmacologyAdminModal').classList.contains('visible'),'Escape closes integrated editor');

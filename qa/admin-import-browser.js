@@ -1,0 +1,121 @@
+// Local synthetic UI checks. Every non-fixture request is blocked.
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const xlsx = require(path.join(root, 'vendor/xlsx.full.min.js'));
+const workbook = xlsx.utils.book_new();
+xlsx.utils.book_append_sheet(workbook, xlsx.utils.aoa_to_sheet([
+  ['שם', 'טלפון', 'מחלקה'], ['אדם בדוי', '0500000000', 'מחלקה בדויה']
+]), 'Synthetic');
+const workbookBytes = xlsx.write(workbook, {type:'buffer', bookType:'xlsx'});
+const payload = JSON.stringify({month:'2026-12',entries:[{date:'2026-12-09',name:'אדם בדוי',phone:'0500000000',shift:'כוננות'}]});
+(async () => {
+  const browser = await chromium.launch({headless:true,...(process.env.CHROME_EXECUTABLE ? {executablePath:process.env.CHROME_EXECUTABLE} : {})});
+  try {
+    for (const width of [320,375,390,430,960]) {
+      const page = await browser.newPage({viewport:{width,height:844},locale:'he-IL',hasTouch:true});
+      const errors=[];page.on('pageerror',error=>errors.push(error.message));
+      await page.route('**/*', async route => {
+        const url=new URL(route.request().url());
+        if(url.hostname!=='admin-import.test')return route.abort();
+        const file=url.pathname==='/'?'index.html':decodeURIComponent(url.pathname.slice(1));
+        if(file.includes('..')||!fs.existsSync(path.join(root,file)))return route.abort();
+        let body=fs.readFileSync(path.join(root,file));
+        if(file==='app.js')body=Buffer.from(body.toString().replace(/\ninit\(\);\s*$/,'\n// Production initialization disabled for synthetic QA.'));
+        await route.fulfill({status:200,body,contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':'text/html'});
+      });
+      await page.goto('http://admin-import.test/');
+      await page.evaluate(()=>{
+        currentUserHasAppAccess=true;currentUserIsAdmin=true;currentAdminEmail='admin@example.test';
+        auth={currentUser:{uid:'synthetic',email:currentAdminEmail}};db={};
+        window.qaWrites=0;window.qaFailure=false;window.qaRecords={};
+        firebaseApi={doc:(_db,col,id)=>({col,id}),getDocFromServer:async ref=>({exists:()=>Boolean(qaRecords[ref.id]),data:()=>structuredClone(qaRecords[ref.id])}),serverTimestamp:()=> 'synthetic-time',runTransaction:async(_db,callback)=>{
+          if(qaFailure)throw Object.assign(Error('synthetic offline'),{code:'unavailable'});
+          return callback({get:async ref=>({exists:()=>Boolean(qaRecords[ref.id]),data:()=>structuredClone(qaRecords[ref.id])}),set:(ref,data)=>{qaWrites++;qaRecords[ref.id]=structuredClone(data)}});
+        }};
+        adminMonthlyInternsActive={monthKey:'2026-09',entries:[{name:'אדם בדוי',phone:'+972500000000'}]};
+        adminMonthlyInternsPrevious={monthKey:'2026-08',entries:[{name:'אדם בדוי קודם',phone:'+972500000001'}]};
+        document.getElementById('login').style.display='none';document.getElementById('app').style.display='none';document.getElementById('adminPanel').style.display='block';
+        document.getElementById('adminList').innerHTML='<div class="adminSystemPage">'+renderAdminInternsSystemCard_()+renderAdminPharmacologyCard_()+'</div>';
+      });
+      const internRow=page.locator('.adminInternsSystemCard .adminSystemLinkRow');
+      const pharmaRow=page.locator('.adminSystemLinkRow[onclick="openPharmacologyAdmin_()"]');
+      const a=await internRow.boundingBox(),b=await pharmaRow.boundingBox();
+      assert.equal(Math.round(a.width),Math.round(b.width));
+      assert.ok(a.height>=44 && a.height<=90,`Compact, tappable interns row at ${width}px: ${a.height}`);
+      assert.ok(Math.abs(a.height-b.height)<20,`Consistent row proportions at ${width}px`);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+      if(process.env.QA_SCREENSHOT_DIR && width===390)await page.screenshot({path:path.join(process.env.QA_SCREENSHOT_DIR,'admin-system-compact-390.png'),fullPage:true});
+      await internRow.click();
+      await page.locator('#monthlyInternsAdminModal.visible').waitFor();
+      const internBody=page.locator('#monthlyInternsAdminBody');
+      assert.match(await internBody.textContent(),/ספטמבר 2026/);
+      assert.match(await internBody.textContent(),/מחודש קודם/);
+      await internBody.getByRole('button',{name:'שחזור הרשימה הקודמת'}).click();
+      await page.locator('#adminConfirmModal.visible').waitFor();
+      assert.equal(await page.locator('#monthlyInternsAdminModal').isVisible(),false);
+      await page.locator('#adminConfirmModal').getByRole('button',{name:'ביטול'}).click();
+      assert.equal(await page.evaluate(()=>qaWrites),0);
+      await internRow.click();
+      await page.locator('#monthlyInternsWorkbookInput').setInputFiles({name:'synthetic.txt',mimeType:'text/plain',buffer:Buffer.from('test')});
+      assert.match(await internBody.textContent(),/יש לבחור קובץ Excel/);
+      await page.locator('#monthlyInternsWorkbookInput').setInputFiles({name:'synthetic-2026-12.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(workbookBytes)});
+      await page.waitForFunction(()=>monthlyInternsImportState.phase==='preview');
+      assert.match(await internBody.textContent(),/אדם בדוי/);
+      assert.equal(await internBody.getByRole('button',{name:'החלפה ופרסום'}).count(),1);
+      await page.keyboard.press('Escape');
+      await page.locator('#monthlyInternsAdminModal.visible').waitFor({state:'hidden'});
+      await pharmaRow.click();
+      await page.locator('#pharmacologyJsonInput').fill(payload);
+      await page.locator('#pharmacologyPreviewBtn').click();
+      await page.waitForFunction(()=>pharmacologyAdmin.draft!==null);
+      const review=page.locator('#pharmacologyReview'),label=page.locator('#pharmacologyReviewLabel');
+      await label.scrollIntoViewIfNeeded();
+      const metrics=await review.evaluate(el=>({appearance:getComputedStyle(el).appearance,accent:getComputedStyle(el).accentColor,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}));
+      assert.notEqual(metrics.appearance,'none');assert.ok(metrics.width>=24 && metrics.height>=24);
+      assert.equal(metrics.accent,'rgb(20, 108, 78)');
+      assert.ok((await label.boundingBox()).height>=44);
+      await label.tap();assert.equal(await review.isChecked(),true);
+      assert.match(await page.locator('#pharmacologyReviewState').textContent(),/✓/);
+      assert.match(await label.getAttribute('class'),/isReviewed/);
+      assert.equal(await page.locator('#pharmacologyPublishBtn').isEnabled(),true);
+      if(process.env.QA_SCREENSHOT_DIR && width===390)await page.screenshot({path:path.join(process.env.QA_SCREENSHOT_DIR,'review-checked-390.png'),fullPage:true});
+      await review.focus();await page.keyboard.press('Space');
+      assert.equal(await review.isChecked(),false);assert.equal(await page.locator('#pharmacologyPublishBtn').isDisabled(),true);
+      assert.equal(await review.evaluate(el=>getComputedStyle(el).outlineWidth),'3px');
+      await page.keyboard.press('Space');
+      await page.locator('#pharmacologyPublishBtn').click();
+      await page.locator('#adminConfirmModal.visible').waitFor();
+      await page.locator('#adminConfirmModal').getByRole('button',{name:'ביטול'}).click();
+      assert.equal(await page.locator('#pharmacologyAdminModal').isVisible(),true);
+      assert.equal(await page.evaluate(()=>qaWrites),0);
+      await page.evaluate(()=>qaFailure=true);
+      await page.locator('#pharmacologyPublishBtn').click();await page.locator('#adminConfirmActionBtn').click();
+      await page.waitForFunction(()=>!pharmacologyAdmin.busy);
+      assert.equal(await page.locator('#pharmacologyAdminModal').isVisible(),true);
+      assert.equal(await page.locator('#pharmacologyJsonInput').inputValue(),payload);
+      assert.match(await page.locator('#pharmacologyAdminStatus').textContent(),/לא התקבל אישור/);
+      assert.equal(await review.isChecked(),false);
+      assert.equal(await page.locator('#pharmacologyPublishBtn').isDisabled(),true);
+      await page.evaluate(()=>qaFailure=false);
+      await page.locator('#pharmacologyPreviewBtn').click();await page.waitForFunction(()=>pharmacologyAdmin.draft!==null);
+      await label.tap();await page.locator('#pharmacologyPublishBtn').click();await page.locator('#adminConfirmActionBtn').click();
+      await page.waitForFunction(()=>qaWrites===1 && !pharmacologyAdmin.open);
+      assert.equal(await page.locator('#pharmacologyAdminModal').isVisible(),false);
+      assert.match(await page.locator('#adminStatus').textContent(),/פורסם בהצלחה/);
+      assert.equal(await page.locator('#adminStatus').getAttribute('aria-live'),'polite');
+      await page.waitForFunction(()=>!history.state?.contactsDialog);
+      assert.equal(await pharmaRow.evaluate(el=>document.activeElement===el),true,'Successful close returns focus to the launcher');
+      await page.evaluate(()=>new Promise(resolve=>{addEventListener('popstate',()=>setTimeout(resolve,0),{once:true});history.forward();}));
+      assert.equal(await page.locator('#pharmacologyAdminModal').isVisible(),false,'Forward does not reopen a published draft');
+      await pharmaRow.click();assert.equal(await page.locator('#pharmacologyJsonInput').inputValue(),'');
+      assert.equal(await review.isChecked(),false);await page.keyboard.press('Escape');
+      await page.locator('#pharmacologyAdminModal.visible').waitFor({state:'hidden'});
+      assert.deepEqual(errors,[],`browser errors at ${width}px`);
+      console.log(`PASS ${width}px: compact entries, preserved intern upload/restore, touch + keyboard review, failed publication stays open, successful publication closes.`);
+      await page.close();
+    }
+  } finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1});

@@ -241,7 +241,11 @@ function invalidatePharmacologyPreview_() {
 }
 
 function updatePharmacologyPublishButton_() {
-  document.getElementById("pharmacologyPublishBtn").disabled = pharmacologyAdmin.busy || !pharmacologyAdmin.draft || !document.getElementById("pharmacologyReview").checked;
+  const reviewed = document.getElementById("pharmacologyReview").checked;
+  const label = document.getElementById("pharmacologyReviewLabel");
+  label.classList[reviewed ? "add" : "remove"]("isReviewed");
+  document.getElementById("pharmacologyReviewState").textContent = reviewed ? "✓ הבדיקה סומנה" : "יש לסמן לאחר הבדיקה";
+  document.getElementById("pharmacologyPublishBtn").disabled = pharmacologyAdmin.busy || !pharmacologyAdmin.draft || !reviewed;
 }
 
 function choosePharmacologyFile_() {
@@ -416,8 +420,10 @@ async function publishPharmacology_() {
     state.expectedVersion = version;
     state.draft = null;
     document.getElementById("pharmacologyReview").checked = false;
-    status.textContent = `לוח ${draft.month} פורסם בהצלחה למשתמשים המורשים.`;
     if (pharmacologyState.open) loadPharmacology_();
+    setPharmacologyAdminBusy_(false);
+    closePharmacologyAdmin_();
+    setAdminStatus(`לוח ${draft.month} פורסם בהצלחה למשתמשים המורשים.`, "success");
   } catch (error) {
     if (session !== pharmacologyAdmin.session) return;
     state.draft = null;

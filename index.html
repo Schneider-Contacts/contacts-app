@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20261110-paste-v1">
+<link rel="stylesheet" href="styles.css?v=20261110-admin-feedback-v1">
 
 
 
@@ -671,7 +671,7 @@
     </div>
   </div>
 
-  <div id="adminStatus" class="statusMessage"></div>
+  <div id="adminStatus" class="statusMessage" role="status" aria-live="polite"></div>
   <div id="adminList" aria-live="polite"></div>
 </div>
 
@@ -721,7 +721,7 @@
     <button id="pharmacologyPreviewBtn" type="button" class="adminActionBtn secondary" onclick="previewPharmacology_()">בדיקה ותצוגה מקדימה</button>
     <div id="pharmacologyAdminStatus" class="pharmacologyAdminStatus" role="status" aria-live="polite"></div>
     <div id="pharmacologyPreview"></div>
-    <label class="pharmacologyReviewLabel"><input id="pharmacologyReview" type="checkbox" onchange="updatePharmacologyPublishButton_()">בדקתי את כל התאריכים, השמות והמספרים מול התמונה. פרטים שלא ניתן לאמת מסומנים כחסרים או לא ודאיים, ללא השלמה משוערת.</label>
+    <label id="pharmacologyReviewLabel" class="pharmacologyReviewLabel"><input id="pharmacologyReview" type="checkbox" onchange="updatePharmacologyPublishButton_()"><span><strong>בדקתי את הלוח מול התמונה</strong><span>בדקתי את כל התאריכים, השמות והמספרים. פרטים שלא ניתן לאמת מסומנים כחסרים או לא ודאיים, ללא השלמה משוערת.</span><span id="pharmacologyReviewState" class="pharmacologyReviewState" aria-live="polite">יש לסמן לאחר הבדיקה</span></span></label>
     <button id="pharmacologyPublishBtn" type="button" class="adminActionBtn primary" onclick="publishPharmacology_()" disabled>פרסום הלוח למשתמשים המורשים</button>
   </div>
 </div>
@@ -1063,8 +1063,8 @@
   <script src="intern-import.js?v=20260813-admin-v2"></script>
   <script src="dialog-accessibility.js?v=20261110-paste-v1"></script>
   <script src="pharmacology-roster.js?v=20261110-paste-v1"></script>
-  <script src="pharmacology-ui.js?v=20261110-paste-v1"></script>
-  <script src="app.js?v=20261110-paste-v1"></script>
+  <script src="pharmacology-ui.js?v=20261110-admin-feedback-v1"></script>
+  <script src="app.js?v=20261110-interns-compact-v1"></script>
 
 </body>
 </html>
