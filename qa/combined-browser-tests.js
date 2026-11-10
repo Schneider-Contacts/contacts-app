@@ -30,8 +30,20 @@
     if(width===390){
       run(`document.getElementById('app').style.display='none';document.getElementById('adminPanel').style.display='block';openPharmacologyAdmin_();`);await pause();
       check(doc.activeElement.id==='pharmacologyAdminTitle','Roster editor starts with neutral focus');
-      const input=doc.getElementById('pharmacologyJsonInput');input.value=JSON.stringify({month:'2026-12',entries:[{date:'2026-12-09',name:'אדם בדוי',phone:'0500000000',shift:'לילה',start:'21:00',end:'08:00',endNextDay:true}]});
-      input.dispatchEvent(new win.Event('input',{bubbles:true}));doc.getElementById('pharmacologyPreviewBtn').click();await pause();
+      run(`Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.qaCopied=text}}});`);
+      doc.getElementById('pharmacologyCopyPrompt').click();await pause();
+      check(win.qaCopied?.includes('מוכן להעתקה ישירות') && /הועתקו/.test(doc.getElementById('pharmacologyPromptStatus').textContent),'Copy prompt returns paste-ready instructions without sending');
+      run(`Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined});document.execCommand=()=>false;`);
+      doc.getElementById('pharmacologyCopyPrompt').click();await pause();
+      const prompt=doc.getElementById('pharmacologyAiPrompt');
+      check(prompt.closest('details').open && prompt.selectionEnd>100 && /לחיצה ארוכה/.test(doc.getElementById('pharmacologyPromptStatus').textContent),'Mobile fallback reveals and selects instructions honestly');
+      const input=doc.getElementById('pharmacologyJsonInput');
+      const payload=JSON.stringify({month:'2026-12',entries:[{date:'2026-12-09',name:'אדם בדוי',phone:'0500000000',shift:'לילה',start:'21:00',end:'08:00',endNextDay:true}]});
+      const transfer=new win.DataTransfer();transfer.items.add(new win.File(['\uFEFF'+payload],'synthetic-roster.txt',{type:'text/plain'}));
+      doc.getElementById('pharmacologyFileInput').files=transfer.files;
+      doc.getElementById('pharmacologyFileInput').dispatchEvent(new win.Event('change',{bubbles:true}));await pause();await pause();
+      check(input.value.includes('אדם בדוי') && /נקרא במכשיר/.test(doc.getElementById('pharmacologySourceInfo').textContent),'TXT file with BOM loads to local preview');
+      check(/כפתור חיוג יופיע ב־1/.test(doc.getElementById('pharmacologyPreview').textContent) && win.qaWrites===0,'Preview states calling outcome and makes no write');
       check(doc.getElementById('pharmacologyPublishBtn').disabled,'Review required before publication');
       doc.getElementById('pharmacologyReview').click();doc.getElementById('pharmacologyPublishBtn').click();await pause();
       const confirm=doc.getElementById('adminConfirmActionBtn'),rect=confirm.getBoundingClientRect();

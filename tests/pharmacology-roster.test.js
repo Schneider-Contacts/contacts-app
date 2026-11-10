@@ -177,3 +177,17 @@ test('multi-roster month boundary selects explicit previous overnight, suppresse
   assert.equal(api.selectDay([],at).ambiguous,true);
   assert.equal(api.selectDay([previous,current],new Date('2027-01-01T02:00:00Z')).entries.length,0);
 });
+test('paste accepts UTF-8 BOM and whole JSON code fences without extracting arbitrary prose', () => {
+  const text=JSON.stringify(roster());
+  for (const input of ['\uFEFF'+text, '  '+text+'\n', '```json\n'+text+'\n```', '```JSON\r\n'+text+'\r\n```', '```\n'+text+'\n```']) {
+    assert.equal(api.analyze(input).valid,true,input);
+  }
+  for (const input of ['Here is the data: '+text, '```js\n'+text+'\n```', '```json\n'+text, text+' trailing', '{}\n'+text]) bad(input);
+});
+test('copy prompt requests paste-ready JSON and separates missing hours from actual uncertainty', () => {
+  const prompt=api.buildAiPrompt();
+  for(const text of ['JSON יחיד בלבד','מוכן להעתקה ישירות','uncertain:false','שעות חסרות או טלפון חסר אינם לבדם','אין לסמן את כל השיבוצים אוטומטית','הסיווג נלקח מהכותרת','אין צורך לחזור בכל note','21-8']) assert.ok(prompt.includes(text),text);
+  const example=JSON.parse(prompt.slice(prompt.indexOf('{')));
+  assert.equal(example.entries[0].uncertain,false);
+  assert.equal(example.entries[0].start,'');
+});

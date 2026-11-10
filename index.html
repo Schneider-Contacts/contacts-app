@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20261110-combined-v1">
+<link rel="stylesheet" href="styles.css?v=20261110-import-v1">
 
 
 
@@ -705,10 +705,18 @@
 <div id="pharmacologyAdminModal" class="adminModal pharmacologyAdminModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="pharmacologyAdminTitle">
   <div class="adminModalCard pharmacologyAdminCard">
     <div class="adminModalHeader"><div><div class="adminModalEyebrow">מערכת</div><h3 id="pharmacologyAdminTitle" class="adminModalTitle">לוח כוננות פרמקולוגיה</h3></div><button id="pharmacologyAdminClose" type="button" class="adminModalClose" onclick="closePharmacologyAdmin_()" aria-label="סגירה">×</button></div>
-    <p>מעבירים את תמונת החודש לכלי AI שבחרת, מדביקים כאן את פלט ה־JSON ובודקים מול המקור לפני פרסום. התמונה אינה נשלחת מהאפליקציה.</p>
+    <p>להכנת הלוח: העתיקו את ההוראות לצ׳אט, צרפו שם את תמונת החודש, והדביקו כאן את התשובה לבדיקה.</p>
+    <button id="pharmacologyCopyPrompt" type="button" class="adminActionBtn secondary" onclick="copyPharmacologyPrompt_()">העתקת הוראות לצ׳אט</button>
+    <p class="pharmacologyImportHelp">הדביקו את ההוראות בצ׳אט וצרפו את תמונת הלוח. הצ׳אט יתבקש להחזיר JSON מוכן להעתקה לכאן. הכפתור מעתיק בלבד ואינו שולח דבר.</p>
+    <p id="pharmacologyPromptStatus" class="pharmacologyImportHelp" role="status" aria-live="polite"></p>
     <details class="pharmacologyPrompt"><summary>הוראות להעתקה לכלי AI</summary><label class="srOnly" for="pharmacologyAiPrompt">הוראות לעיבוד התמונה</label><textarea id="pharmacologyAiPrompt" readonly rows="9"></textarea></details>
-    <label for="pharmacologyJsonInput">פלט JSON מהתמונה</label>
-    <textarea id="pharmacologyJsonInput" class="pharmacologyJson" dir="ltr" rows="7" maxlength="102400" autocomplete="off" spellcheck="false" oninput="invalidatePharmacologyPreview_()" placeholder='{"month":"2026-11","entries":[]}'></textarea>
+    <label for="pharmacologyJsonInput">הדביקו כאן את תשובת הצ׳אט (JSON)</label>
+    <textarea id="pharmacologyJsonInput" class="pharmacologyJson" dir="ltr" rows="7" maxlength="102400" autocomplete="off" spellcheck="false" oninput="editPharmacologyInput_()" placeholder='{"month":"2026-11","entries":[]}'></textarea>
+    <details class="pharmacologyImportTools"><summary>אפשר גם לבחור קובץ מהמכשיר</summary>
+      <button id="pharmacologyChooseFile" type="button" class="adminActionBtn secondary" onclick="choosePharmacologyFile_()">בחירת קובץ JSON או TXT</button>
+      <input id="pharmacologyFileInput" type="file" accept=".json,.txt,application/json,text/plain" hidden onchange="handlePharmacologyFile_(event)">
+      <p id="pharmacologySourceInfo" class="pharmacologyImportHelp" role="status">קובץ JSON/TXT עד 100KB נקרא במכשיר בלבד; לא תמונה או Excel.</p>
+    </details>
     <button id="pharmacologyPreviewBtn" type="button" class="adminActionBtn secondary" onclick="previewPharmacology_()">בדיקה ותצוגה מקדימה</button>
     <div id="pharmacologyAdminStatus" class="pharmacologyAdminStatus" role="status" aria-live="polite"></div>
     <div id="pharmacologyPreview"></div>
@@ -1052,10 +1060,10 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="dialog-accessibility.js?v=20261110-combined-v1"></script>
-  <script src="pharmacology-roster.js?v=20261110-combined-v1"></script>
-  <script src="pharmacology-ui.js?v=20261110-combined-v1"></script>
-  <script src="app.js?v=20261110-combined-v1"></script>
+  <script src="dialog-accessibility.js?v=20261110-import-v1"></script>
+  <script src="pharmacology-roster.js?v=20261110-import-v1"></script>
+  <script src="pharmacology-ui.js?v=20261110-import-v1"></script>
+  <script src="app.js?v=20261110-import-v1"></script>
 
 </body>
 </html>

@@ -52,8 +52,15 @@
       if (typeof serialized !== 'string' || bytes(serialized) > MAX_BYTES) {
         errors.push('הקלט חייב להיות JSON עד 100KB.'); return result();
       }
-      source = typeof input === 'string' ? JSON.parse(serialized) : input;
-    } catch (_) { errors.push('הקלט אינו JSON תקין.'); return result(); }
+      if (typeof input === 'string') {
+        // Accept a text-file BOM and a complete copied Markdown code block only.
+        // Never search inside explanatory prose or evaluate JavaScript.
+        let json = serialized.replace(/^\uFEFF/, '').trim();
+        const fenced = json.match(/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
+        if (fenced) json = fenced[1].replace(/^\uFEFF/, '').trim();
+        source = JSON.parse(json);
+      } else source = input;
+    } catch (_) { errors.push('הקלט אינו JSON תקין. הדביקו את התוכן המלא בלבד או בחרו קובץ JSON/TXT. אין לכלול הסברים מסביב.'); return result(); }
     if (!plain(source)) { errors.push('שורש הקלט חייב להיות אובייקט.'); return result(); }
     function keys(o, allowed, label) {
       Object.keys(o).forEach(k => { if (!allowed.includes(k)) errors.push(label + ': שדה לא מוכר: ' + k); });
@@ -153,15 +160,19 @@
     return { date: local.date, entries, current: !ambiguous && candidates.length === 1 ? candidates[0] : null, ambiguous };
   }
   function buildAiPrompt() {
-    return 'חלץ מהתמונה בלבד לוח כוננות פרמקולוגיה. החזר JSON בלבד ללא Markdown. אל תמציא, תשלים או תפתור מידע לא ברור. '
-      + 'אין להסיק שעות כוננות משעות מעבדה/פעילות או משם המשמרת. כששעות אינן ידועות השתמש במחרוזת ריקה גם ב-start וגם ב-end. '
-      + 'כל תאריך חייב לכלול שנה YYYY-MM-DD והחודש YYYY-MM; אם השנה או החודש לא ברורים בקש הבהרה, אל תנחש. '
-      + 'שייך מספרי טלפון לאנשים רק לפי המקור; טלפון חסר הוא מחרוזת ריקה. סמן uncertain:true בכל ספק ושמור את הטקסט והספק ב-note. '
-      + 'חובה לציין shift מפורש מהמקור. endNextDay:true רק כאשר מעבר לחצות מפורש במקור. כל שיבוץ בחודש הנבחר; אין להשלים ימים חסרים. '
+    return 'חלץ מהתמונה בלבד לוח כוננות פרמקולוגיה. החזר אובייקט JSON יחיד בלבד, מוכן להעתקה ישירות לשדה הייבוא באפליקציה. בלי פתיח, הסברים, Markdown או סימני קוד כמו ```; הפלט יהיה האובייקט עצמו בלבד. '
+      + 'אל תמציא פרטים ואל תשתמש במקורות אחרים. כל תאריך חייב לכלול שנה YYYY-MM-DD והחודש YYYY-MM; אם השנה או החודש לא ברורים בקש הבהרה, אל תנחש. '
+      + 'העתק שמות בדיוק מהמקור. הרחב שם פרטי לשם מלא ושייך טלפון רק לפי התאמה חד-משמעית בטבלת אנשי הקשר שבאותה תמונה. אל תשנה איות. טלפון חסר נשאר מחרוזת ריקה. '
+      + 'כששם, תאריך ושיוך האדם ברורים, השתמש ב-uncertain:false. שעות חסרות או טלפון חסר אינם לבדם סיבה לסמן uncertain:true. '
+      + 'סמן uncertain:true רק אם יש ספק ממשי בפענוח או בשיוך פרט, וכתוב בדיוק מה לא ברור ב-note. סימון זה מסתיר את כפתור החיוג, לכן אין לסמן את כל השיבוצים אוטומטית. '
+      + 'אין להסיק שעות כוננות משעות מעבדה/פעילות או משם המשמרת. כששעות אינן כתובות, השתמש במחרוזת ריקה גם ב-start וגם ב-end וב-endNextDay:false. האפליקציה לא תציג מי כונן כעת ללא שעות ידועות. '
+      + 'העתק את סוג המשמרת ל-shift. אם בתא מופיע רק שם והכותרת היא לוח כוננות, מותר להשתמש ב-shift:"כוננות" ולציין ב-note שהסיווג נלקח מהכותרת; אין בכך לבדו אי-ודאות. '
+      + 'טווח שעות מפורש כמו 21-8 בלוח יומי ניתן לייצוג כ-start:"21:00",end:"08:00",endNextDay:true כאשר הסיום מוקדם מההתחלה; שמור את הטווח המקורי ב-note. אל תסיק מעבר יום מכינוי כמו לילה. אם משמעות הטווח אינה ברורה, השאר את שתי השעות ריקות, סמן uncertain:true וציין את הטווח המקורי והספק. '
+      + 'כל שיבוץ בחודש הנבחר; אין להשלים ימים חסרים. אין צורך לחזור בכל note על כך שאין שעות; השתמש ב-note ריק כשאין הערה מיוחדת. יש לשמר בנפרד שיבוצים שונים באותו תאריך, למשל בוקר וכוננות. '
       + 'הסכמה המדויקת (הדוגמה בדויה בלבד, אינה נתון אמיתי): '
       + '{"schemaVersion":1,"month":"2030-01","timeZone":"Asia/Jerusalem","notes":"דוגמה בדויה",'
       + '"entries":[{"date":"2030-01-01","name":"שם לדוגמה בלבד","phone":"","shift":"כוננות",'
-      + '"start":"","end":"","endNextDay":false,"uncertain":true,"note":"שעות ומספר טלפון אינם מופיעים במקור"}]}';
+      + '"start":"","end":"","endNextDay":false,"uncertain":false,"note":""}]}';
   }
   return Object.freeze({ analyze, israelDateKey, selectDay, buildAiPrompt });
 });

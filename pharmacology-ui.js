@@ -194,7 +194,10 @@ function openPharmacologyAdmin_() {
   pharmacologyAdminReturnFocus = document.activeElement;
   pharmacologyAdmin = { session: pharmacologyAdmin.session + 1, open: true, draft: null, input: "", expectedVersion: null, busy: false };
   document.getElementById("pharmacologyJsonInput").value = "";
+  document.getElementById("pharmacologyFileInput").value = "";
+  document.getElementById("pharmacologySourceInfo").textContent = "קובץ טקסט UTF-8 עד 100KB, המכיל את פלט ה־JSON המלא.";
   document.getElementById("pharmacologyAiPrompt").value = PharmacologyRoster.buildAiPrompt();
+  document.getElementById("pharmacologyPromptStatus").textContent = "";
   document.getElementById("pharmacologyReview").checked = false;
   document.getElementById("pharmacologyPreview").innerHTML = "";
   document.getElementById("pharmacologyAdminStatus").textContent = "";
@@ -213,6 +216,8 @@ function closePharmacologyAdmin_(force = false) {
   modal.classList.remove("visible");
   modal.setAttribute("aria-hidden", "true");
   document.getElementById("pharmacologyJsonInput").value = "";
+  document.getElementById("pharmacologyFileInput").value = "";
+  document.getElementById("pharmacologySourceInfo").textContent = "קובץ טקסט UTF-8 עד 100KB, המכיל את פלט ה־JSON המלא.";
   document.getElementById("pharmacologyPreview").innerHTML = "";
   document.getElementById("pharmacologyAdminStatus").textContent = "";
   if (!force && pharmacologyAdminReturnFocus?.isConnected) pharmacologyAdminReturnFocus.focus();
@@ -223,7 +228,7 @@ function setPharmacologyAdminBusy_(busy) {
   pharmacologyAdmin.busy = busy;
   if (!busy) pharmacologyAdmin.publishing = false;
   document.getElementById("pharmacologyAdminClose").disabled = pharmacologyAdmin.publishing === true;
-  for (const id of ["pharmacologyPreviewBtn", "pharmacologyJsonInput", "pharmacologyReview"]) document.getElementById(id).disabled = busy;
+  for (const id of ["pharmacologyPreviewBtn", "pharmacologyJsonInput", "pharmacologyReview", "pharmacologyChooseFile", "pharmacologyFileInput"]) document.getElementById(id).disabled = busy;
   updatePharmacologyPublishButton_();
 }
 
@@ -239,34 +244,139 @@ function updatePharmacologyPublishButton_() {
   document.getElementById("pharmacologyPublishBtn").disabled = pharmacologyAdmin.busy || !pharmacologyAdmin.draft || !document.getElementById("pharmacologyReview").checked;
 }
 
+function choosePharmacologyFile_() {
+  if (!pharmacologyAdmin.open || pharmacologyAdmin.busy || !currentUserIsAdmin || !auth?.currentUser) return;
+  document.getElementById("pharmacologyFileInput").click();
+}
+
+function editPharmacologyInput_() {
+  invalidatePharmacologyPreview_();
+  document.getElementById("pharmacologySourceInfo").textContent = "הטקסט נערך. יש לבדוק את התצוגה המקדימה מחדש.";
+}
+
+async function copyPharmacologyPrompt_() {
+  if (!pharmacologyAdmin.open || !currentUserIsAdmin || !auth?.currentUser) return false;
+  const session = pharmacologyAdmin.session;
+  const uid = auth.currentUser.uid;
+  const isCurrent = () => session === pharmacologyAdmin.session && pharmacologyAdmin.open && currentUserIsAdmin && auth?.currentUser?.uid === uid;
+  const field = document.getElementById("pharmacologyAiPrompt");
+  const status = document.getElementById("pharmacologyPromptStatus");
+  const text = PharmacologyRoster.buildAiPrompt();
+  field.value = text;
+  try {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) throw new Error("CLIPBOARD_UNAVAILABLE");
+    await navigator.clipboard.writeText(text);
+    if (isCurrent()) status.textContent = "ההוראות הועתקו. הדביקו אותן בצ׳אט וצרפו את תמונת הלוח.";
+    return true;
+  } catch (_) {
+    if (!isCurrent()) return false;
+    // Older/mobile browsers may deny Clipboard API; keep a selectable manual fallback.
+    const priorFocus = document.activeElement;
+    const details = field.closest("details");
+    if (details) details.open = true;
+    field.focus();
+    field.select();
+    field.setSelectionRange(0, text.length);
+    let copied = false;
+    try { copied = typeof document.execCommand === "function" && document.execCommand("copy"); } catch (_) { /* Manual selection remains available. */ }
+    status.textContent = copied ? "ההוראות הועתקו. הדביקו אותן בצ׳אט וצרפו את תמונת הלוח."
+      : "ההעתקה האוטומטית חסומה. ההוראות מסומנות להעתקה: לחצו לחיצה ארוכה ובחרו ׳העתקה׳, או העתיקו במקלדת.";
+    if (copied && priorFocus?.isConnected) priorFocus.focus();
+    return Boolean(copied);
+  }
+}
+
+function pharmacologyServiceError_(error, publishing = false) {
+  const code = String(error?.code || "").replace(/^firestore\//, "");
+  const reason = code === "permission-denied" ? "אין הרשאה לפעולה. ודאו שאתם מחוברים כמנהלי מערכת ורעננו את האפליקציה."
+    : code === "unauthenticated" ? "החיבור לחשבון פג. יש להתחבר מחדש כמנהל מערכת."
+    : ["unavailable", "deadline-exceeded"].includes(code) ? "לא ניתן להתחבר לשרת כעת. בדקו את חיבור האינטרנט ונסו שוב."
+    : code === "resource-exhausted" ? "השירות הגיע למגבלת שימוש זמנית. נסו שוב מאוחר יותר."
+    : "לא ניתן להשלים את הבדיקה מול השרת כעת. נסו שוב; אם הבעיה חוזרת, פנו למנהל המערכת.";
+  return (publishing ? "לא התקבל אישור שהלוח פורסם. " : "הקלט תקין והתצוגה המקדימה זמינה, אך הפרסום חסום עד בדיקת השרת. ")
+    + reason + (publishing ? " לפני ניסיון פרסום נוסף, לחצו שוב על בדיקה ותצוגה מקדימה כדי לוודא את מצב הלוח." : "");
+}
+
+async function handlePharmacologyFile_(event) {
+  const picker = event.target;
+  const file = picker.files?.[0];
+  picker.value = ""; // Allows selecting the same file after a correction or failed read.
+  if (!file || !pharmacologyAdmin.open || pharmacologyAdmin.busy || !currentUserIsAdmin || !auth?.currentUser) return;
+  invalidatePharmacologyPreview_();
+  const status = document.getElementById("pharmacologyAdminStatus");
+  const info = document.getElementById("pharmacologySourceInfo");
+  if (!/\.(json|txt)$/i.test(file.name)) {
+    status.textContent = "בחרו קובץ JSON או TXT שמכיל את פלט ה־JSON. תמונה ו־Excel אינם נתמכים כאן. הטקסט הקודם לא השתנה.";
+    return;
+  }
+  if (file.size > 100 * 1024) {
+    status.textContent = "הקובץ גדול מ־100KB. בחרו את קובץ הטקסט של הלוח בלבד. הטקסט הקודם לא השתנה.";
+    return;
+  }
+  const session = pharmacologyAdmin.session;
+  const uid = auth.currentUser.uid;
+  const isCurrent = () => session === pharmacologyAdmin.session && pharmacologyAdmin.open && currentUserIsAdmin && auth?.currentUser?.uid === uid;
+  setPharmacologyAdminBusy_(true);
+  info.textContent = `קורא את הקובץ ${file.name} במכשיר…`;
+  let loaded = false;
+  try {
+    const input = await file.text();
+    if (!isCurrent()) return;
+    document.getElementById("pharmacologyJsonInput").value = input;
+    info.textContent = `הקובץ ${file.name} נקרא במכשיר. עדיין לא פורסם דבר.`;
+    loaded = true;
+  } catch (_) {
+    if (isCurrent()) {
+      info.textContent = "קריאת הקובץ נכשלה. הטקסט הקודם לא השתנה.";
+      status.textContent = "לא ניתן לקרוא את הקובץ. שמרו אותו כטקסט UTF-8 ונסו שוב, או הדביקו את תוכנו בשדה.";
+    }
+  } finally {
+    if (session === pharmacologyAdmin.session) setPharmacologyAdminBusy_(false);
+  }
+  if (loaded && isCurrent()) await previewPharmacology_();
+}
+
+function renderPharmacologyPreview_(result) {
+  const entries = result.roster.entries;
+  const groups = new Map();
+  entries.forEach(entry => {
+    if (!groups.has(entry.date)) groups.set(entry.date, []);
+    groups.get(entry.date).push(entry);
+  });
+  const callable = entries.filter(entry => !entry.uncertain && entry.phone).length;
+  const uncertain = entries.filter(entry => entry.uncertain).length;
+  const unknownHours = entries.filter(entry => !entry.start || !entry.end).length;
+  document.getElementById("pharmacologyPreview").innerHTML = `<h4>תצוגה מקדימה · ${escapeHtml(result.roster.month)}</h4>
+    <div class="pharmacologyPreviewSummary" role="status">${entries.length} שיבוצים ב־${groups.size} תאריכים. כפתור חיוג יופיע ב־${callable} שיבוצים.<br>
+      ${unknownHours} שיבוצים ללא שעות: לא ייקבע עבורם מי כונן כעת.
+      ${uncertain ? `<br><strong>${uncertain} שיבוצים מסומנים כלא ודאיים ולא יציגו כפתור חיוג. סימון ״בדקתי״ אינו מבטל אי־ודאות. יש לתקן את הפלט רק לאחר אימות מול המקור.</strong>` : ""}</div>
+    ${result.warnings.length ? `<details class="pharmacologyWarning"><summary>פירוט האזהרות (${result.warnings.length})</summary><ul>${result.warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("")}</ul></details>` : ""}
+    ${[...groups].sort(([left], [right]) => left.localeCompare(right)).map(([date, rows]) => `<section><h5>${escapeHtml(pharmacologyDateLabel_(date))}</h5>${pharmacologyCards_(rows, null, true)}</section>`).join("")}
+    ${result.roster.notes ? `<p class="pharmacologyNotes">${escapeHtml(result.roster.notes)}</p>` : ""}`;
+}
+
 async function previewPharmacology_() {
-  if (!currentUserIsAdmin || pharmacologyAdmin.busy || !pharmacologyAdmin.open) return;
+  if (!currentUserIsAdmin || !auth?.currentUser || pharmacologyAdmin.busy || !pharmacologyAdmin.open) return;
   invalidatePharmacologyPreview_();
   const input = document.getElementById("pharmacologyJsonInput").value;
   const result = PharmacologyRoster.analyze(input);
   const status = document.getElementById("pharmacologyAdminStatus");
   if (!result.valid) { status.textContent = result.errors.join("\n"); return; }
+  renderPharmacologyPreview_(result); // Show local validation even if server access fails.
   const session = pharmacologyAdmin.session;
+  const uid = auth.currentUser.uid;
   setPharmacologyAdminBusy_(true);
-  status.textContent = "בודק אם קיים לוח לחודש הזה…";
+  status.textContent = "הקלט תקין. בודק אם קיים לוח לחודש הזה לפני פתיחת אפשרות הפרסום…";
   try {
     const snapshot = await firebaseApi.getDocFromServer(firebaseApi.doc(db, PHARMACOLOGY_COLLECTION, result.roster.month));
-    if (session !== pharmacologyAdmin.session || !currentUserIsAdmin) return;
+    if (session !== pharmacologyAdmin.session || !currentUserIsAdmin || auth?.currentUser?.uid !== uid) return;
+    if (input !== document.getElementById("pharmacologyJsonInput").value) { invalidatePharmacologyPreview_(); return; }
     pharmacologyAdmin.expectedVersion = snapshot.exists() ? String(snapshot.data().version || "") : null;
     pharmacologyAdmin.draft = result.roster;
     pharmacologyAdmin.input = input;
-    const groups = new Map();
-    result.roster.entries.forEach(entry => {
-      if (!groups.has(entry.date)) groups.set(entry.date, []);
-      groups.get(entry.date).push(entry);
-    });
-    document.getElementById("pharmacologyPreview").innerHTML = `<h4>תצוגה מקדימה · ${escapeHtml(result.roster.month)}</h4>
-      ${result.warnings.length ? `<div class="pharmacologyWarning" role="status"><strong>יש לבדוק לפני פרסום:</strong><ul>${result.warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("")}</ul></div>` : ""}
-      ${[...groups].sort(([left], [right]) => left.localeCompare(right)).map(([date, entries]) => `<section><h5>${escapeHtml(pharmacologyDateLabel_(date))}</h5>${pharmacologyCards_(entries, null, true)}</section>`).join("")}
-      ${result.roster.notes ? `<p class="pharmacologyNotes">${escapeHtml(result.roster.notes)}</p>` : ""}`;
     status.textContent = snapshot.exists() ? "קיים לוח לחודש הזה. הפרסום יחליף אותו לאחר אישורך." : "הטיוטה מוכנה לבדיקה. היא עדיין לא פורסמה.";
-  } catch (_) {
-    if (session === pharmacologyAdmin.session) status.textContent = "בדיקת הלוח הקיים נכשלה. יש להתחבר לאינטרנט ולנסות שוב.";
+  } catch (error) {
+    if (session === pharmacologyAdmin.session && auth?.currentUser?.uid === uid) status.textContent = pharmacologyServiceError_(error);
   } finally {
     if (session === pharmacologyAdmin.session) setPharmacologyAdminBusy_(false);
   }
@@ -274,7 +384,7 @@ async function previewPharmacology_() {
 
 async function publishPharmacology_() {
   const state = pharmacologyAdmin;
-  if (!currentUserIsAdmin || !state.open || state.busy || !state.draft || !document.getElementById("pharmacologyReview").checked) return;
+  if (!currentUserIsAdmin || !auth?.currentUser || !state.open || state.busy || !state.draft || !document.getElementById("pharmacologyReview").checked) return;
   if (document.getElementById("pharmacologyJsonInput").value !== state.input) { invalidatePharmacologyPreview_(); return; }
   const session = state.session;
   const user = auth.currentUser;
@@ -282,7 +392,8 @@ async function publishPharmacology_() {
   const expectedVersion = state.expectedVersion;
   state.publishing = true;
   setPharmacologyAdminBusy_(true);
-  const approved = await requestAdminConfirmation_({ title: "פרסום לוח כוננות", message: `לפרסם את לוח ${draft.month} לכל המשתמשים המורשים? יש לוודא שכל השמות, המספרים והשיבוצים נבדקו מול התמונה.`, confirmLabel: "פרסום הלוח", tone: "primary" });
+  const noCall = draft.entries.filter(entry => entry.uncertain || !entry.phone).length;
+  const approved = await requestAdminConfirmation_({ title: "פרסום לוח כוננות", message: `לפרסם את לוח ${draft.month} לכל המשתמשים המורשים? יש לוודא שכל השמות, המספרים והשיבוצים נבדקו מול התמונה.${noCall ? ` ב־${noCall} שיבוצים לא יוצג כפתור חיוג בגלל אי־ודאות או מספר חסר.` : ""}`, confirmLabel: "פרסום הלוח", tone: "primary" });
   if (session !== pharmacologyAdmin.session) return;
   if (!approved || !currentUserIsAdmin || auth.currentUser?.uid !== user.uid) { setPharmacologyAdminBusy_(false); return; }
   const status = document.getElementById("pharmacologyAdminStatus");
@@ -307,7 +418,7 @@ async function publishPharmacology_() {
     if (session !== pharmacologyAdmin.session) return;
     state.draft = null;
     document.getElementById("pharmacologyReview").checked = false;
-    status.textContent = error.message === "ROSTER_CHANGED" ? "הלוח השתנה מאז הבדיקה. לחצו על תצוגה מקדימה ובדקו שוב לפני פרסום." : "הפרסום לא אושר. בדקו את החיבור וההרשאות, ואז לחצו על תצוגה מקדימה כדי לבדוק את המצב לפני ניסיון נוסף.";
+    status.textContent = error.message === "ROSTER_CHANGED" ? "הלוח השתנה מאז הבדיקה. לחצו על תצוגה מקדימה ובדקו שוב לפני פרסום." : pharmacologyServiceError_(error, true);
   } finally {
     if (session === pharmacologyAdmin.session) setPharmacologyAdminBusy_(false);
   }

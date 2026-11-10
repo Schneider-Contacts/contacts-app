@@ -5,15 +5,28 @@ publisher under Admin → System → Pharmacology.
 
 ## Monthly workflow
 
-1. Open the admin roster dialog and expand the AI instructions.
-2. Use the instructions with the monthly source image in an AI tool of your choice.
-   This app does not upload the image, call an AI service, or store the image.
-3. Paste the resulting JSON. The preview validates the complete document, shows
-   all assignments, and identifies missing dates, unknown hours and uncertain data.
-4. Compare every name, telephone number, date and shift with the original image.
+1. Open the admin roster dialog and press **העתקת הוראות לצ׳אט**. The button
+   copies instructions only; it does not open a chat, send data, or upload an image.
+2. Paste the instructions into the AI chat of your choice and attach the source
+   image yourself. The prompt requests one JSON object ready to copy back, without
+   commentary or Markdown. Review the generated contents against the image.
+3. Paste the JSON, or optionally choose a UTF-8 `.json`/`.txt` file up to 100KB.
+   Files are read locally; selecting a file never publishes it. Image/Excel imports
+   are not supported here. A BOM or one complete JSON code fence is accepted;
+   surrounding commentary, malformed JSON and invalid schema still fail.
+4. Press preview (automatic after file selection). The local preview appears before
+   the server check and summarizes call-enabled rows, missing hours and uncertainty.
+   Detailed warnings are collapsed. Publishing stays disabled until the server
+   check succeeds and you mark the review acknowledgment.
+5. Compare every name, telephone number, date and shift with the original image.
    Correct the JSON and preview again whenever necessary. Editing invalidates review.
-5. Check the review acknowledgment and confirm publication. This replaces only the
-   selected month, atomically. A version conflict requires a fresh preview.
+6. Confirm publication. This replaces only the selected month, atomically. A
+   version conflict or uncertain write outcome requires a fresh preview.
+
+Clipboard API failures use a legacy copy attempt, then reveal and select the
+instructions for manual copy if needed. The app never claims copy succeeded when
+both attempts fail. Closing/reopening the editor prevents stale file reads or
+clipboard failures from altering the new draft.
 
 Draft text exists only in memory and is cleared when the dialog closes or the
 session returns to login. Published rosters are stored in the protected Firestore
@@ -28,12 +41,20 @@ Each entry has `date` (`YYYY-MM-DD`, within the chosen month), `name`, `shift`, 
 optional `phone`, `start`, `end`, `endNextDay`, `uncertain`, `note`.
 
 - `start` and `end` must either both be empty/absent or both be `HH:mm`.
-- Overnight shifts require explicit `endNextDay: true`. Never infer duty hours
-  from laboratory operating hours or a label such as "morning".
-- Unknown phone numbers stay empty. Uncertain entries use `uncertain: true`.
+- Overnight intervals require `endNextDay: true`. The prompt permits normalization
+  of an unambiguous printed range such as 21–8 to an overnight interval, retaining
+  the printed range in the note. Ambiguous ranges retain empty times and an explicit
+  uncertainty note. Never infer hours from laboratory hours or a shift label.
+- Unknown phone numbers and hours stay empty. Missing fields alone do not mean the
+  known identity is uncertain. Use `uncertain: true` for genuine transcription or
+  assignment ambiguity; this hides the call button. The review checkbox never
+  clears uncertainty. A bare name under an on-call roster heading may be categorized
+  as on-call, with the source noted, without marking it uncertain merely for that reason.
 - Invalid dates, phone formats, types, duplicate assignments and timed overlaps
   block publication. Missing days and unknown times produce explicit warnings.
 - The supplied AI prompt includes a fabricated example and extraction safeguards.
+  It asks for empty notes when there is no special caveat, avoiding repeated warnings
+  that hours are absent; the app already summarizes this condition.
 
 ## Reader behavior
 
@@ -66,8 +87,9 @@ publication is authorized.
 
 Run `for f in tests/*.js; do node "$f" || exit 1; done` for the full regression
 suite. New parser tests cover Israel dates/DST, midnight, overnight, month/year
-rollover, overlaps, uncertainty, schema bounds and prompt content. New UI tests
-cover authenticated server reads, failures, stale responses, logout, draft review,
+rollover, overlaps, uncertainty, schema bounds and prompt content. New import tests cover clipboard success/fallback, local file selection, invalid
+files, stale reads, server-error classification and fail-closed publication gating.
+UI tests cover authenticated server reads, failures, stale responses, logout, draft review,
 cancel/publish, concurrency and account changes. Static audits include both scripts.
 
 `qa/pharmacology-browser.js` uses Playwright with all network requests intercepted

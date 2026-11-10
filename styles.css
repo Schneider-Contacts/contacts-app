@@ -7325,3 +7325,9 @@ body.directorySheetOpen {
   #app .monthlyQuickEntries .monthlyInternsQuickIcon { display: none; }
   #app .monthlyQuickEntries .monthlyInternsQuickEntry { padding: 10px; }
 }
+
+/* Roster file selection reads locally; publication remains separately reviewed. */
+.pharmacologyImportTools { margin: 18px 0 12px; }
+.pharmacologyImportHelp { font-size: 13px; line-height: 1.65; color: #52685e; overflow-wrap: anywhere; }
+#pharmacologyFileInput[hidden] { display: none; }
+.pharmacologyPreviewSummary { border: 1px solid #d1e4da; background: #f3faf6; padding: 12px; border-radius: 10px; line-height: 1.7; font-size: 14px; }
