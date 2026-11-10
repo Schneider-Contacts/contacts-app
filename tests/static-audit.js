@@ -674,6 +674,7 @@ const authPasswordElements = {
   authPasswordSecondaryActions: { style: { display: "" } }
 };
 const authPasswordSandbox = {
+  provisionalRegistrationPhone: "",
   authPurpose: "login",
   authMode: "login",
   authReturningUser: false,
@@ -716,7 +717,7 @@ assert.strictEqual(
 );
 assert.strictEqual(
   authPasswordElements.loginButton.textContent,
-  "יצירת חשבון והמשך לאימות מייל"
+  "יצירת חשבון ושליחת מייל אימות"
 );
 assert.strictEqual(
   authPasswordElements.authPasswordSecondaryActions.style.display,

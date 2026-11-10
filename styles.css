@@ -4379,6 +4379,18 @@ body.directorySheetOpen {
   font-weight: 750;
 }
 
+#login .authStageBack[hidden] { display: none; }
+
+#login .authPhonePaths {
+  margin: -7px 0 18px;
+  color: #53675d;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+#login .authPhonePaths p { margin: 0 0 8px; }
+#login .authPhonePaths strong { color: #38554a; }
+
 #login .authRegistrationGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

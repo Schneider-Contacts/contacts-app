@@ -2633,10 +2633,11 @@ function setAuthMode(mode) {
     if (secondaryActions) secondaryActions.style.display = "none";
     if (modeNote) {
       modeNote.style.display = "block";
-      modeNote.textContent =
-        "ההרשמה עדיין לא הושלמה. לאחר יצירת החשבון יישלח מייל אימות חד־פעמי; יש לפתוח את הקישור שבו.";
+      modeNote.textContent = provisionalRegistrationPhone
+        ? "לאחר אימות המייל תיפתח גישה זמנית ל־24 שעות. גישה קבועה דורשת אישור מנהל."
+        : "נשלח למייל קישור לאימות. פתחו אותו כדי להשלים את ההרשמה.";
     }
-    setLoginButtonLabel_("יצירת חשבון והמשך לאימות מייל");
+    setLoginButtonLabel_("יצירת חשבון ושליחת מייל אימות");
     setLoginButtonBusy_(false);
     return;
   }
@@ -2907,8 +2908,8 @@ function updateAuthProgress_(stage) {
   const label = document.getElementById("authProgressText");
   const labels = {
     email: "",
-    phone: "בדיקת טלפון והמשך להצטרפות",
-    registration: "פרטים ← בחירת סיסמה ← אימות מייל",
+    phone: "הצטרפות לספר",
+    registration: "פרטים להצטרפות",
     password: "כניסה עם סיסמה",
     password_setup: "בחירת סיסמה · לאחר מכן אימות מייל",
     password_help: "עזרה בכניסה",
@@ -2975,12 +2976,12 @@ function showVerificationSuccessPanel_(user) {
 }
 
 async function continueAfterVerificationSuccess_() {
-  const user = verificationSuccessUser || (auth && auth.currentUser);
+  const user = auth && auth.currentUser;
   if (!user) {
-    showAuthEmailStep_({ forceEmailEntry: true });
-    setLoginStatus("החיבור לחשבון הסתיים. התחברו מחדש.", "error");
+    showVerificationSignIn_(verificationSuccessUser && verificationSuccessUser.email);
     return;
   }
+  if (verificationSuccessUser && verificationSuccessUser !== user) return;
 
   verificationSuccessUser = null;
   setVerificationSuccessPanelVisible_(false);
@@ -3183,10 +3184,7 @@ async function submitRegistrationDetails_() {
     showAuthPasswordStep_(pendingRegistrationEmail, "register", {
       preserveFlow: true
     });
-    setLoginStatus(
-      "הפרטים נשמרו. בחרו סיסמה; לאחר אימות המייל תיפתח גישה זמנית ל־24 שעות עד לאישור מנהל.",
-      "success"
-    );
+    setLoginStatus("הפרטים נשמרו.", "success");
   } catch (error) {
     showAuthRegistrationDetailsStep_(
       pendingRegistrationEmail,
@@ -3229,13 +3227,17 @@ function showAuthPhoneStep_(email, purpose = "email_update") {
   if (phoneTitle) {
     phoneTitle.textContent = isPasswordReset
       ? "האיפוס אושר — אימות קצר"
-      : "בדיקת מספר הטלפון";
+      : "נמשיך עם מספר הטלפון";
   }
   if (phoneDescription) {
     phoneDescription.textContent = isPasswordReset
       ? "המנהל אישר איפוס סיסמה עד 23:59. הזינו את מספר הטלפון שמקושר לחשבון, ולאחר מכן תוכלו ליצור סיסמה חדשה."
-      : "כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שלכם, גם אם עדיין אינכם בספר. אם המספר אינו רשום, תוכלו להמשיך לבקשת הצטרפות.";
+      : "לפי המספר נדע איך להמשיך.";
   }
+  const phonePaths = document.getElementById("authPhonePaths");
+  if (phonePaths) phonePaths.hidden = isPasswordReset;
+  if (phoneInput) phoneInput.setAttribute("aria-describedby", isPasswordReset
+    ? "authPhoneDescription" : "authPhoneDescription authPhonePaths");
   if (phoneButton) {
     phoneButton.textContent = isPasswordReset
       ? "המשך ליצירת סיסמה חדשה"
@@ -4496,10 +4498,8 @@ async function continueFromPhoneStep() {
       showAuthPasswordStep_(phoneStepEmail, "register", {
         preserveFlow: true
       });
-      setLoginStatus(
-        "נמצאה התאמה לספר אנשי הקשר. בחרו סיסמה כדי להיכנס בגישה זמנית עד לאישור מנהל.",
-        "success"
-      );
+      const title = document.getElementById("loginTitle");
+      if (title) title.textContent = "הפרטים שלכם כבר בספר";
       return;
     }
 
@@ -4824,55 +4824,116 @@ function openGmailInbox() {
   window.open("https://mail.google.com/", "_blank", "noopener");
 }
 
+function showVerificationSignIn_(email = "") {
+  // Missing local session is not evidence that the email has been verified.
+  if (!auth || auth.currentUser) return false;
+  const targetEmail = normalizeEmail(email || lastUnverifiedEmail || getPendingAuthEmail_());
+  verificationSuccessUser = null;
+  currentUserHasAppAccess = false;
+  currentUserPermissionData = null;
+  setVerificationSuccessPanelVisible_(false);
+  showLoginScreen();
+  ["passwordInput", "confirmPasswordInput"].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.value = "";
+  });
+  if (isValidEmail(targetEmail)) {
+    showAuthPasswordStep_(targetEmail, "login");
+  } else {
+    showAuthEmailStep_({ forceEmailEntry: true });
+  }
+  setLoginStatus("החיבור לחשבון הסתיים. הזינו סיסמה כדי להמשיך ולבדוק את האימות.", "error");
+  return true;
+}
+
+function setVerificationCheckBusy_(busy) {
+  const button = document.getElementById("verificationContinueBtn");
+  if (!button) return;
+  button.disabled = Boolean(busy);
+  button.textContent = busy ? "בודקים את האימות..." : "כבר אימתתי — המשך";
+}
+
 async function checkVerificationAndContinue() {
-  if (!firebaseApi || !auth || !auth.currentUser) {
-    setLoginStatus("החיבור לחשבון הסתיים. חזרו למסך הכניסה והתחברו מחדש.", "error");
+  if (authActionInProgress || verificationReturnCheckInProgress) return;
+  if (!firebaseApi || !auth) {
+    setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
+    return;
+  }
+  if (!auth.currentUser) {
+    showVerificationSignIn_();
     return;
   }
 
-  setLoginButtonDisabled(true);
+  const user = auth.currentUser;
+  const flowToken = authEmailFlowToken;
+  const isCurrent = () => auth.currentUser === user && authEmailFlowToken === flowToken;
+  let handedOffForAccessCheck = false;
+  setVerificationCheckBusy_(true);
   setLoginStatus("בודק אם כתובת המייל אומתה...", "loading");
   authActionInProgress = true;
 
   try {
-    await firebaseApi.reload(auth.currentUser);
-    if (!auth.currentUser.emailVerified) {
-      const permission = await getCurrentUserPermission(auth.currentUser.email);
+    await firebaseApi.reload(user);
+    if (!isCurrent()) return;
+    if (!user.emailVerified) {
+      const permission = await getCurrentUserPermission(user.email);
+      if (!isCurrent()) return;
       if (!(permission && permission.active && permission.manualApproved)) {
-        setLoginStatus("כתובת המייל עדיין לא אומתה והאישור הידני טרם התקבל.", "error");
+        setLoginStatus("האימות עוד לא נקלט. פתחו את הקישור במייל ונסו שוב.", "error");
         return;
       }
     }
 
-    if (auth.currentUser.emailVerified) {
-      await auth.currentUser.getIdToken(true);
-      showVerificationSuccessPanel_(auth.currentUser);
+    if (user.emailVerified) {
+      await user.getIdToken(true);
+      if (!isCurrent()) return;
+      showVerificationSuccessPanel_(user);
       return;
     }
 
-    rememberSuccessfulEmail_(auth.currentUser.email);
+    rememberSuccessfulEmail_(user.email);
     setVerificationPanelVisible_(false);
-    await handleAuthenticatedUser(auth.currentUser, { skipVerificationSuccess: true });
+    handedOffForAccessCheck = true;
+    await handleAuthenticatedUser(user, { skipVerificationSuccess: true });
   } catch (error) {
     console.error("Verification check failed", error);
-    setLoginStatus("לא הצלחנו לבדוק את האימות. בדקו את החיבור ונסו שוב.", "error");
+    if (authEmailFlowToken !== flowToken) return;
+    if (!handedOffForAccessCheck && !auth.currentUser) {
+      showVerificationSignIn_(user.email);
+    } else if (isCurrent()) {
+      setLoginStatus("לא הצלחנו לבדוק את האימות. בדקו את החיבור ונסו שוב.", "error");
+    }
   } finally {
     authActionInProgress = false;
-    setLoginButtonDisabled(false);
+    setVerificationCheckBusy_(false);
+    if (authEmailFlowToken === flowToken && !auth.currentUser) {
+      if (handedOffForAccessCheck) {
+        // Preserve the access check's denial, including after a later pageshow.
+        verificationSuccessUser = null;
+        setVerificationSuccessPanelVisible_(false);
+        showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true, keepStatus: true });
+      } else {
+        showVerificationSignIn_(user.email);
+      }
+    }
   }
 }
 
-// קישור האימות יכול להיפתח בטאב או בדפדפן אחר. כאשר המשתמש חוזר
-// לטאב המקורי, מרעננים את משתמש Firebase הפעיל ומכניסים אותו מיד אם
-// האימות הושלם. כך לא נשארים במסך סיסמה ישן ולא נדרשת סיסמה נוספת.
+// The link may open in another tab. Only a refreshed Firebase session can
+// confirm verification; a missing session returns to login without claiming it.
 async function refreshVerificationSessionAfterReturn_() {
   if (
     verificationReturnCheckInProgress ||
     authActionInProgress ||
     !firebaseApi ||
-    !auth ||
-    !auth.currentUser
+    !auth
   ) {
+    return false;
+  }
+  if (!auth.currentUser) {
+    if (["verification", "verification_success"].includes(authStage)) {
+      showVerificationSignIn_();
+    }
     return false;
   }
 
@@ -4880,21 +4941,41 @@ async function refreshVerificationSessionAfterReturn_() {
   const email = normalizeEmail(user.email || "");
   const pendingEmail = getPendingAuthEmail_();
   if (!email || pendingEmail !== email) return false;
+  const flowToken = authEmailFlowToken;
+  const isCurrent = () => auth.currentUser === user && authEmailFlowToken === flowToken;
+  let handedOffForAccessCheck = false;
 
   verificationReturnCheckInProgress = true;
+  setVerificationCheckBusy_(true);
   try {
     await firebaseApi.reload(user);
-    if (!user.emailVerified) return false;
+    if (!isCurrent() || !user.emailVerified) return false;
     await user.getIdToken(true);
+    if (!isCurrent()) return false;
 
     rememberSuccessfulEmail_(email);
+    handedOffForAccessCheck = true;
     await handleAuthenticatedUser(user, { skipVerificationSuccess: true });
     return true;
   } catch (error) {
     console.warn("Could not refresh verification state after return", error);
+    if (!handedOffForAccessCheck && authEmailFlowToken === flowToken && !auth.currentUser) {
+      showVerificationSignIn_(email);
+    }
     return false;
   } finally {
     verificationReturnCheckInProgress = false;
+    setVerificationCheckBusy_(false);
+    if (authEmailFlowToken === flowToken && !auth.currentUser) {
+      if (handedOffForAccessCheck) {
+        // Preserve the access check's denial, including after a later pageshow.
+        verificationSuccessUser = null;
+        setVerificationSuccessPanelVisible_(false);
+        showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true, keepStatus: true });
+      } else {
+        showVerificationSignIn_(email);
+      }
+    }
   }
 }
 
@@ -4910,8 +4991,12 @@ function initVerificationReturnMonitor_() {
 }
 
 async function resendVerificationFromPanel() {
-  if (!firebaseApi || !auth || !db || !auth.currentUser) {
-    setLoginStatus("החיבור לחשבון הסתיים. התחברו מחדש כדי לשלוח אימות.", "error");
+  if (!firebaseApi || !auth || !db) {
+    setLoginStatus("המערכת עדיין נטענת. נסו שוב בעוד רגע.", "loading");
+    return;
+  }
+  if (!auth.currentUser) {
+    showVerificationSignIn_();
     return;
   }
 

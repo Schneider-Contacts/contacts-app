@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20261110-admin-feedback-v1">
+<link rel="stylesheet" href="styles.css?v=20261110-signup-clarity-v1">
 
 
 
@@ -118,7 +118,7 @@
   <form class="authForm" id="authForm" onsubmit="event.preventDefault(); handlePrimaryAuthAction();">
     <div id="authEmailStep">
       <h3 class="authModeHeading">כניסה לספר אנשי הקשר</h3>
-      <p class="authModeDescription">הזינו את כתובת המייל שלכם כדי להמשיך.</p>
+      <p class="authModeDescription">לכניסה או להצטרפות, מתחילים עם כתובת המייל.</p>
 
       <div class="authField">
         <label for="emailInput">כתובת מייל</label>
@@ -132,14 +132,18 @@
     </div>
 
     <div id="authPhoneStep" style="display:none;">
-      <h3 id="authPhoneTitle" class="authModeHeading">אימות קצר</h3>
-      <p id="authPhoneDescription" class="authModeDescription">הזינו את מספר הטלפון שלכם, גם אם עדיין אינכם בספר. אם המספר אינו רשום, תוכלו להמשיך לבקשת הצטרפות.</p>
+      <h3 id="authPhoneTitle" class="authModeHeading">נמשיך עם מספר הטלפון</h3>
+      <p id="authPhoneDescription" class="authModeDescription">לפי המספר נדע איך להמשיך.</p>
+      <div id="authPhonePaths" class="authPhonePaths">
+        <p><strong>כבר מופיעים בספר?</strong> נחבר את המייל לפרטים הקיימים, בלי למלא אותם שוב.</p>
+        <p><strong>חדשים כאן?</strong> נמשיך לטופס הצטרפות קצר.</p>
+      </div>
 
       <div class="authField">
         <label for="phoneInput">מספר טלפון</label>
         <div class="authInputShell">
           <span class="authFieldIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.2 3.5 9.5 8l-2 1.6a15 15 0 0 0 6.9 6.9l1.6-2 4.5 2.3-.7 3a2 2 0 0 1-2 1.6C9.4 20.7 3.3 14.6 2.6 6.2a2 2 0 0 1 1.6-2z"/></svg></span>
-          <input type="tel" id="phoneInput" name="phone" placeholder="050 123 4567" autocomplete="tel-national" inputmode="tel" dir="ltr" maxlength="14">
+          <input type="tel" id="phoneInput" name="phone" aria-describedby="authPhoneDescription authPhonePaths" placeholder="050 123 4567" autocomplete="tel-national" inputmode="tel" dir="ltr" maxlength="14">
         </div>
       </div>
 
@@ -149,7 +153,7 @@
 
     <div id="authRegistrationDetailsStep" class="authRegistrationDetailsStep" style="display:none;">
       <h3 class="authModeHeading">בקשת הצטרפות</h3>
-      <p class="authModeDescription">לא מצאנו את מספר הטלפון בספר. מלאו פרטים, בחרו סיסמה ואמתו את המייל. לאחר אימות המייל תיפתח גישה זמנית ל־24 שעות עד לאישור מנהל.</p>
+      <p class="authModeDescription">המספר עדיין לא בספר. כמה פרטים קצרים ונמשיך.</p>
       <div id="authRegistrationIdentity" class="selectedAuthEmail"></div>
 
       <div class="authRegistrationGrid">
@@ -162,7 +166,7 @@
           <div class="authInputShell"><input id="registrationLastName" type="text" maxlength="100" autocomplete="family-name" aria-required="true"></div>
         </div>
         <div class="authField">
-          <label for="registrationTitlePrefix">תואר — לא חובה</label>
+          <label for="registrationTitlePrefix">תואר (לא חובה)</label>
           <div class="authInputShell">
             <select id="registrationTitlePrefix">
               <option value="">ללא</option>
@@ -203,7 +207,7 @@
         </div>
       </div>
       <input id="registrationWebsite" class="authRegistrationHoneypot" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button type="submit" id="registrationDetailsSubmitBtn" class="primaryAuthBtn">שמירת פרטים והמשך לבחירת סיסמה</button>
+      <button type="submit" id="registrationDetailsSubmitBtn" class="primaryAuthBtn">המשך לבחירת סיסמה</button>
       <button type="button" class="authStageBack bottom" onclick="showAuthPhoneStep_(lastUnknownEmail, 'email_update')">חזרה למספר הטלפון</button>
     </div>
 
@@ -239,7 +243,7 @@
           <button type="button" id="authFirstAccessAction" class="authTextAction" style="display:none;" onclick="startApprovedAccountSetup_()">הגדרת סיסמה</button>
         </div>
         <div id="authModeNote" class="authModeNote"></div>
-        <button type="button" id="authSetupBack" class="authStageBack bottom" hidden onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">חזרה למסך המייל (בקשה שכבר נשמרה לא תימחק)</button>
+        <button type="button" id="authSetupBack" class="authStageBack bottom" hidden onclick="showAuthEmailStep_({ forceEmailEntry: true, preserveEmail: true })">חזרה למייל</button>
       </div>
 
       <div id="passwordRecoveryOptions" class="passwordRecoveryOptions" style="display:none;">
@@ -279,7 +283,7 @@
     <div id="verificationEmail" class="verificationEmail"></div>
     <div class="verificationSpamNote"><b>לא רואים את ההודעה?</b> פתחו את תיבת המייל שלכם ובדקו גם בתיקיות ספאם ודואר זבל.</div>
     <div class="verificationActions">
-      <button type="button" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
+      <button type="button" id="verificationContinueBtn" class="primaryAuthBtn" onclick="checkVerificationAndContinue()">כבר אימתתי — המשך</button>
       <button type="button" class="verificationSecondary" onclick="openGmailInbox()">למשתמשי Gmail: פתיחת התיבה</button>
       <details class="verificationHelpDisclosure">
         <summary>המייל לא הגיע?</summary>
@@ -1064,7 +1068,7 @@
   <script src="dialog-accessibility.js?v=20261110-paste-v1"></script>
   <script src="pharmacology-roster.js?v=20261110-paste-v1"></script>
   <script src="pharmacology-ui.js?v=20261110-admin-feedback-v1"></script>
-  <script src="app.js?v=20261110-interns-compact-v1"></script>
+  <script src="app.js?v=20261110-signup-clarity-v1"></script>
 
 </body>
 </html>
