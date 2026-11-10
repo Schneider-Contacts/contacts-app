@@ -21,7 +21,7 @@ function element(id) {
 }
 const s = {
   contacts: [], currentDisplayedContacts: [], selectedContactIds: new Set(),
-  selectionMode: false, activeQuickFilter: 'all', directoryBrowseActivated: false,
+  selectionMode: false, activeQuickFilter: 'all', activeLaboratoryHospital: 'all', directoryScrollGeneration: 0, directoryBrowseActivated: false,
   document: { getElementById: element, querySelector: () => element('toolbar'),
     querySelectorAll: () => [], body: { classList: classes() } },
   closeDepartmentBrowser_: () => {}, updateQuickFilterButtons: () => {},
@@ -39,7 +39,7 @@ for (const name of ['normalizePhone', 'formatPhoneForDisplay', 'getPhoneSearchVa
   'getSearchTokenPriority_', 'getSearchPriority', 'compareContactsByName',
   'isSearchActive', 'isDepartmentFilterActive_', 'isQuickFilterActive',
   'contactMatchesQuickFilter', 'getQuickFilterContacts', 'clearActiveDirectoryFilter_',
-  'returnToHome_', 'clearSearch', 'search', 'toggleQuickFilter', 'updateSearchUI',
+  'returnToHome_', 'clearSearch', 'search', 'toggleQuickFilter', 'updateSearchUI', 'scrollDirectoryResultsToStart_',
   'updateMainActionButton', 'enterSelectionMode', 'exitSelectionMode',
   'updateMainSearchActionVisibility_',
   'shouldShowHomeDashboard_', 'updateHomeDashboardVisibility_', 'shouldShowNoResults',

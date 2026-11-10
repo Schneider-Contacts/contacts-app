@@ -30,7 +30,7 @@ async function runDialogRegressionTests(win, doc, loadModule, report = () => {})
     trigger.focus(); check(sheet.contains(doc.activeElement),'Programmatic focus cannot escape');
     press('Escape'); await pause();
     check(!sheet.classList.contains('visible') && !main.inert,'Escape closes sheet and restores background');
-    check(doc.activeElement===trigger && doc.body.style.overflow==='','Close restores opener and scroll');
+    check(doc.activeElement===trigger && doc.body.style.overflow==='','Close restores opener and unlocks background');
     await open('contactAddModal'); const parent=doc.getElementById('contactAddModal');
     const childTrigger=doc.getElementById('contactAddSubmitBtn'); childTrigger.focus(); childTrigger.click();
     doc.getElementById('adminConfirmModal').classList.add('visible'); await pause();

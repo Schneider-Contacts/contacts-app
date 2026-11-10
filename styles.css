@@ -7314,3 +7314,72 @@ body.directorySheetOpen {
 #app .directoryHomeBtn svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #app .directoryHomeBtn:hover { background: #f0f7f3; }
 #app .directoryHomeBtn:focus-visible { outline: 3px solid #24845e; outline-offset: 3px; }
+
+/* Focused directory navigation: only search and its scope stay above results. */
+#app .directoryHomeShortcuts {
+  margin: 0 0 12px;
+  padding: 3px 10px 12px;
+  border: 1px solid #dfe9e4;
+  border-radius: 18px;
+  background: #fff;
+}
+#app .directoryHomeShortcuts[hidden],
+#app .directoryContextBar[hidden],
+#app .laboratoryHospitalField[hidden],
+#app .directoryGlobalSearchBtn[hidden],
+#clearDepartmentSearchBtn[hidden] { display: none; }
+
+#app .directoryContextBar { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 8px; }
+#app .directoryContextBar select {
+  width: 100%; min-width: 0; min-height: 44px; margin: 0;
+  padding: 8px; border: 1px solid #d4e4da; border-radius: 11px;
+  background: #f4f9f6; color: #255b46; font: inherit; font-size: 16px; font-weight: 700;
+  text-align: right; text-overflow: ellipsis;
+  appearance: auto; -webkit-appearance: menulist;
+}
+#app .directoryContextBar .directoryScopeSelect { flex: 1 1 0; width: 0; }
+#app .laboratoryHospitalField { display: block; flex: 0 1 106px; min-width: 0; }
+#app .directoryGlobalSearchBtn {
+  flex: 0 0 auto; min-width: 44px; min-height: 44px; width: auto;
+  margin: 0; padding: 7px; border: 1px solid #d4e4da; border-radius: 11px;
+  background: #fff; color: #176b4e; box-shadow: none; font-size: 12px; font-weight: 750;
+}
+#app .directoryContextBar select:focus-visible,
+#app .directoryGlobalSearchBtn:focus-visible,
+.departmentSearchWrap button:focus-visible,
+.departmentOption:focus-visible { outline: 3px solid #24845e; outline-offset: 2px; }
+#app .directoryListToolbar { margin: 0 2px 9px; padding-top: 0; border-top: 0; }
+#app .directoryToolbarBtn { min-height: 44px; }
+
+/* One active scroll surface: the sheet header stays put and the page is locked. */
+.departmentSheetPanel {
+  display: flex; flex-direction: column;
+  height: min(90dvh, 760px); max-height: min(90dvh, 760px); overflow: hidden;
+}
+.departmentSheetPanel .directorySheetHandle,
+.departmentSheetPanel .directorySheetHeader,
+.departmentSearchHeader { flex: 0 0 auto; }
+.departmentSheetPanel .directorySheetHeader { padding-bottom: 10px; }
+.departmentSheetPanel .directorySheetClose { width: 44px; height: 44px; }
+.departmentSearchHeader { padding-bottom: 8px; border-bottom: 1px solid #e3ede7; }
+.departmentSearchWrap { position: relative; }
+.departmentSearchWrap input {
+  min-height: 48px; margin: 0; padding: 10px 12px 10px 48px; text-align: right;
+  border: 1px solid #cbded2; border-radius: 12px; font-size: 16px;
+}
+.departmentSearchWrap input::-webkit-search-cancel-button { display: none; }
+.departmentSearchWrap button {
+  position: absolute; left: 2px; top: 2px; width: 44px; height: 44px;
+  margin: 0; padding: 0; color: #426756; background: transparent; box-shadow: none; font-size: 23px;
+}
+.departmentResultsSummary { padding: 7px 3px 0; color: #60766a; font-size: 12px; }
+.departmentSheetPanel .departmentList {
+  display: block; min-height: 0; margin-top: 8px; overflow-y: auto;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 2px 2px 6px;
+}
+.departmentSheetPanel .departmentOption { margin-bottom: 5px; }
+@media (max-height: 520px) {
+  .departmentSheetPanel { height: 96dvh; max-height: 96dvh; padding-top: 6px; }
+  .departmentSheetPanel .directorySheetHandle { display: none; }
+  .departmentSheetPanel .directorySheetHeader p { display: none; }
+}

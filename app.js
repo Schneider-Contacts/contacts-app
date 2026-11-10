@@ -78,6 +78,8 @@ let selectedContactIds = new Set();
 let currentDisplayedContacts = [];
 let selectionMode = false;
 let activeQuickFilter = "all";
+let activeLaboratoryHospital = "all";
+let directoryScrollGeneration = 0;
 let directoryBrowseActivated = false;
 let activeContactDetailId = null;
 let selectedRecentContactPhones = new Set();
@@ -1236,7 +1238,9 @@ function contactMatchesQuickFilter(contact, filterName) {
 
 function getQuickFilterContacts() {
   if (!isQuickFilterActive()) return [...contacts];
-  return contacts.filter(contact => contactMatchesQuickFilter(contact, activeQuickFilter));
+  return contacts.filter(contact => contactMatchesQuickFilter(contact, activeQuickFilter) &&
+    (activeQuickFilter !== "labs" || activeLaboratoryHospital === "all" ||
+      getLaboratoryHospitalGroup_(contact).key === activeLaboratoryHospital));
 }
 
 function updateQuickFilterButtons() {
@@ -1263,8 +1267,84 @@ function updateQuickFilterButtons() {
   const activeFilter = document.getElementById("activeDirectoryFilter");
   const activeFilterText = document.getElementById("activeDirectoryFilterText");
   const label = getActiveDirectoryFilterLabel_();
-  if (activeFilter) activeFilter.hidden = !label;
+  if (activeFilter) activeFilter.hidden = shouldShowHomeDashboard_();
   if (activeFilterText) activeFilterText.textContent = label;
+  updateDirectoryContext_();
+}
+
+function updateDirectoryContext_() {
+  const scope = document.getElementById("directoryScopeSelect");
+  if (scope) {
+    const department = isDepartmentFilterActive_();
+    const options = [
+      ["all", "כל הספר"], ["vpn", "VPN"], ["institutes", "מכונים"], ["labs", "מעבדות"],
+      ...(department ? [[activeQuickFilter, getActiveDirectoryFilterLabel_()]] : []),
+      ["__departments__", "בחירת מחלקה…"], ["__home__", "חזרה לבית"]
+    ].map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("");
+    // Avoid replacing a focused native selector on every search keystroke.
+    if (scope.innerHTML !== options) scope.innerHTML = options;
+    scope.value = activeQuickFilter;
+  }
+  const hospitalField = document.getElementById("laboratoryHospitalField");
+  if (hospitalField) hospitalField.hidden = activeQuickFilter !== "labs";
+  const hospitalSelect = document.getElementById("laboratoryHospitalSelect");
+  if (hospitalSelect) hospitalSelect.value = activeLaboratoryHospital;
+  const globalSearch = document.getElementById("directoryGlobalSearchBtn");
+  if (globalSearch) globalSearch.hidden = activeQuickFilter === "all";
+  const input = document.getElementById("searchInput");
+  if (input) {
+    const hospitals = { schneider: "שניידר", beilinson: "בילינסון", other: "נוספות" };
+    const label = activeQuickFilter === "labs"
+      ? `מעבדות${hospitals[activeLaboratoryHospital] ? " " + hospitals[activeLaboratoryHospital] : ""}`
+      : getActiveDirectoryFilterLabel_();
+    input.placeholder = label ? `חיפוש בתוך ${label}` : "שם, תפקיד, מחלקה או טלפון";
+    input.setAttribute("aria-label", label ? `חיפוש בתוך ${label}` : "חיפוש בכל ספר אנשי הקשר");
+  }
+}
+
+function changeDirectoryScope_(value) {
+  if (value === "__home__") {
+    returnToHome_();
+  } else if (value === "__departments__") {
+    updateDirectoryContext_();
+    openDepartmentBrowser_();
+  } else if (value === "all") {
+    clearActiveDirectoryFilter_();
+  } else if (["vpn", "institutes", "labs"].includes(value) && value !== activeQuickFilter) {
+    toggleQuickFilter(value);
+  }
+}
+
+function changeLaboratoryHospital_(value) {
+  if (activeQuickFilter !== "labs" || !["all", "schneider", "beilinson", "other"].includes(value)) return;
+  if (activeLaboratoryHospital === value) return;
+  activeLaboratoryHospital = value;
+  renderCurrentSearchResults();
+  scrollDirectoryResultsToStart_();
+}
+
+function scrollDirectoryResultsToStart_() {
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") return;
+  const generation = ++directoryScrollGeneration;
+  const move = () => window.requestAnimationFrame(() => {
+    if (generation !== directoryScrollGeneration) return;
+    const app = document.getElementById("app");
+    if (!app || app.style.display === "none" || app.classList.contains("internsViewActive") || app.classList.contains("pharmacologyViewActive")) return;
+    if (shouldShowHomeDashboard_()) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+    const start = document.getElementById("directoryResultsStart");
+    const header = document.querySelector("#app .controlsCard");
+    if (!start || !header) return;
+    const stickyTop = parseFloat(window.getComputedStyle(header).top) || 0;
+    const top = start.getBoundingClientRect().top + window.scrollY - header.getBoundingClientRect().height - stickyTop - 9;
+    window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+  });
+  // Closing a picker consumes its history entry asynchronously. Its native Back
+  // must finish before an intentional category navigation changes the scroll.
+  if (typeof window.afterDialogsSettled_ === "function") window.afterDialogsSettled_(move);
+  else move();
 }
 
 function toggleQuickFilter(filterName) {
@@ -1273,13 +1353,17 @@ function toggleQuickFilter(filterName) {
     return;
   }
   activeQuickFilter = filterName;
+  activeLaboratoryHospital = "all";
   directoryBrowseActivated = true;
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
+  scrollDirectoryResultsToStart_();
 }
 
 function returnToHome_() {
+  directoryScrollGeneration += 1;
+  activeLaboratoryHospital = "all";
   activeQuickFilter = "all";
   directoryBrowseActivated = false;
   // Navigation ends selection mode, but chosen contacts can be resumed later.
@@ -1308,11 +1392,13 @@ function getActiveDirectoryFilterLabel_() {
 }
 
 function clearActiveDirectoryFilter_() {
+  activeLaboratoryHospital = "all";
   activeQuickFilter = "all";
   directoryBrowseActivated = true;
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
+  scrollDirectoryResultsToStart_();
 }
 
 function getDepartmentOptions_() {
@@ -1334,23 +1420,44 @@ function getDepartmentOptions_() {
 function renderDepartmentBrowser_() {
   const list = document.getElementById("departmentList");
   if (!list) return;
-  const options = getDepartmentOptions_();
+  const query = normalizeSearchText(document.getElementById("departmentSearchInput")?.value || "");
+  const terms = query.split(" ").filter(Boolean);
+  const options = getDepartmentOptions_().filter(option => terms.every(term => option.key.includes(term)));
+  const summary = document.getElementById("departmentResultsSummary");
+  if (summary) summary.textContent = options.length === 1 ? "מחלקה אחת" : options.length ? `${options.length} מחלקות` : "לא נמצאו מחלקות";
+  const clearButton = document.getElementById("clearDepartmentSearchBtn");
+  if (clearButton) clearButton.hidden = !query;
   list.innerHTML = options.length
     ? options.map(option => {
         const isActive = activeQuickFilter === "department:" + option.key;
         return `
-          <button type="button" class="departmentOption ${isActive ? "active" : ""}" data-department-key="${escapeHtml(option.key)}">
+          <button type="button" class="departmentOption ${isActive ? "active" : ""}" data-department-key="${escapeHtml(option.key)}" aria-pressed="${isActive}">
             <span>${escapeHtml(option.label)}</span>
             <small>${option.count}</small>
           </button>
         `;
       }).join("")
-    : '<div class="departmentListEmpty">לא נמצאו מחלקות ברשימה.</div>';
+    : '<div class="departmentListEmpty">לא נמצאו מחלקות. נסו מילה אחרת או נקו את החיפוש.</div>';
+}
+
+function searchDepartmentOptions_() {
+  renderDepartmentBrowser_();
+  const list = document.getElementById("departmentList");
+  if (list) list.scrollTop = 0;
+}
+
+function clearDepartmentSearch_() {
+  const input = document.getElementById("departmentSearchInput");
+  if (input) input.value = "";
+  searchDepartmentOptions_();
+  if (input) input.focus({ preventScroll: true });
 }
 
 function openDepartmentBrowser_() {
   closeAllDirectoryMenus_();
-  renderDepartmentBrowser_();
+  const input = document.getElementById("departmentSearchInput");
+  if (input) input.value = "";
+  searchDepartmentOptions_();
   const sheet = document.getElementById("departmentSheet");
   if (!sheet) return;
   sheet.classList.add("visible");
@@ -1376,10 +1483,12 @@ function selectDepartmentFilter_(departmentKey) {
   const key = normalizeSearchText(departmentKey);
   if (!key) return;
   activeQuickFilter = `department:${key}`;
+  activeLaboratoryHospital = "all";
   directoryBrowseActivated = true;
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
+  scrollDirectoryResultsToStart_();
 }
 
 function updateMainActionButton() {
@@ -6539,6 +6648,8 @@ function showAppForUser(user) {
   document.getElementById("app").style.display = "block";
   document.getElementById("adminPanel").style.display = "none";
   if (!isQuickFilterActive()) activeQuickFilter = "all";
+  activeLaboratoryHospital = "all";
+  directoryScrollGeneration += 1;
   directoryBrowseActivated = false;
   selectionMode = false;
   selectedContactIds.clear();
@@ -6887,6 +6998,8 @@ async function logout() {
     currentDisplayedContacts = [];
     selectionMode = false;
     activeQuickFilter = "all";
+    activeLaboratoryHospital = "all";
+    directoryScrollGeneration += 1;
     directoryBrowseActivated = false;
     resetMonthlyInternsState_();
     resetUserRequestState_();
@@ -14070,6 +14183,8 @@ function updateHomeDashboardVisibility_() {
   const isHome = shouldShowHomeDashboard_();
   const dashboard = document.getElementById("homeDashboard");
   if (dashboard) dashboard.hidden = !isHome;
+  const shortcuts = document.getElementById("directoryHomeShortcuts");
+  if (shortcuts) shortcuts.hidden = !isHome;
   const homeButton = document.getElementById("directoryHomeBtn");
   if (homeButton) homeButton.hidden = isHome;
 }
@@ -14080,7 +14195,8 @@ function clearSearch() {
   // Clearing a global query returns Home; a category remains a deliberate filter.
   if (activeQuickFilter === "all") directoryBrowseActivated = false;
   renderCurrentSearchResults();
-  if (input) input.focus();
+  if (input) input.focus({ preventScroll: true });
+  scrollDirectoryResultsToStart_();
 }
 
 function shouldShowNoResults() {
@@ -15370,6 +15486,8 @@ function openContactDetail_(id) {
   });
 
   const sheet = document.getElementById("contactDetailSheet");
+  const panel = sheet.querySelector(".directorySheetPanel");
+  if (panel) panel.scrollTop = 0;
   sheet.classList.add("visible");
   sheet.setAttribute("aria-hidden", "false");
   document.body.classList.add("directorySheetOpen");
@@ -15451,7 +15569,7 @@ function getLaboratoryHospitalGroup_(contact) {
     return { key: "schneider", label: "שניידר", order: 0 };
   }
   if (localDigits.startsWith("03937")) {
-    return { key: "beilinson", label: "בלינסון", order: 1 };
+    return { key: "beilinson", label: "בילינסון", order: 1 };
   }
   return { key: "other", label: "מעבדות נוספות", order: 2 };
 }
@@ -15604,6 +15722,7 @@ function search() {
     directoryBrowseActivated = false;
   }
   renderCurrentSearchResults();
+  scrollDirectoryResultsToStart_();
 }
 
 

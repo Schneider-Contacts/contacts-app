@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20261110-signup-home-v1">
+<link rel="stylesheet" href="styles.css?v=20261110-navigation-v1">
 
 
 
@@ -413,6 +413,31 @@
     <button type="button" class="clearSearchBtn" id="clearSearchBtn" onclick="clearSearch()" aria-label="ניקוי החיפוש"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
   </div>
 
+  <div id="activeDirectoryFilter" class="directoryContextBar" hidden>
+    <span id="activeDirectoryFilterText" class="srOnly"></span>
+    <label class="srOnly" for="directoryScopeSelect">הרשימה הפעילה</label>
+    <select id="directoryScopeSelect" class="directoryScopeSelect" onchange="changeDirectoryScope_(this.value)">
+      <option value="all">כל הספר</option>
+      <option value="vpn">VPN</option>
+      <option value="institutes">מכונים</option>
+      <option value="labs">מעבדות</option>
+      <option value="__departments__">בחירת מחלקה…</option>
+      <option value="__home__">חזרה לבית</option>
+    </select>
+    <label id="laboratoryHospitalField" class="laboratoryHospitalField" hidden>
+      <span class="srOnly">בית חולים למעבדות</span>
+      <select id="laboratoryHospitalSelect" onchange="changeLaboratoryHospital_(this.value)">
+        <option value="all">הכול</option>
+        <option value="schneider">שניידר</option>
+        <option value="beilinson">בילינסון</option>
+        <option value="other">נוספות</option>
+      </select>
+    </label>
+    <button type="button" id="directoryGlobalSearchBtn" class="directoryGlobalSearchBtn" onclick="clearActiveDirectoryFilter_()" aria-label="חיפוש בכל הספר עם אותו טקסט" hidden>בכל הספר</button>
+  </div>
+</div>
+
+<div id="directoryHomeShortcuts" class="directoryHomeShortcuts">
   <div class="quickAccessLabel">גישה מהירה</div>
   <div class="quickFilters" aria-label="רשימות מהירות">
     <button type="button" id="vpnFilterBtn" class="quickFilterBtn" onclick="toggleQuickFilter('vpn')" aria-pressed="false">VPN</button>
@@ -434,19 +459,15 @@
   </button>
   </div>
 
-  <div id="activeDirectoryFilter" class="activeDirectoryFilter" hidden>
-    <span id="activeDirectoryFilterText"></span>
-    <button type="button" onclick="clearActiveDirectoryFilter_()" aria-label="ניקוי הסינון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
-  </div>
+</div>
 
-  <div class="directoryListToolbar" hidden>
+  <div id="directoryResultsStart" class="directoryListToolbar" hidden>
     <div id="resultsSummary" class="resultsSummary" aria-live="polite"></div>
     <div class="directoryListActions">
       <button type="button" id="directoryHomeBtn" class="directoryHomeBtn" onclick="returnToHome_()" aria-label="חזרה למסך הבית" title="חזרה למסך הבית" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v11h5v-6h4v6h5V9"/></svg><span>בית</span></button>
       <button type="button" id="selectionModeBtn" class="directoryToolbarBtn" onclick="toggleSelectionMode_()" hidden>בחירה</button>
     </div>
   </div>
-</div>
 
   <div id="homeDashboard" class="homeDashboard">
     <section id="provisionalAccessCard" class="provisionalAccessCard" hidden aria-live="polite">
@@ -630,6 +651,14 @@
     <div class="directorySheetHeader">
       <div><h3 id="departmentSheetTitle">מחלקות</h3><p>בחרו מחלקה להצגת אנשי הקשר</p></div>
       <button type="button" class="directorySheetClose" onclick="closeDepartmentBrowser_()" aria-label="סגירה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+    </div>
+    <div class="departmentSearchHeader">
+      <label class="srOnly" for="departmentSearchInput">חיפוש מחלקה</label>
+      <div class="departmentSearchWrap">
+        <input type="search" id="departmentSearchInput" placeholder="חיפוש מחלקה" autocomplete="off" enterkeyhint="search" oninput="searchDepartmentOptions_()">
+        <button type="button" id="clearDepartmentSearchBtn" onclick="clearDepartmentSearch_()" aria-label="ניקוי חיפוש המחלקות" hidden>×</button>
+      </div>
+      <div id="departmentResultsSummary" class="departmentResultsSummary" aria-live="polite"></div>
     </div>
     <div id="departmentList" class="departmentList"></div>
   </div>
@@ -1065,10 +1094,10 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="dialog-accessibility.js?v=20261110-paste-v1"></script>
+  <script src="dialog-accessibility.js?v=20261110-navigation-v1"></script>
   <script src="pharmacology-roster.js?v=20261110-paste-v1"></script>
   <script src="pharmacology-ui.js?v=20261110-admin-feedback-v1"></script>
-  <script src="app.js?v=20261110-signup-home-v1"></script>
+  <script src="app.js?v=20261110-navigation-v1"></script>
 
 </body>
 </html>

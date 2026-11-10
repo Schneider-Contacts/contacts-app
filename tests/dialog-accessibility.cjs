@@ -9,6 +9,12 @@ const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8').rep
   url: 'http://localhost/contacts-test/', runScripts: 'outside-only', pretendToBeVisual: true
 });
 const win=dom.window;
+// jsdom cannot lay out or scroll. Simulate coordinates for lifecycle tests only;
+// the long-list browser runner verifies real scrolling and sticky geometry.
+win.scrollTo = options => {
+  Object.defineProperty(win, 'scrollY', { configurable: true, value: options.top ?? win.scrollY });
+  Object.defineProperty(win, 'scrollX', { configurable: true, value: options.left ?? win.scrollX });
+};
 const css=fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const style=win.document.createElement('style');style.textContent=css;win.document.head.append(style);
 Object.defineProperty(win.HTMLElement.prototype, 'inert', {

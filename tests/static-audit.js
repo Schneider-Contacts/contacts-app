@@ -1428,6 +1428,9 @@ assert.doesNotMatch(indexSource, /id="allFilterBtn"/, "Quick Access must not sho
 const quickFilterSearchInput = { value: "כהן" };
 const quickFilterStateSandbox = {
   activeQuickFilter: "all",
+  activeLaboratoryHospital: "all",
+  directoryScrollGeneration: 0,
+  scrollDirectoryResultsToStart_: () => {},
   directoryBrowseActivated: false,
   selectionMode: false,
   selectedContactIds: new Set(),
@@ -1500,6 +1503,8 @@ quickFilterVisualElements.activeDirectoryFilter = { hidden: true };
 quickFilterVisualElements.activeDirectoryFilterText = { textContent: "" };
 const quickFilterVisualSandbox = {
   activeQuickFilter: "all",
+  shouldShowHomeDashboard_: () => false,
+  updateDirectoryContext_: () => {},
   document: {
     getElementById: id => quickFilterVisualElements[id] || null
   },

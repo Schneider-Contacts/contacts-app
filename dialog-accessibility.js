@@ -53,6 +53,29 @@
   const historyToken = `${Date.now()}-${Math.random()}`;
   let historyPending = false;
   let handlingBack = false;
+  let scrollSnapshot = null;
+  let settleFrame = null;
+  const settledCallbacks = [];
+  // Keep native Back from restoring stale coordinates after a picker selection.
+  // All dialog-to-dialog transitions share the original underlying page position.
+  function settleDialogNavigation() {
+    if (activeDialog || historyPending || handlingBack || settleFrame !== null) return;
+    settleFrame = window.requestAnimationFrame(() => {
+      settleFrame = null;
+      if (activeDialog || historyPending || handlingBack) return;
+      if (scrollSnapshot) {
+        window.scrollTo({ left: scrollSnapshot.x, top: scrollSnapshot.y, behavior: "auto" });
+        window.history.scrollRestoration = scrollSnapshot.restoration;
+        scrollSnapshot = null;
+      }
+      settledCallbacks.splice(0).forEach(callback => callback());
+    });
+  }
+  window.afterDialogsSettled_ = callback => {
+    if (typeof callback !== "function") return;
+    settledCallbacks.push(callback);
+    settleDialogNavigation();
+  };
   const ownsHistoryEntry = () => window.history.state?.[historyKey] === historyToken;
   function synchronizeHistory() {
     if (historyPending || handlingBack) return;
@@ -62,6 +85,7 @@
       historyPending = true;
       window.history.back();
     }
+    settleDialogNavigation();
   }
   function dismissActive() {
     if (!activeDialog) return;
@@ -147,6 +171,10 @@
     ).pop() || null;
     if (activeDialog) {
       if (!prior) originalOverflow = document.body.style.overflow;
+      if (!scrollSnapshot) {
+        scrollSnapshot = { x: window.scrollX, y: window.scrollY, restoration: window.history.scrollRestoration || "auto" };
+        window.history.scrollRestoration = "manual";
+      }
       document.body.style.overflow = "hidden";
       // Dialogs are body children today; walking ancestors also supports nesting.
       let branch = activeDialog;
