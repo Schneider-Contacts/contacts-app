@@ -1,0 +1,206 @@
+=== final-node-validation.log ===
+Final integrated local Node validation
+Tue Nov 10 09:40:47 UTC 2026
+=== tests/access-state-matrix.js ===
+access state matrix: OK
+=== tests/admin-approval-session-flow.js ===
+Admin approval session and canceled draft dismissal regressions passed.
+=== tests/admin-health-flow.js ===
+admin health flow: OK
+=== tests/admin-import-presentation.js ===
+Compact interns entry, current list details, restore availability and retry presentation passed.
+=== tests/admin-ux-flow.js ===
+Admin UX identity, neutral focus, metric origin, removal and loading regressions passed.
+=== tests/compact-home-presentation.js ===
+Compact Home placement, visible/accessibility labels and 44px target checks passed.
+=== tests/contact-request-state-flow.js ===
+Contact request state regressions passed (synthetic services; no real writes).
+=== tests/directory-search-selection-flow.js ===
+Directory search, home return, and stable selection flow passed.
+=== tests/download-tracking-flow.js ===
+Download tracking flow tests passed
+=== tests/email-update-flow.js ===
+email update flow: OK
+=== tests/intern-import.test.js ===
+intern import tests: OK
+=== tests/join-approval-flow.js ===
+join approval flow: OK
+join approval ordering: OK
+join approval counts: OK
+join approval actions: OK
+=== tests/permanent-approval-flow.js ===
+permanent approval flow: OK
+=== tests/pharmacology-import-flow.js ===
+✔ copies exact prompt with Clipboard API without sending roster data (56.730709ms)
+✔ clipboard fallback copies or leaves visible selected text with honest manual instructions (4.586083ms)
+✔ late clipboard failure never focuses or changes a closed/reopened editor (3.065209ms)
+✔ JSON/TXT selection reads locally, accepts BOM/fence and opens reviewed preview only (9.098875ms)
+✔ wrong type and oversized files invalidate review but never read or replace text (4.372959ms)
+✔ malformed JSON and read failure give separate errors and never write (2.599709ms)
+✔ late file read cannot overwrite new editor or another signed-in account (5.550584ms)
+✔ local preview remains visible but publishing blocked when server read fails (3.026167ms)
+✔ all uncertain rows remain blocked for calling and summarized rather than silently corrected (2.476583ms)
+✔ service failure messages distinguish offline, identity and unknown publication outcome (1.505917ms)
+✔ format recovery is visible, preserves the pasted source and cannot auto-publish (2.97925ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.059333
+=== tests/pharmacology-roster.test.js ===
+✔ UMD browser and CommonJS exports (11.542708ms)
+✔ canonical normalization, no mutation and JSON roundtrip (8.554209ms)
+✔ accepts local/international mobile, geographic and 07 landline formats (5.255584ms)
+✔ missing phone and unknown times are safe, warned and never inferred (2.034208ms)
+✔ strict schema types and malformed roots (14.963375ms)
+✔ size limits enforce exact field caps, UTF8 budget, entry count and cycles (3.101375ms)
+✔ real Gregorian dates, leap years and month membership (2.516417ms)
+✔ time syntax and explicit overnight, reject zero/negative/long ranges (4.177667ms)
+✔ duplicates and all-person overlaps including midnight rejected; touching boundaries accepted (1.804083ms)
+✔ missing days are explicit warnings, not errors (3.626666ms)
+✔ Israeli date never follows host timezone; midnight, summer and winter DST (3.649083ms)
+✔ current interval start inclusive end exclusive, all today entries remain (4.029875ms)
+✔ overnight carry into next month without stale today assignments (6.845292ms)
+✔ year rollover overnight (1.063458ms)
+✔ uncertainty blocks current only when plausibly overlapping; untimed blocks whole day (1.172541ms)
+✔ prompt includes exact parseable fabricated schema and no inference safeguards (2.319292ms)
+✔ 100 nonoverlapping assignments accepted; normalized duplicates rejected (64.394042ms)
+✔ browser UTF8 fallback validates without TextEncoder (24.927167ms)
+✔ empty publication and years outside 2000..2099 rejected (3.151958ms)
+✔ multi-roster month boundary selects explicit previous overnight, suppresses conflicts and unknowns (13.778208ms)
+✔ paste accepts UTF-8 BOM and whole JSON code fences without extracting arbitrary prose (5.294916ms)
+✔ copy prompt requests paste-ready JSON and separates missing hours from actual uncertainty (5.418625ms)
+✔ recovers the exact smart-metadata/missing-array shape with 36 complete rows over 30 dates (17.615ms)
+✔ each supported formatting repair works alone, including a single entries object (1.262666ms)
+✔ already valid JSON and whole-file wrappers never expose a formatting repair (4.209834ms)
+✔ recovery preserves literal smart quotes, escaped quotes, Unicode and punctuation inside ASCII strings (4.569334ms)
+✔ smart delimiters preserve JSON escapes without interpreting escaped smart quotes as syntax (1.081916ms)
+✔ safe repairs compose with BOM, whitespace and one complete JSON fence (24.487125ms)
+✔ does not guess mixed, reversed, missing or ambiguous quotation delimiters (1.709834ms)
+✔ rejects incomplete arrays, objects, missing separators, extra properties and mixed entries content (11.230792ms)
+✔ rejects duplicate object keys at every level, including escape-equivalent or smart-delimited keys (3.097458ms)
+✔ formatting recovery never weakens schema, identity, time or uncertainty validation (20.280083ms)
+✔ bounded recovery rejects excessive bytes, rows and nesting without emitting partial repairs (35.340208ms)
+✔ recovery rejects prose, executable input and partial or multiple fences without executing anything (8.625667ms)
+✔ prompt explicitly requests one copyable fenced JSON block, ASCII quotes and an entries array (2.955042ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 381.947291
+=== tests/pharmacology-ui-flow.js ===
+Pharmacology UI flows: protected reads, ambiguity, stale responses, logout, preview, review, cancel, publish, conflict and account changes passed.
+=== tests/provisional-access-flow.js ===
+provisional access flow: OK
+=== tests/registration-client-flow.js ===
+registration client flow: OK
+=== tests/signup-roster-presentation.js ===
+Signup and roster presentation checks passed
+=== tests/static-audit.js ===
+static audit: OK
+=== tests/verification-email-flow.js ===
+verification email flow: OK
+=== tests/verification-session-flow.js ===
+Verification session recovery: 54 checks passed.
+PASS Contact sheet starts at neutral heading
+PASS Background is inert and hidden
+PASS Tab moves to first available control
+PASS Shift+Tab wraps within dialog
+PASS Programmatic focus cannot escape
+PASS Escape closes sheet and restores background
+PASS Close restores opener and scroll
+PASS Alertdialog is managed and starts at neutral heading
+PASS Lower dialog is inert while confirmation is open
+PASS Escape rejects only top confirmation
+PASS Cancel discard keeps the draft open
+PASS Unsaved draft guards page exit
+PASS Saving old values cannot silently discard newer edits
+PASS Saved draft closes without discard prompt
+PASS Explicit discard closes and unlocks background
+PASS Browser Back closes the current dialog
+PASS Browser Forward does not reopen stale dialog
+PASS Canceled Back preserves unsaved draft
+PASS Confirmed Back dismisses draft without leaving page
+PASS Sheet-to-form dismissal restores original opener
+PASS Repeated open/close leaves no lock or current history marker
+PASS Pharmacology starts at neutral heading
+PASS Pharmacology instructions retain natural Tab order
+PASS Escape closes pharmacology dialog
+PASS Browser Back closes pharmacology dialog
+PASS Forward does not reopen pharmacology draft
+26 simulated DOM dialog checks passed
+All syntax, 22 executable Node scripts, 26 DOM dialog checks, whitespace: PASS
+
+=== signup-validation.log ===
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 320px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 375px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 390px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 430px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 960px
+Signup browser QA: 150 checks passed.
+
+=== signup-second-validation.log ===
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 320px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 375px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 390px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 430px
+Fixture: Verification check failed Error: synthetic offline
+    at Object.reload (eval at evaluate (:311:30), <anonymous>:4:84)
+    at checkVerificationAndContinue (http://signup.test/app.js?v=20261110-signup-home-v1:4876:23)
+    at HTMLButtonElement.onclick (http://signup.test/:286:122)
+Synthetic signup browser paths passed at 960px
+Signup browser QA: 150 checks passed.
+
+=== other-browser-validation.log ===
+PASS 320px: compact entries, preserved intern upload/restore, touch + keyboard review, failed publication stays open, successful publication closes.
+PASS 375px: compact entries, preserved intern upload/restore, touch + keyboard review, failed publication stays open, successful publication closes.
+PASS 390px: compact entries, preserved intern upload/restore, touch + keyboard review, failed publication stays open, successful publication closes.
+PASS 430px: compact entries, preserved intern upload/restore, touch + keyboard review, failed publication stays open, successful publication closes.
+PASS 960px: compact entries, preserved intern upload/restore, touch + keyboard review, failed publication stays open, successful publication closes.
+Browser smoke passed at widths 320/375/390/430/960; home, date view, explicit review, publish/cancel stacking, close/reopen and Escape. All data synthetic; network intercepted.
+qa/combined-browser.html: ALL 56 CHECKS PASSED
+qa/directory-home-browser.html: ALL 101 CHECKS PASSED
+tests/dialog-accessibility.html: ALL 26 CHECKS PASSED
+

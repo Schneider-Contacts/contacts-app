@@ -4,11 +4,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const root=path.resolve(__dirname,'..');
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_EXECUTABLE?{executablePath:process.env.CHROME_EXECUTABLE}:{})});
- let checks=0;const check=(value,message)=>{assert.ok(value,message);checks++;};
+ let activePage;let checks=0;const check=(value,message)=>{assert.ok(value,message);checks++;};
  try{
   for(const width of [320,375,390,430,960]){
    const page=await browser.newPage({viewport:{width,height:844},locale:'he-IL',hasTouch:true});
-   const errors=[];page.on('console',msg=>{if(msg.type()==='error')console.log('Fixture:',msg.text())});page.on('pageerror',error=>errors.push(error.message));
+   activePage=page;const errors=[];page.on('console',msg=>{if(msg.type()==='error')console.log('Fixture:',msg.text())});page.on('pageerror',error=>errors.push(error.message));
    await page.route('**/*',async route=>{
     const url=new URL(route.request().url());if(url.hostname!=='signup.test')return route.abort();
     const file=url.pathname==='/'?'index.html':decodeURIComponent(url.pathname.slice(1));
@@ -35,6 +35,9 @@ const root=path.resolve(__dirname,'..');
    });
    const snap=async name=>{if(process.env.QA_SCREENSHOT_DIR&&width===390)await page.screenshot({path:path.join(process.env.QA_SCREENSHOT_DIR,name+'-390.png'),fullPage:true});};
    const email=page.locator('#emailInput'),phone=page.locator('#phoneInput');
+   // Wait for the screen's scheduled autofocus before accelerated synthetic typing.
+   // Otherwise a 0ms focus callback can redirect fill(confirmPasswordInput) to passwordInput.
+   const waitForPasswordFocus=()=>page.waitForFunction(()=>document.activeElement===document.getElementById('passwordInput')&&!authActionInProgress);
    await snap('signup-email');
    await email.fill('synthetic@example.test');await page.locator('#emailContinueBtn').click();await page.locator('#authPhoneStep').waitFor({state:'visible'});
    check(/כבר מופיעים בספר/.test(await page.locator('#authPhonePaths').textContent()),'Both paths at '+width);
@@ -47,7 +50,7 @@ const root=path.resolve(__dirname,'..');
    check(/24 שעות/.test(await page.locator('#authModeNote').textContent()),'Temporary access disclosed '+width);
    check(/אישור מנהל/.test(await page.locator('#authModeNote').textContent()),'Approval remains clear '+width);
    await snap('signup-existing');
-   await page.locator('#passwordInput').fill('Synthetic123');await page.locator('#confirmPasswordInput').fill('Synthetic123');await page.locator('#loginButton').click();await page.locator('#verificationPanel.visible').waitFor();
+   await waitForPasswordFocus();await page.locator('#passwordInput').fill('Synthetic123');await page.locator('#confirmPasswordInput').fill('Synthetic123');await page.locator('#loginButton').click();await page.locator('#verificationPanel.visible').waitFor();
    check(await page.evaluate(()=>qaCalls.some(c=>c[0]==='finalizeProvisionalAccess'&&c[1].idToken==='synthetic-token')),'Existing path finalizes authenticated token '+width);
    check(await page.evaluate(()=>!qaCalls.some(c=>c[0]==='submitRegistrationDetails')),'Existing path never submits personal details '+width);
    await page.locator('#verificationContinueBtn').click();check(!await page.locator('#verificationSuccessPanel').isVisible(),'No false verification '+width);
@@ -62,7 +65,7 @@ const root=path.resolve(__dirname,'..');
    check(!await page.locator('#confirmPasswordGroup').isVisible(),'Recovery is login, not signup '+width);
    check(!await page.locator('#authSetupBack').isVisible(),'Signup-only Back action hidden during login '+width);
    await snap('signup-session-recovery');
-   await page.evaluate(()=>qaVerified=true);await page.locator('#passwordInput').fill('Synthetic123');await page.locator('#loginButton').click();
+   await page.evaluate(()=>qaVerified=true);await waitForPasswordFocus();await page.locator('#passwordInput').fill('Synthetic123');await page.locator('#loginButton').click();
    await page.waitForFunction(()=>qaCalls.some(c=>c[0]==='access-check'));
    check(await page.evaluate(()=>qaCalls.some(c=>c[0]==='sign-in')&&!qaCalls.some(c=>c[0]==='access-check'&&c[2]!==true)),'Re-login validates authenticated verification '+width);
    // New person: the same email -> phone entry, then only required short details.
@@ -77,7 +80,7 @@ const root=path.resolve(__dirname,'..');
    await page.locator('#registrationDetailsSubmitBtn').click();await page.locator('#authPasswordStep').waitFor({state:'visible'});
    check(await page.evaluate(()=>qaCalls.filter(c=>c[0]==='submitRegistrationDetails').length===1),'Single new-person submission '+width);
    check(/הפרטים נשמרו/.test(await page.locator('#loginStatus').textContent()),'Saved details confirmation '+width);
-   await page.locator('#passwordInput').fill('Synthetic123');await page.locator('#confirmPasswordInput').fill('Synthetic123');await page.locator('#loginButton').click();await page.locator('#verificationPanel.visible').waitFor();
+   await waitForPasswordFocus();await page.locator('#passwordInput').fill('Synthetic123');await page.locator('#confirmPasswordInput').fill('Synthetic123');await page.locator('#loginButton').click();await page.locator('#verificationPanel.visible').waitFor();
    check(await page.evaluate(()=>qaCalls.some(c=>c[0]==='finalizeProvisionalAccess')),'New path finalizes token '+width);
    await page.evaluate(()=>qaVerified=true);await page.locator('#verificationContinueBtn').click();await page.locator('#verificationSuccessPanel.visible').waitFor();
    check(await page.evaluate(()=>!qaCalls.some(c=>c[0]==='access-check')),'Success still precedes authorization check '+width);
@@ -93,5 +96,11 @@ const root=path.resolve(__dirname,'..');
    console.log('Synthetic signup browser paths passed at '+width+'px');await page.close();
   }
   console.log(`Signup browser QA: ${checks} checks passed.`);
+ }catch(error){
+  if(activePage&&!activePage.isClosed()){
+   console.error('Synthetic failure state:',await activePage.evaluate(()=>({stage:authStage,mode:authMode,busy:authActionInProgress,status:document.getElementById('loginStatus').textContent,calls:qaCalls,passwordLength:document.getElementById('passwordInput').value.length,confirmLength:document.getElementById('confirmPasswordInput').value.length})).catch(()=>null));
+   if(process.env.QA_SCREENSHOT_DIR)await activePage.screenshot({path:path.join(process.env.QA_SCREENSHOT_DIR,'signup-failure.png'),fullPage:true});
+  }
+  throw error;
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
