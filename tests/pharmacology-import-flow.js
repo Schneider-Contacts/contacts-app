@@ -47,3 +47,12 @@ test('all uncertain rows remain blocked for calling and summarized rather than s
 test('service failure messages distinguish offline, identity and unknown publication outcome',()=>{
  const h=setup();assert.match(h.c.pharmacologyServiceError_({code:'firestore/unavailable'}),/חיבור האינטרנט/);assert.match(h.c.pharmacologyServiceError_({code:'unauthenticated'}),/להתחבר מחדש/);assert.match(h.c.pharmacologyServiceError_({},true),/לא התקבל אישור/);assert.match(h.c.pharmacologyServiceError_({},true),/לפני ניסיון פרסום נוסף/);
 });
+test('format recovery is visible, preserves the pasted source and cannot auto-publish',async()=>{
+ const h=setup();const damaged=text.replace('"month":','“month”:').replace('"entries":[','“entries”:').replace(/\]}$/,'}');
+ h.el('pharmacologyJsonInput').value=damaged;await h.c.previewPharmacology_();
+ assert.match(h.el('pharmacologyPreview').innerHTML,/תוקנו סימני עיצוב/);assert.match(h.el('pharmacologyPreview').innerHTML,/pharmacologyNormalizedJson/);
+ assert.equal(h.el('pharmacologyJsonInput').value,damaged);assert.equal(h.run('pharmacologyAdmin.draft.entries[0].name'),'Synthetic Person');
+ assert.equal(h.el('pharmacologyReview').checked,false);assert.equal(h.el('pharmacologyPublishBtn').disabled,true);assert.equal(h.counters.writes,0);
+ h.el('pharmacologyJsonInput').value=damaged.slice(0,-1);h.c.editPharmacologyInput_();await h.c.previewPharmacology_();
+ assert.equal(h.run('pharmacologyAdmin.draft'),null);assert.equal(h.el('pharmacologyPreview').innerHTML,'');assert.equal(h.el('pharmacologyPublishBtn').disabled,true);assert.equal(h.counters.writes,0);
+});

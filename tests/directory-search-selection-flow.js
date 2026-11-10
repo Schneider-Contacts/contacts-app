@@ -25,7 +25,7 @@ const s = {
   document: { getElementById: element, querySelector: () => element('toolbar'),
     querySelectorAll: () => [], body: { classList: classes() } },
   closeDepartmentBrowser_: () => {}, updateQuickFilterButtons: () => {},
-  updateMainActionButton: () => {},
+  isCurrentUserProvisional_: () => false,
   setListStatus(message, type) { s.status = { message, type }; },
   getLaboratoryGroupedDisplayList_: list => list.map(contact => ({ contact })),
   getVisibleDepartment_: c => c.dept,
@@ -39,7 +39,9 @@ for (const name of ['normalizePhone', 'formatPhoneForDisplay', 'getPhoneSearchVa
   'getSearchTokenPriority_', 'getSearchPriority', 'compareContactsByName',
   'isSearchActive', 'isDepartmentFilterActive_', 'isQuickFilterActive',
   'contactMatchesQuickFilter', 'getQuickFilterContacts', 'clearActiveDirectoryFilter_',
-  'returnToHome_', 'clearSearch', 'updateSearchUI', 'updateMainSearchActionVisibility_',
+  'returnToHome_', 'clearSearch', 'search', 'toggleQuickFilter', 'updateSearchUI',
+  'updateMainActionButton', 'enterSelectionMode', 'exitSelectionMode',
+  'updateMainSearchActionVisibility_',
   'shouldShowHomeDashboard_', 'updateHomeDashboardVisibility_', 'shouldShowNoResults',
   'updateResultsSummary', 'updateDirectoryListToolbar_', 'getContactSelectionKey_',
   'pruneUnavailableSelections_', 'updateBulkActions', 'toggleContactSelection',
@@ -124,4 +126,70 @@ assert.equal(s.shouldShowHomeDashboard_(), false);
 s.returnToHome_();
 assert.equal(s.shouldShowHomeDashboard_(), true);
 assert.equal(s.status.type, '');
-console.log('Directory search and stable selection flow passed.');
+// A global search cleared after category browsing must not strand the user in All.
+s.contacts = [alice, bob];
+s.activeQuickFilter = 'labs';
+query('');
+s.clearActiveDirectoryFilter_();
+query('Alice');
+assert.equal(element('directoryHomeBtn').hidden, false);
+s.clearSearch();
+assert.equal(s.directoryBrowseActivated, false);
+assert.equal(element('homeDashboard').hidden, false);
+assert.equal(element('directoryHomeBtn').hidden, true);
+assert.deepEqual(displayed(), []);
+// Keyboard/native input clearing has the same semantics, including whitespace.
+for (const cleared of ['', '   ']) {
+  s.directoryBrowseActivated = true;
+  query('Alice');
+  element('searchInput').value = cleared;
+  s.search();
+  assert.equal(s.shouldShowHomeDashboard_(), true);
+  assert.equal(element('homeDashboard').hidden, false);
+}
+// Clearing only the text does not drop an intentional category filter.
+s.activeQuickFilter = 'labs';
+s.directoryBrowseActivated = true;
+query('absent');
+s.clearSearch();
+assert.equal(s.activeQuickFilter, 'labs');
+assert.deepEqual(displayed(), ['bob']);
+assert.equal(element('directoryHomeBtn').hidden, false);
+s.returnToHome_();
+assert.equal(s.shouldShowHomeDashboard_(), true);
+// Home works during selection without losing chosen contact identities.
+query('Alice');
+s.enterSelectionMode();
+s.toggleContactSelection(0);
+query('Bob');
+s.toggleContactSelection(1);
+query('absent');
+assert.equal(s.selectionMode, true);
+s.returnToHome_();
+assert.equal(s.selectionMode, false);
+assert.equal(element('homeDashboard').hidden, false);
+assert.equal(element('directoryHomeBtn').hidden, true);
+assert.equal(element('bulkActions').classList.contains('visible'), false);
+assert.deepEqual([...s.selectedContactIds], ['doc:alice', 'doc:bob']);
+s.returnToHome_();
+assert.deepEqual([...s.selectedContactIds], ['doc:alice', 'doc:bob']);
+query('Alice');
+assert.equal(element('selectionModeBtn').textContent, 'המשך בחירה (2)');
+s.enterSelectionMode();
+assert.deepEqual([...s.selectedContactIds], ['doc:alice', 'doc:bob']);
+assert.match(element('list').innerHTML, /aria-pressed="true"/);
+s.clearSearch();
+assert.equal(s.selectionMode, true);
+assert.equal(s.selectedContactIds.size, 2);
+s.exitSelectionMode();
+assert.equal(s.selectedContactIds.size, 0, 'Explicit Finish selection still clears the selection');
+assert.equal(element('homeDashboard').hidden, false, 'Finishing selection after clearing search returns Home');
+assert.deepEqual(displayed(), []);
+// Active quick-filter toggling is also a valid Home exit while selecting.
+s.toggleQuickFilter('labs');
+s.enterSelectionMode();
+s.toggleContactSelection(1);
+s.toggleQuickFilter('labs');
+assert.equal(s.shouldShowHomeDashboard_(), true);
+assert.deepEqual([...s.selectedContactIds], ['doc:bob']);
+console.log('Directory search, home return, and stable selection flow passed.');

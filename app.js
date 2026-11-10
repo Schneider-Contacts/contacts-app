@@ -1282,11 +1282,16 @@ function toggleQuickFilter(filterName) {
 function returnToHome_() {
   activeQuickFilter = "all";
   directoryBrowseActivated = false;
+  // Navigation ends selection mode, but chosen contacts can be resumed later.
+  selectionMode = false;
   const searchInput = document.getElementById("searchInput");
   if (searchInput) searchInput.value = "";
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
+  const title = document.getElementById("directoryTitle");
+  if (title) title.focus({ preventScroll: true });
+  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function getActiveDirectoryFilterLabel_() {
@@ -1391,7 +1396,9 @@ function updateMainActionButton() {
   }
 
   btn.disabled = false;
-  btn.textContent = "בחירה";
+  btn.textContent = selectedContactIds.size
+    ? `המשך בחירה (${selectedContactIds.size})`
+    : "בחירה";
   btn.classList.remove("active");
   btn.setAttribute("aria-pressed", "false");
 }
@@ -1435,15 +1442,15 @@ function enterSelectionMode() {
     return;
   }
 
-  selectedContactIds.clear();
+  pruneUnavailableSelections_();
   selectionMode = true;
-  show(currentDisplayedContacts);
+  renderCurrentSearchResults();
 }
 
 function exitSelectionMode() {
   selectionMode = false;
   selectedContactIds.clear();
-  show(currentDisplayedContacts);
+  renderCurrentSearchResults();
 }
 
 function mapFirestoreContact(document, index = 0) {
@@ -13989,15 +13996,18 @@ function shouldShowHomeDashboard_() {
 }
 
 function updateHomeDashboardVisibility_() {
+  const isHome = shouldShowHomeDashboard_();
   const dashboard = document.getElementById("homeDashboard");
-  if (!dashboard) return;
-  dashboard.hidden = !shouldShowHomeDashboard_();
+  if (dashboard) dashboard.hidden = !isHome;
+  const homeButton = document.getElementById("directoryHomeBtn");
+  if (homeButton) homeButton.hidden = isHome;
 }
 
 function clearSearch() {
   const input = document.getElementById("searchInput");
   if (input) input.value = "";
-  updateSearchUI();
+  // Clearing a global query returns Home; a category remains a deliberate filter.
+  if (activeQuickFilter === "all") directoryBrowseActivated = false;
   renderCurrentSearchResults();
   if (input) input.focus();
 }
@@ -15518,6 +15528,10 @@ function renderCurrentSearchResults() {
 }
 
 function search() {
+  // Treat keyboard/native-search clearing the same as the explicit clear button.
+  if (!isSearchActive() && activeQuickFilter === "all") {
+    directoryBrowseActivated = false;
+  }
   renderCurrentSearchResults();
 }
 

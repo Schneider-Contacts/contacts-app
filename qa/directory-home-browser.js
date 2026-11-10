@@ -1,0 +1,46 @@
+(async () => {
+  const out=document.getElementById('results'),frame=document.getElementById('fixture'),lines=[];
+  const check=(condition,message)=>{if(!condition)throw Error(message);lines.push('PASS '+message);out.textContent=lines.join('\n')};
+  const raw=await(await fetch('../index.html')).text();
+  const page=raw.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*href="https?:[^>]*>/gi,'').replace(/(href|src)="(?!https?:|data:|#)([^"]+)"/g,'$1="../$2"');
+  const app=(await(await fetch('../app.js')).text()).replace(/\ninit\(\);\s*$/,'\n// Production initialization disabled.');
+  const errors=[];
+  for(const width of [320,375,390,430,960]) {
+    frame.style.width=width+'px';
+    const loaded=new Promise(resolve=>frame.onload=resolve);frame.srcdoc=page;await loaded;
+    const win=frame.contentWindow,doc=frame.contentDocument;
+    win.addEventListener('error',event=>errors.push(event.message));
+    const run=code=>{const script=doc.createElement('script');script.textContent=code;doc.body.append(script)};
+    run(app);
+    run(`contacts=[{id:0,docId:'qa-alice',first:'אליס בדויה',firstEn:'Alice',last:'כהן',phone:'+972500000000',dept:'מחלקה לדוגמה',role:'רופאה'},{id:1,docId:'qa-bob',first:'בוב בדוי',firstEn:'Bob',last:'לוי',phone:'+972500000001',dept:'מעבדה לדוגמה',role:'אח'}];
+      document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';initMainDirectoryUx_();renderCurrentSearchResults();`);
+    const input=doc.getElementById('searchInput'),home=doc.getElementById('directoryHomeBtn'),dashboard=doc.getElementById('homeDashboard');
+    const query=text=>{input.value=text;input.dispatchEvent(new win.Event('input',{bubbles:true}))};
+    const click=id=>doc.getElementById(id).click();
+    check(home.hidden&&!dashboard.hidden,`Initial Home at ${width}px`);
+    query('Alice');
+    check(!home.hidden&&dashboard.hidden,`Search exposes Home button at ${width}px`);
+    check(home.getBoundingClientRect().height>=44&&doc.documentElement.scrollWidth<=win.innerWidth,`Home control fits accessible mobile layout at ${width}px`);
+    click('clearSearchBtn');check(home.hidden&&!dashboard.hidden&&!doc.getElementById('list').textContent.trim(),`Clear plain search returns Home at ${width}px`);
+    click('labsFilterBtn');doc.querySelector('#activeDirectoryFilter button').click();query('Alice');click('clearSearchBtn');
+    check(home.hidden&&!dashboard.hidden,`Clear global search after category browsing returns Home at ${width}px`);
+    click('labsFilterBtn');doc.querySelector('#activeDirectoryFilter button').click();query('Alice');query('');
+    check(home.hidden&&!dashboard.hidden,`Keyboard clearing after category browsing returns Home at ${width}px`);
+    click('labsFilterBtn');query('absent');click('clearSearchBtn');
+    check(!home.hidden&&dashboard.hidden&&doc.getElementById('list').textContent.includes('בוב בדוי'),`Text clear preserves deliberate category at ${width}px`);
+    home.click();check(home.hidden&&!dashboard.hidden,`Home clears category at ${width}px`);
+    check(doc.activeElement.id==='directoryTitle',`Home focuses neutral heading at ${width}px`);
+    query('Alice');click('selectionModeBtn');doc.querySelector('.contactRowMain').click();query('Bob');doc.querySelector('.contactRowMain').click();query('absent');
+    check(doc.getElementById('bulkActions').classList.contains('visible'),`Selections survive empty search at ${width}px`);
+    home.click();home.click();
+    check(home.hidden&&!dashboard.hidden&&!doc.getElementById('bulkActions').classList.contains('visible'),`Home exits selection safely, including repeated click, at ${width}px`);
+    query('Alice');check(doc.getElementById('selectionModeBtn').textContent==='המשך בחירה (2)',`Home retains resumable choices at ${width}px`);
+    click('selectionModeBtn');check(doc.querySelector('.contactRowMain').getAttribute('aria-pressed')==='true',`Resumed selection keeps identity at ${width}px`);
+    click('clearSearchBtn');click('selectionModeBtn');
+    check(home.hidden&&!dashboard.hidden&&!doc.getElementById('list').textContent.trim(),`Finish selection after clear returns Home at ${width}px`);
+    query('absent');home.click();check(home.hidden&&!dashboard.hidden,`No-result search returns Home at ${width}px`);
+  }
+  check(errors.length===0,'No browser runtime errors: '+errors.join('; '));
+  out.textContent='ALL '+lines.length+' CHECKS PASSED\n'+out.textContent;document.title='PASS: Directory home regression checks';
+  frame.style.width='390px';
+})().catch(error=>{document.getElementById('results').textContent+='\nFAIL '+error.stack;document.title='FAIL: Directory home regression checks'});

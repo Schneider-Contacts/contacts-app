@@ -36,7 +36,7 @@
 <meta name="twitter:image" content="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 <link rel="image_src" href="https://schneider-contacts.github.io/contacts-app/share-preview.png?v=20260715-1">
 
-<link rel="stylesheet" href="styles.css?v=20261110-import-v1">
+<link rel="stylesheet" href="styles.css?v=20261110-paste-v1">
 
 
 
@@ -357,7 +357,7 @@
   <div class="appHeader">
     <div class="appHeaderTop">
       <div class="appHeaderText">
-        <h2>ספר אנשי קשר</h2>
+        <h2 id="directoryTitle" tabindex="-1">ספר אנשי קשר</h2>
         <div class="appSubtitle">מרכז שניידר לרפואת ילדים</div>
       </div>
       <!-- PROTECTED_EASTER_EGG_START -->
@@ -402,6 +402,7 @@
 
 
 <div class="controlsCard">
+  <button type="button" id="directoryHomeBtn" class="directoryHomeBtn" onclick="returnToHome_()" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>חזרה למסך הבית</span></button>
   <div class="searchWrap">
     <label class="srOnly" for="searchInput">חיפוש בספר אנשי הקשר</label>
     <span class="searchIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></svg></span>
@@ -707,11 +708,11 @@
     <div class="adminModalHeader"><div><div class="adminModalEyebrow">מערכת</div><h3 id="pharmacologyAdminTitle" class="adminModalTitle">לוח כוננות פרמקולוגיה</h3></div><button id="pharmacologyAdminClose" type="button" class="adminModalClose" onclick="closePharmacologyAdmin_()" aria-label="סגירה">×</button></div>
     <p>להכנת הלוח: העתיקו את ההוראות לצ׳אט, צרפו שם את תמונת החודש, והדביקו כאן את התשובה לבדיקה.</p>
     <button id="pharmacologyCopyPrompt" type="button" class="adminActionBtn secondary" onclick="copyPharmacologyPrompt_()">העתקת הוראות לצ׳אט</button>
-    <p class="pharmacologyImportHelp">הדביקו את ההוראות בצ׳אט וצרפו את תמונת הלוח. הצ׳אט יתבקש להחזיר JSON מוכן להעתקה לכאן. הכפתור מעתיק בלבד ואינו שולח דבר.</p>
+    <p class="pharmacologyImportHelp">הדביקו את ההוראות בצ׳אט וצרפו את תמונת הלוח. בתשובת הצ׳אט לחצו על ״העתקה״ שבתוך מסגרת הקוד, והדביקו כאן. הכפתור מעתיק הוראות בלבד ואינו שולח דבר.</p>
     <p id="pharmacologyPromptStatus" class="pharmacologyImportHelp" role="status" aria-live="polite"></p>
     <details class="pharmacologyPrompt"><summary>הוראות להעתקה לכלי AI</summary><label class="srOnly" for="pharmacologyAiPrompt">הוראות לעיבוד התמונה</label><textarea id="pharmacologyAiPrompt" readonly rows="9"></textarea></details>
     <label for="pharmacologyJsonInput">הדביקו כאן את תשובת הצ׳אט (JSON)</label>
-    <textarea id="pharmacologyJsonInput" class="pharmacologyJson" dir="ltr" rows="7" maxlength="102400" autocomplete="off" spellcheck="false" oninput="editPharmacologyInput_()" placeholder='{"month":"2026-11","entries":[]}'></textarea>
+    <textarea id="pharmacologyJsonInput" class="pharmacologyJson" dir="ltr" rows="7" maxlength="102400" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="editPharmacologyInput_()" placeholder='{"month":"2026-11","entries":[]}'></textarea>
     <details class="pharmacologyImportTools"><summary>אפשר גם לבחור קובץ מהמכשיר</summary>
       <button id="pharmacologyChooseFile" type="button" class="adminActionBtn secondary" onclick="choosePharmacologyFile_()">בחירת קובץ JSON או TXT</button>
       <input id="pharmacologyFileInput" type="file" accept=".json,.txt,application/json,text/plain" hidden onchange="handlePharmacologyFile_(event)">
@@ -1060,10 +1061,10 @@
 
 
   <script src="intern-import.js?v=20260813-admin-v2"></script>
-  <script src="dialog-accessibility.js?v=20261110-import-v1"></script>
-  <script src="pharmacology-roster.js?v=20261110-import-v1"></script>
-  <script src="pharmacology-ui.js?v=20261110-import-v1"></script>
-  <script src="app.js?v=20261110-import-v1"></script>
+  <script src="dialog-accessibility.js?v=20261110-paste-v1"></script>
+  <script src="pharmacology-roster.js?v=20261110-paste-v1"></script>
+  <script src="pharmacology-ui.js?v=20261110-paste-v1"></script>
+  <script src="app.js?v=20261110-paste-v1"></script>
 
 </body>
 </html>

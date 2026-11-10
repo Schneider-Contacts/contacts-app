@@ -347,6 +347,10 @@ function renderPharmacologyPreview_(result) {
   const uncertain = entries.filter(entry => entry.uncertain).length;
   const unknownHours = entries.filter(entry => !entry.start || !entry.end).length;
   document.getElementById("pharmacologyPreview").innerHTML = `<h4>תצוגה מקדימה · ${escapeHtml(result.roster.month)}</h4>
+    ${result.repairs?.length ? `<div class="pharmacologyRepairNotice" role="status"><strong>תוקנו סימני עיצוב שהשתבשו בהעתקה</strong>
+      <ul>${result.repairs.map(repair => `<li>${escapeHtml(repair)}</li>`).join("")}</ul>
+      <p>לא הושלמו פרטים חסרים. בדקו את השמות, המספרים והשיבוצים מול התמונה לפני פרסום.</p>
+      <details><summary>הצגת ה־JSON לאחר תיקון המבנה</summary><label class="srOnly" for="pharmacologyNormalizedJson">JSON לאחר תיקון מבנה ההעתקה</label><textarea id="pharmacologyNormalizedJson" class="pharmacologyJson" dir="ltr" rows="5" readonly>${escapeHtml(result.normalizedInput || "")}</textarea></details></div>` : ""}
     <div class="pharmacologyPreviewSummary" role="status">${entries.length} שיבוצים ב־${groups.size} תאריכים. כפתור חיוג יופיע ב־${callable} שיבוצים.<br>
       ${unknownHours} שיבוצים ללא שעות: לא ייקבע עבורם מי כונן כעת.
       ${uncertain ? `<br><strong>${uncertain} שיבוצים מסומנים כלא ודאיים ולא יציגו כפתור חיוג. סימון ״בדקתי״ אינו מבטל אי־ודאות. יש לתקן את הפלט רק לאחר אימות מול המקור.</strong>` : ""}</div>

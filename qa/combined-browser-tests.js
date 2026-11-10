@@ -23,6 +23,10 @@
     const roster=doc.getElementById('pharmacologyQuickEntry').getBoundingClientRect(),interns=doc.getElementById('monthlyInternsQuickEntry').getBoundingClientRect();
     check(Math.round(roster.y)===Math.round(interns.y)&&roster.height>=44&&interns.height>=44,`Aligned accessible shortcuts at ${width}px`);
     check(doc.documentElement.scrollWidth<=win.innerWidth,`No horizontal overflow at ${width}px`);
+    const directoryQuery=doc.getElementById('searchInput');directoryQuery.value='synthetic-no-match';directoryQuery.dispatchEvent(new win.Event('input',{bubbles:true}));await pause();
+    check(!doc.getElementById('directoryHomeBtn').hidden,`Explicit Home appears after search at ${width}px`);
+    doc.getElementById('directoryHomeBtn').click();await pause();
+    check(!doc.getElementById('homeDashboard').hidden && directoryQuery.value==='' && doc.activeElement.id==='directoryTitle',`Search returns Home with neutral focus at ${width}px`);
     doc.getElementById('pharmacologyQuickEntry').click();await pause();
     check(doc.querySelector('.pharmacologyCall')?.getAttribute('href')==='tel:+972500000000',`Named call link at ${width}px`);
     check(!doc.querySelector('.pharmacologyBadge')&&/חסרות שעות/.test(doc.getElementById('pharmacologyStatus').textContent),`Unknown hours do not invent current caller at ${width}px`);
@@ -39,6 +43,12 @@
       check(prompt.closest('details').open && prompt.selectionEnd>100 && /לחיצה ארוכה/.test(doc.getElementById('pharmacologyPromptStatus').textContent),'Mobile fallback reveals and selects instructions honestly');
       const input=doc.getElementById('pharmacologyJsonInput');
       const payload=JSON.stringify({month:'2026-12',entries:[{date:'2026-12-09',name:'אדם בדוי',phone:'0500000000',shift:'לילה',start:'21:00',end:'08:00',endNextDay:true}]});
+      const damaged=payload.replace('"month":','“month”:').replace('"entries":[','“entries”:').replace(/\]}$/,'}');
+      input.value=damaged;input.dispatchEvent(new win.Event('input',{bubbles:true}));doc.getElementById('pharmacologyPreviewBtn').click();await pause();
+      check(/תוקנו סימני עיצוב/.test(doc.getElementById('pharmacologyPreview').textContent) && input.value===damaged,'Damaged paste gets explicit format-only recovery without rewriting input');
+      check(JSON.parse(doc.getElementById('pharmacologyNormalizedJson').value).entries[0].name==='אדם בדוי' && win.qaWrites===0 && doc.getElementById('pharmacologyPublishBtn').disabled,'Recovered JSON preserves source values and still requires review');
+      input.value=damaged.slice(0,-1);input.dispatchEvent(new win.Event('input',{bubbles:true}));doc.getElementById('pharmacologyPreviewBtn').click();await pause();
+      check(/JSON תקין/.test(doc.getElementById('pharmacologyAdminStatus').textContent) && !doc.getElementById('pharmacologyPreview').textContent && doc.getElementById('pharmacologyPublishBtn').disabled && win.qaWrites===0,'Truncated paste clears recovery preview and remains blocked');
       const transfer=new win.DataTransfer();transfer.items.add(new win.File(['\uFEFF'+payload],'synthetic-roster.txt',{type:'text/plain'}));
       doc.getElementById('pharmacologyFileInput').files=transfer.files;
       doc.getElementById('pharmacologyFileInput').dispatchEvent(new win.Event('change',{bubbles:true}));await pause();await pause();
@@ -63,4 +73,7 @@
     run('resetPharmacology_()');
   }
   out.textContent+='\nALL '+lines.length+' CHECKS PASSED';document.title='PASS: Combined release browser checks';
+  const manual=document.createElement('button');manual.textContent='Open synthetic import for manual paste';manual.onclick=()=>{
+    const doc=frame.contentDocument;const script=doc.createElement('script');script.textContent="document.getElementById('app').style.display='none';document.getElementById('adminPanel').style.display='block';openPharmacologyAdmin_();";doc.body.append(script);
+  };out.after(manual);
 })().catch(error=>{document.getElementById('results').textContent+='\nFAIL '+error.stack;document.title='FAIL: Combined release browser checks'});

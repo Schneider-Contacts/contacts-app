@@ -8,6 +8,7 @@
   const ZONE = 'Asia/Jerusalem';
   const DAY = 1440;
   const MAX_BYTES = 100 * 1024;
+  const MAX_DEPTH = 16;
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   const plain = o => o !== null && typeof o === 'object' && !Array.isArray(o) &&
     (Object.getPrototypeOf(o) === Object.prototype || Object.getPrototypeOf(o) === null);
@@ -42,11 +43,126 @@
     if (!/^(?:0[23489]\d{7}|0[57]\d{8})$/.test(digits)) return null;
     return '+972' + digits.slice(1);
   }
+  function parsePastedJson(json) {
+    // A bounded JSON grammar, not a text replacement heuristic. ASCII strings
+    // are opaque, including their literal smart quotes and escaped punctuation.
+    // The only permitted edits are paired directional string delimiters and an
+    // array envelope around complete objects in the final root entries field.
+    let at = 0, smartQuotes = false, entriesArray = false;
+    const edits = [];
+    const fail = () => { throw new SyntaxError('Invalid or ambiguous JSON'); };
+    const space = () => { while (at < json.length && /[ \t\r\n]/.test(json[at])) at++; };
+    function string() {
+      const start = at, smart = json[at] === '\u201c';
+      if (!smart && json[at] !== '"') fail();
+      const close = smart ? '\u201d' : '"';
+      at++;
+      const content = at;
+      while (at < json.length) {
+        const c = json[at];
+        if (c === close) {
+          const value = JSON.parse('"' + json.slice(content, at) + '"');
+          if (smart) {
+            edits.push({ start, end: start + 1, text: '"' }, { start: at, end: at + 1, text: '"' });
+            smartQuotes = true;
+          }
+          at++;
+          return value;
+        }
+        if (c === '\\') {
+          at++;
+          if (json[at] === 'u') {
+            if (!/^[\da-fA-F]{4}$/.test(json.slice(at + 1, at + 5))) fail();
+            at += 5;
+          } else {
+            if (!json[at] || !'"\\/bfnrt'.includes(json[at])) fail();
+            at++;
+          }
+        } else {
+          // Nested/mixed literal delimiters in a smart-quoted token are
+          // ambiguous. Do not guess which quotation marks belong to its data.
+          if (c.charCodeAt(0) < 32 || (smart && (c === '\u201c' || c === '"'))) fail();
+          at++;
+        }
+      }
+      fail();
+    }
+    function value(depth) {
+      space();
+      if (json[at] === '{') return object(depth + 1);
+      if (json[at] === '[') return array(depth + 1);
+      if (json[at] === '"' || json[at] === '\u201c') { string(); return; }
+      const token = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(json.slice(at));
+      if (!token) fail();
+      at += token[0].length;
+    }
+    function array(depth) {
+      if (depth > MAX_DEPTH) fail();
+      at++; space();
+      if (json[at] === ']') { at++; return; }
+      while (at < json.length) {
+        value(depth); space();
+        if (json[at] === ']') { at++; return; }
+        if (json[at++] !== ',') fail();
+      }
+      fail();
+    }
+    function object(depth) {
+      if (depth > MAX_DEPTH) fail();
+      at++; space();
+      if (json[at] === '}') { at++; return; }
+      const seen = new Set();
+      while (at < json.length) {
+        space();
+        const key = string();
+        // JSON.parse would silently keep only the last value for a duplicate.
+        // Compare decoded keys, so escape spelling cannot hide a duplicate.
+        if (seen.has(key)) fail();
+        seen.add(key); space();
+        if (json[at++] !== ':') fail();
+        space();
+        if (depth === 1 && key === 'entries' && json[at] === '{') {
+          edits.push({ start: at, end: at, text: '[' });
+          let count = 0;
+          do {
+            if (json[at] !== '{' || ++count > 100) fail();
+            value(depth + 1); space();
+            if (json[at] !== ',') break;
+            at++; space();
+          } while (at < json.length);
+          // No later property, trailing comma, partial bracket or missing root
+          // brace is recoverable. The entries field must be the final field.
+          if (json[at] !== '}') fail();
+          edits.push({ start: at, end: at, text: ']' });
+          entriesArray = true;
+        } else value(depth);
+        space();
+        if (json[at] === '}') { at++; return; }
+        if (json[at++] !== ',') fail();
+      }
+      fail();
+    }
+    value(0); space();
+    if (at !== json.length) fail();
+    let cursor = 0, repaired = '';
+    for (const edit of edits) {
+      repaired += json.slice(cursor, edit.start) + edit.text;
+      cursor = edit.end;
+    }
+    repaired += json.slice(cursor);
+    const repairs = [];
+    if (smartQuotes) repairs.push('מרכאות מעוצבות במבנה ה־JSON הוחזרו למרכאות רגילות.');
+    if (entriesArray) repairs.push('נוספו סוגריים מרובעים [] סביב רשימת השיבוצים.');
+    // JSON.parse remains the final syntax authority; never evaluate pasted code.
+    return { source: JSON.parse(repaired), repairs };
+  }
   function analyze(input) {
     const errors = [], warnings = [];
     const roster = { schemaVersion: 1, month: '', timeZone: ZONE, notes: '', entries: [] };
-    const result = () => ({ valid: errors.length === 0, errors, warnings, roster });
-    let source;
+    let source, candidateRepairs = [], normalizedInput = null;
+    const result = () => ({ valid: errors.length === 0, errors, warnings, roster,
+      repairs: errors.length ? [] : candidateRepairs,
+      normalizedInput: errors.length ? null : normalizedInput });
     try {
       const serialized = typeof input === 'string' ? input : JSON.stringify(input);
       if (typeof serialized !== 'string' || bytes(serialized) > MAX_BYTES) {
@@ -58,7 +174,18 @@
         let json = serialized.replace(/^\uFEFF/, '').trim();
         const fenced = json.match(/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
         if (fenced) json = fenced[1].replace(/^\uFEFF/, '').trim();
-        source = JSON.parse(json);
+        const parsed = parsePastedJson(json);
+        source = parsed.source;
+        candidateRepairs = parsed.repairs;
+        if (candidateRepairs.length) {
+          // Copyable repair preserves source values, not the roster's existing
+          // display/storage trimming, defaults or telephone normalization.
+          normalizedInput = JSON.stringify(source, null, 2);
+          if (bytes(normalizedInput) > MAX_BYTES) normalizedInput = JSON.stringify(source);
+          if (bytes(normalizedInput) > MAX_BYTES) {
+            errors.push('הקלט חייב להיות JSON עד 100KB.'); return result();
+          }
+        }
       } else source = input;
     } catch (_) { errors.push('הקלט אינו JSON תקין. הדביקו את התוכן המלא בלבד או בחרו קובץ JSON/TXT. אין לכלול הסברים מסביב.'); return result(); }
     if (!plain(source)) { errors.push('שורש הקלט חייב להיות אובייקט.'); return result(); }
@@ -160,7 +287,8 @@
     return { date: local.date, entries, current: !ambiguous && candidates.length === 1 ? candidates[0] : null, ambiguous };
   }
   function buildAiPrompt() {
-    return 'חלץ מהתמונה בלבד לוח כוננות פרמקולוגיה. החזר אובייקט JSON יחיד בלבד, מוכן להעתקה ישירות לשדה הייבוא באפליקציה. בלי פתיח, הסברים, Markdown או סימני קוד כמו ```; הפלט יהיה האובייקט עצמו בלבד. '
+    return 'חלץ מהתמונה בלבד לוח כוננות פרמקולוגיה. החזר אובייקט JSON יחיד בלבד בתוך בלוק קוד אחד מסוג json, מוכן להעתקה ישירות לשדה הייבוא באפליקציה באמצעות כפתור Copy של בלוק הקוד. פתח את הבלוק בשורה ```json וסיים בשורה ```; בלי פתיח או הסברים מחוץ לבלוק. '
+      + 'השתמש רק במרכאות JSON רגילות (ASCII "), לא במרכאות חכמות. entries חייב תמיד להיות מערך עם סוגריים מרובעים [], גם כשיש שיבוץ אחד בלבד; כל שיבוץ הוא אובייקט שלם והפרד בין השיבוצים בפסיקים. '
       + 'אל תמציא פרטים ואל תשתמש במקורות אחרים. כל תאריך חייב לכלול שנה YYYY-MM-DD והחודש YYYY-MM; אם השנה או החודש לא ברורים בקש הבהרה, אל תנחש. '
       + 'העתק שמות בדיוק מהמקור. הרחב שם פרטי לשם מלא ושייך טלפון רק לפי התאמה חד-משמעית בטבלת אנשי הקשר שבאותה תמונה. אל תשנה איות. טלפון חסר נשאר מחרוזת ריקה. '
       + 'כששם, תאריך ושיוך האדם ברורים, השתמש ב-uncertain:false. שעות חסרות או טלפון חסר אינם לבדם סיבה לסמן uncertain:true. '
@@ -169,10 +297,10 @@
       + 'העתק את סוג המשמרת ל-shift. אם בתא מופיע רק שם והכותרת היא לוח כוננות, מותר להשתמש ב-shift:"כוננות" ולציין ב-note שהסיווג נלקח מהכותרת; אין בכך לבדו אי-ודאות. '
       + 'טווח שעות מפורש כמו 21-8 בלוח יומי ניתן לייצוג כ-start:"21:00",end:"08:00",endNextDay:true כאשר הסיום מוקדם מההתחלה; שמור את הטווח המקורי ב-note. אל תסיק מעבר יום מכינוי כמו לילה. אם משמעות הטווח אינה ברורה, השאר את שתי השעות ריקות, סמן uncertain:true וציין את הטווח המקורי והספק. '
       + 'כל שיבוץ בחודש הנבחר; אין להשלים ימים חסרים. אין צורך לחזור בכל note על כך שאין שעות; השתמש ב-note ריק כשאין הערה מיוחדת. יש לשמר בנפרד שיבוצים שונים באותו תאריך, למשל בוקר וכוננות. '
-      + 'הסכמה המדויקת (הדוגמה בדויה בלבד, אינה נתון אמיתי): '
+      + 'הסכמה המדויקת (הדוגמה בדויה בלבד, אינה נתון אמיתי):\n```json\n'
       + '{"schemaVersion":1,"month":"2030-01","timeZone":"Asia/Jerusalem","notes":"דוגמה בדויה",'
       + '"entries":[{"date":"2030-01-01","name":"שם לדוגמה בלבד","phone":"","shift":"כוננות",'
-      + '"start":"","end":"","endNextDay":false,"uncertain":false,"note":""}]}';
+      + '"start":"","end":"","endNextDay":false,"uncertain":false,"note":""}]}\n```';
   }
   return Object.freeze({ analyze, israelDateKey, selectDay, buildAiPrompt });
 });

@@ -8,12 +8,18 @@ publisher under Admin → System → Pharmacology.
 1. Open the admin roster dialog and press **העתקת הוראות לצ׳אט**. The button
    copies instructions only; it does not open a chat, send data, or upload an image.
 2. Paste the instructions into the AI chat of your choice and attach the source
-   image yourself. The prompt requests one JSON object ready to copy back, without
-   commentary or Markdown. Review the generated contents against the image.
+   image yourself. The prompt requests one JSON object in a single JSON code block,
+   without surrounding commentary. Use that block's Copy button rather than selecting
+   formatted chat prose. Review the generated contents against the image.
 3. Paste the JSON, or optionally choose a UTF-8 `.json`/`.txt` file up to 100KB.
    Files are read locally; selecting a file never publishes it. Image/Excel imports
-   are not supported here. A BOM or one complete JSON code fence is accepted;
-   surrounding commentary, malformed JSON and invalid schema still fail.
+   are not supported here. A BOM or one complete JSON code fence is accepted.
+   Recognized quote-delimiter corruption and a missing final `entries` array envelope
+   are recovered only when the complete structure is unambiguous and still passes the
+   strict schema. The preview lists those formatting repairs and shows the canonical
+   JSON without overwriting the pasted text. No names, phones, times or uncertainty
+   flags are corrected by this process. Truncation, duplicate keys, arbitrary prose,
+   ambiguous structure and invalid data still fail.
 4. Press preview (automatic after file selection). The local preview appears before
    the server check and summarizes call-enabled rows, missing hours and uncertainty.
    Detailed warnings are collapsed. Publishing stays disabled until the server
