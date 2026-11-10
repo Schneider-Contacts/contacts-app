@@ -77,9 +77,14 @@ confirmation stacking, cancel/publish, close/reopen and Escape. Set
 `PLAYWRIGHT_MODULE` and `CHROME_EXECUTABLE` for an existing external installation.
 Optional `QA_SCREENSHOT_DIR` saves synthetic screenshots locally only.
 
-The development Mac has no usable Java runtime or Firestore emulator. Rules have
-been statically reviewed, but emulator authorization tests and real Firebase
-round-trips have not been run. Before deployment, use a separate demo project with
-Firebase Rules Unit Testing to verify denied unauthenticated/revoked reads,
-authorized month reads, denied non-admin writes/list/delete, and admin envelope,
-publisher and server-timestamp validation. No production test writes were made.
+The combined release was checked in native Safari with isolated synthetic fixtures
+at 320, 375, 390, 430 and 960px widths. Shared dialog handling covers the roster
+editor, including Escape, Back/Forward and the AI-instructions summary.
+
+The development Mac has no Java runtime, so Firestore emulator tests were not run.
+Instead, the Firebase Rules API compiled the complete candidate and passed 25
+isolated authorization tests using synthetic mocked identities and documents.
+These cover allowed/admin reads, revoked/unauthenticated denial, list/delete denial,
+non-admin write denial, valid admin create/update, and invalid envelope/publisher/
+server-timestamp cases. They do not substitute for production write round-trips.
+No real roster data or production test writes were made.
