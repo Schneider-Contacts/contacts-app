@@ -231,7 +231,7 @@ const countContext = {
   document: { getElementById: id => badges[id] ||= {} },
 };
 vm.createContext(countContext);
-vm.runInContext(['getAdminPendingCounts_', 'updateAdminPendingBadges_'].map(n => extract(app, n)).join('\n'), countContext);
+vm.runInContext(['getAdminPendingCounts_', 'getAdminPendingHomeSummary_', 'updateAdminPendingBadges_'].map(n => extract(app, n)).join('\n'), countContext);
 countContext.updateAdminPendingBadges_();
 assert.equal(badges.adminOpenPendingBadge.textContent, 'ממתין לטיפול');
 assert.equal(badges.adminAttentionPendingBadge.textContent, '•');

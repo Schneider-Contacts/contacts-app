@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Contacts dialog regression tests</title>
+<h1>Dialog accessibility regression tests</h1><p>Synthetic, local DOM only. No login or service writes.</p><pre id="results">Running…</pre><iframe id="fixture" title="Synthetic dialog fixture" style="width:900px;height:500px"></iframe>
+<script src="dialog-test-cases.js"></script><script>
+(async () => {
+  const source = await (await fetch('../index.html')).text();
+  const fixture = source.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/(href|src)="(?!https?:|data:|#)([^"]+)"/g, '$1="../$2"');
+  const frame = document.getElementById('fixture');
+  frame.srcdoc = fixture;
+  await new Promise(resolve => frame.onload = resolve);
+  const doc = frame.contentDocument;
+  await runDialogRegressionTests(frame.contentWindow, doc, () => new Promise((resolve,reject) => {
+    const script=doc.createElement('script');script.src='../dialog-accessibility.js';script.onload=resolve;script.onerror=reject;doc.body.append(script);
+  }), value => document.getElementById('results').textContent=value);
+  document.title='PASS: Contacts dialog regression tests';
+})().catch(error => {document.getElementById('results').textContent+='\nFAIL: '+error.stack;document.title='FAIL: Contacts dialog regression tests';});
+</script>

@@ -1,0 +1,80 @@
+async function runDialogRegressionTests(win, doc, loadModule, report = () => {}) {
+  const lines = [];
+  const results = { set textContent(value) { report(value); } };
+  const check = (condition, message) => { if (!condition) throw Error(message); lines.push('PASS '+message); };
+  const pause = () => new Promise(resolve => setTimeout(resolve, 80));
+  doc.querySelectorAll('[onclick], [onsubmit]').forEach(el => { el.removeAttribute('onclick'); el.removeAttribute('onsubmit'); });
+  doc.getElementById('login').style.display = 'none';
+  doc.getElementById('app').style.display = 'block';
+  const main = doc.getElementById('app');
+  const trigger = doc.createElement('button'); trigger.textContent='Synthetic opener'; main.prepend(trigger);
+  let confirmResult = false, confirmations = 0, confirmValue;
+  win.confirm = () => { confirmations++; return confirmResult; };
+  const mappings = {contactDetailSheet:'closeContactDetail_', departmentSheet:'closeDepartmentBrowser_',adminFocusSheet:'closeAdminFocusSheet_', monthlyInternsAdminModal:'closeMonthlyInternsAdmin_',recentContactsModal:'closeRecentContactsModal',myProfileModal:'closeMyProfileModal',contactAddModal:'closeContactAddModal_',contactReportModal:'closeContactReportModal',adminManagerModal:'closeManagerModal',adminEditModal:'closeAdminEditModal',adminReasonModal:'closeAdminReasonModal_',adminConfirmModal:'resolveAdminConfirmation_'};
+  for (const [id, name] of Object.entries(mappings)) win[name] = value => {
+    if (!win.confirmDialogClose_(id)) return;
+    if (id === 'adminConfirmModal') confirmValue = value;
+    doc.getElementById(id).classList.remove('visible'); doc.body.style.overflow='';
+  };
+  await loadModule();
+  const press = (key, shiftKey=false) => doc.dispatchEvent(new win.KeyboardEvent('keydown', {key,shiftKey,bubbles:true,cancelable:true}));
+  const open = async id => { trigger.focus(); trigger.click(); doc.getElementById(id).classList.add('visible'); await pause(); };
+  const close = async id => { win[mappings[id]](); await pause(); };
+  try {
+    await open('contactDetailSheet');
+    check(doc.activeElement.id==='contactDetailName','Contact sheet starts at neutral heading');
+    check(main.inert && main.getAttribute('aria-hidden')==='true','Background is inert and hidden');
+    const sheet=doc.getElementById('contactDetailSheet');
+    press('Tab'); check(sheet.contains(doc.activeElement) && doc.activeElement.tagName==='BUTTON','Tab moves to first available control');
+    press('Tab',true); check(sheet.contains(doc.activeElement),'Shift+Tab wraps within dialog');
+    trigger.focus(); check(sheet.contains(doc.activeElement),'Programmatic focus cannot escape');
+    press('Escape'); await pause();
+    check(!sheet.classList.contains('visible') && !main.inert,'Escape closes sheet and restores background');
+    check(doc.activeElement===trigger && doc.body.style.overflow==='','Close restores opener and scroll');
+    await open('contactAddModal'); const parent=doc.getElementById('contactAddModal');
+    const childTrigger=doc.getElementById('contactAddSubmitBtn'); childTrigger.focus(); childTrigger.click();
+    doc.getElementById('adminConfirmModal').classList.add('visible'); await pause();
+    check(doc.activeElement.id==='adminConfirmTitle','Alertdialog is managed and starts at neutral heading');
+    check(parent.inert,'Lower dialog is inert while confirmation is open');
+    press('Escape');await pause();
+    check(confirmValue===false && !parent.inert && parent.contains(doc.activeElement),'Escape rejects only top confirmation');
+    await close('contactAddModal');
+    await open('contactReportModal');
+    doc.getElementById('contactReportDetails').value='Unsaved synthetic draft';
+    press('Escape');await pause();
+    check(doc.getElementById('contactReportModal').classList.contains('visible') && confirmations===1,'Cancel discard keeps the draft open');
+    const unload = new win.Event('beforeunload', {cancelable:true});win.dispatchEvent(unload);
+    check(unload.defaultPrevented,'Unsaved draft guards page exit');
+    const submittedDraft = win.captureDialogDraft_('contactReportModal');
+    doc.getElementById('contactReportDetails').value='New edits during request';
+    win.markDialogSaved_('contactReportModal', submittedDraft);
+    check(!win.confirmDialogClose_('contactReportModal'),'Saving old values cannot silently discard newer edits');
+    confirmations--;
+    win.markDialogSaved_('contactReportModal');
+    press('Escape');await pause();
+    check(!doc.getElementById('contactReportModal').classList.contains('visible') && confirmations===1,'Saved draft closes without discard prompt');
+    await open('contactReportModal'); doc.getElementById('contactReportDetails').value='Another unsaved draft';
+    confirmResult=true;await close('contactReportModal');
+    check(confirmations===2 && !main.inert,'Explicit discard closes and unlocks background');
+    await open('contactDetailSheet');
+    win.history.back();await pause();await pause();
+    check(!sheet.classList.contains('visible') && !main.inert,'Browser Back closes the current dialog');
+    win.history.forward();await pause();await pause();
+    check(!sheet.classList.contains('visible') && !main.inert,'Browser Forward does not reopen stale dialog');
+    await open('contactReportModal');doc.getElementById('contactReportDetails').value='Keep this draft';confirmResult=false;
+    win.history.back();await pause();await pause();
+    check(doc.getElementById('contactReportModal').classList.contains('visible'),'Canceled Back preserves unsaved draft');
+    confirmResult=true;win.history.back();await pause();await pause();
+    check(!doc.getElementById('contactReportModal').classList.contains('visible') && !main.inert,'Confirmed Back dismisses draft without leaving page');
+    // Sheet-to-form replacement must return to the original opener, not its hidden sheet.
+    await open('contactDetailSheet');
+    const oldButton=sheet.querySelector('button:not(.directorySheetBackdrop)');oldButton.focus();oldButton.click();
+    sheet.classList.remove('visible');doc.getElementById('contactAddModal').classList.add('visible');await pause();
+    await close('contactAddModal');check(doc.activeElement===trigger,'Sheet-to-form dismissal restores original opener');
+    for(let i=0;i<3;i++){await open('departmentSheet');press('Escape');await pause();}
+    check(!main.inert && doc.body.style.overflow==='' && !win.history.state?.contactsDialog,'Repeated open/close leaves no lock or current history marker');
+    results.textContent=lines.join('\n')+'\n\nALL '+lines.length+' CHECKS PASSED';
+    return lines;
+  } catch(error) { results.textContent=lines.join('\n')+'\nFAIL: '+error.stack;throw error; }
+}
+if (typeof module !== "undefined") module.exports = runDialogRegressionTests;

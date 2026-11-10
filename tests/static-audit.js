@@ -716,7 +716,7 @@ assert.strictEqual(
 );
 assert.strictEqual(
   authPasswordElements.loginButton.textContent,
-  "המשך"
+  "יצירת חשבון והמשך לאימות מייל"
 );
 assert.strictEqual(
   authPasswordElements.authPasswordSecondaryActions.style.display,
@@ -1475,11 +1475,11 @@ assert.strictEqual(
 quickFilterStateSandbox.handleDepartmentsFilterClick_();
 assert.strictEqual(
   quickFilterStateSandbox.activeQuickFilter,
-  "all",
-  "Tapping an active department context must clear the department"
+  "department:טיפול נמרץ ילדים",
+  "Tapping an active department must reopen its picker without clearing the filter"
 );
-assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, false, "Clearing a department must restore Home");
-assert.strictEqual(quickFilterStateSandbox.document.getElementById("searchInput").value, "", "Returning from a department must not show the full directory");
+assert.strictEqual(quickFilterStateSandbox.directoryBrowseActivated, true, "Opening the picker must preserve the current view");
+assert.strictEqual(quickFilterStateSandbox.document.getElementById("searchInput").value, "כהן", "Opening the picker must preserve the search");
 
 const quickFilterVisualElements = Object.fromEntries(
   [
@@ -1969,7 +1969,7 @@ assert.match(
 adminFocusSandbox.renderAdminSystem_();
 assert.match(
   adminFocusElements.adminList.innerHTML,
-  />7<[\s\S]*?אנשים השתמשו באפליקציה היום[\s\S]*?סטאז׳רים החודש/,
+  />7<[\s\S]*?אנשים השתמשו באפליקציה היום[\s\S]*?רשימת סטאז׳רים/,
   "The System view must render usage and monthly interns management"
 );
 

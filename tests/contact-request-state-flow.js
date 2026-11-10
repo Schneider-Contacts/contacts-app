@@ -24,7 +24,7 @@ function deferred() {
   return { promise, resolve, reject };
 }
 function setup() {
-  const nodes = new Map(), writes = [], timers = [];
+  const nodes = new Map(), writes = [], timers = [], markedDialogs = [];
   const el = id => {
     if (!nodes.has(id)) {
       const classes = new Set();
@@ -38,6 +38,7 @@ function setup() {
     name: `Name${id}`, title: '', role: '', dept: '', phone: `050000000${id}`, email: `person${id}@example.test` }));
   const context = vm.createContext({
     console: { error() {}, warn() {} }, Date, Set, Map,
+    window: { markDialogSaved_: id => markedDialogs.push(id), confirmDialogClose_: () => true },
     requestModalSessions_: {}, activeContactUpdate: null, contactAddSource: 'manual', contactAddModalMode: 'user',
     activeContactAddRequestId: '', contactAddDuplicateConfirmed: false, activeReportContact: null, myProfileContact: null,
     contacts, currentUserHasAppAccess: true, auth: { currentUser: { uid: 'synthetic', email: 'user@example.test' } },
@@ -56,7 +57,7 @@ function setup() {
       setDoc: async (ref, payload) => { writes.push({ ref, payload }); } }
   });
   vm.runInContext(functions.map(extract).join('\n'), context);
-  return { c: context, el, writes, timers, contacts };
+  return { c: context, el, writes, timers, contacts, markedDialogs };
 }
 async function flush() { await Promise.resolve(); await Promise.resolve(); }
 function editAdd(h, text = 'Edited') { h.el('contactAddFirstName').value = text; }
@@ -269,6 +270,7 @@ function editAdd(h, text = 'Edited') { h.el('contactAddFirstName').value = text;
     close(); open(); el(field).value = 'Fresh';
     if (fail) gate.reject(new Error('rejected')); else gate.resolve();
     await old;
+    assert.equal(h.markedDialogs.length, 0, "Old completion cannot mark a replacement draft saved");
     assert.equal(el(prefix + 'Status').textContent, '');
     assert.equal(el(prefix + 'SubmitBtn').disabled, false);
     assert.equal(el(field).value, 'Fresh');

@@ -688,6 +688,8 @@ function setLoginStatus(message = "", type = "") {
 }
 
 function setListStatus(message = "", type = "") {
+  const actions = document.getElementById("directoryNoResultsActions");
+  if (actions) actions.hidden = true;
   setStatus("statusMessage", message, type);
 }
 
@@ -999,7 +1001,12 @@ function getSearchPriority(contact, q, qNoHyphen) {
   const index = getContactSearchIndex_(contact);
   const normalizedQuery = normalizeSearchText(q);
   const queryDigits = String(qNoHyphen || "").replace(/\D/g, "");
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+  const phoneOnlyQuery = /^[+\d\s().-]+$/.test(normalizedQuery);
+  // A phone shortcut must never discard text in a mixed query. Numeric-only
+  // queries are joined so formatted local/international numbers still work.
+  const queryTokens = phoneOnlyQuery
+    ? []
+    : normalizedQuery.split(" ").filter(Boolean);
 
   if (!normalizedQuery && !queryDigits) return null;
   if (
@@ -1045,11 +1052,11 @@ function getSearchPriority(contact, q, qNoHyphen) {
     (index.role.includes(normalizedQuery) || index.department.includes(normalizedQuery))
   ) return 11;
   if (
-    queryDigits &&
+    phoneOnlyQuery && queryDigits &&
     (index.phoneLocal === queryDigits || index.phoneInternational === queryDigits)
   ) return 12;
   if (
-    queryDigits &&
+    phoneOnlyQuery && queryDigits &&
     (
       index.phoneLocal.startsWith(queryDigits) ||
       index.phoneInternational.startsWith(queryDigits)
@@ -1061,7 +1068,7 @@ function getSearchPriority(contact, q, qNoHyphen) {
       getSearchTokenPriority_(
         index,
         token,
-        token.replace(/\D/g, "")
+        /^[+\d().-]+$/.test(token) ? token.replace(/\D/g, "") : ""
       )
     );
     if (tokenPriorities.every(priority => priority !== null)) {
@@ -1070,7 +1077,7 @@ function getSearchPriority(contact, q, qNoHyphen) {
   }
 
   if (
-    queryDigits &&
+    phoneOnlyQuery && queryDigits &&
     (
       index.phoneLocal.includes(queryDigits) ||
       index.phoneInternational.includes(queryDigits)
@@ -1267,8 +1274,6 @@ function toggleQuickFilter(filterName) {
   }
   activeQuickFilter = filterName;
   directoryBrowseActivated = true;
-  selectionMode = false;
-  selectedContactIds.clear();
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
@@ -1277,8 +1282,6 @@ function toggleQuickFilter(filterName) {
 function returnToHome_() {
   activeQuickFilter = "all";
   directoryBrowseActivated = false;
-  selectionMode = false;
-  selectedContactIds.clear();
   const searchInput = document.getElementById("searchInput");
   if (searchInput) searchInput.value = "";
   closeDepartmentBrowser_();
@@ -1300,7 +1303,11 @@ function getActiveDirectoryFilterLabel_() {
 }
 
 function clearActiveDirectoryFilter_() {
-  returnToHome_();
+  activeQuickFilter = "all";
+  directoryBrowseActivated = true;
+  closeDepartmentBrowser_();
+  updateQuickFilterButtons();
+  renderCurrentSearchResults();
 }
 
 function getDepartmentOptions_() {
@@ -1347,11 +1354,6 @@ function openDepartmentBrowser_() {
 }
 
 function handleDepartmentsFilterClick_() {
-  if (isDepartmentFilterActive_()) {
-    clearActiveDirectoryFilter_();
-    return;
-  }
-
   openDepartmentBrowser_();
 }
 
@@ -1370,8 +1372,6 @@ function selectDepartmentFilter_(departmentKey) {
   if (!key) return;
   activeQuickFilter = `department:${key}`;
   directoryBrowseActivated = true;
-  selectionMode = false;
-  selectedContactIds.clear();
   closeDepartmentBrowser_();
   updateQuickFilterButtons();
   renderCurrentSearchResults();
@@ -1381,7 +1381,7 @@ function updateMainActionButton() {
   const btn = document.getElementById("selectionModeBtn");
   if (!btn) return;
 
-  btn.hidden = !currentDisplayedContacts.length;
+  btn.hidden = !selectionMode && !currentDisplayedContacts.length;
   if (selectionMode) {
     btn.disabled = false;
     btn.textContent = "סיום בחירה";
@@ -1595,8 +1595,7 @@ function getMonthlyInternsDescriptorFromData_(data, fallbackDescriptor) {
   const match = monthKey.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
   if (!match) return fallbackDescriptor;
   const date = new Date(`${match[1]}-${match[2]}-15T12:00:00`);
-  const label = String(source.monthLabel || "").trim() ||
-    new Intl.DateTimeFormat("he-IL", {
+  const label = new Intl.DateTimeFormat("he-IL", {
       timeZone: MONTHLY_INTERNS_TIME_ZONE,
       year: "numeric",
       month: "long"
@@ -1607,6 +1606,20 @@ function getMonthlyInternsDescriptorFromData_(data, fallbackDescriptor) {
     key: monthKey,
     label
   };
+}
+
+// Presentation only: compare the published source month, never change roster data.
+function getMonthlyInternsFreshnessHint_(monthKey, currentMonthKey = "") {
+  if (!currentMonthKey) {
+    const current = getCurrentMonthlyInternsDescriptor_();
+    currentMonthKey = `${current.year}-${current.month}`;
+  }
+  if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(String(monthKey || ""))) {
+    return "חודש המקור של הרשימה אינו ידוע.";
+  }
+  if (monthKey < currentMonthKey) return "זו רשימה מחודש קודם, ולא רשימת החודש הנוכחי.";
+  if (monthKey > currentMonthKey) return "זו רשימה לחודש עתידי, ולא רשימת החודש הנוכחי.";
+  return "";
 }
 
 function renderMonthlyInterns_() {
@@ -1624,7 +1637,15 @@ function renderMonthlyInterns_() {
 
   const descriptor = monthlyInternsState.descriptor ||
     getCurrentMonthlyInternsDescriptor_();
-  monthLabel.textContent = descriptor.label;
+  monthLabel.textContent = `חודש הרשימה: ${descriptor.label}`;
+  const freshnessHint = document.getElementById("monthlyInternsFreshnessHint");
+  if (freshnessHint) {
+    const hint = monthlyInternsState.status === "ready"
+      ? getMonthlyInternsFreshnessHint_(descriptor.key)
+      : "";
+    freshnessHint.textContent = hint;
+    freshnessHint.hidden = !hint;
+  }
   if (quickMonthLabel) quickMonthLabel.textContent = descriptor.label;
   if (quickCount) {
     quickCount.hidden = true;
@@ -1796,7 +1817,7 @@ function openMonthlyInternEditor_(internId, reportId = "") {
     return;
   }
   openAdminFocusSheet_({
-    eyebrow: "סטאז׳רים החודש",
+    eyebrow: "רשימת סטאז׳רים",
     title: "עריכת פרטים",
     subtitle: monthlyInternsState.descriptor?.label || "",
     html: `
@@ -2571,6 +2592,8 @@ function setAuthMode(mode) {
   const entryPanel = document.getElementById("authPasswordEntry");
   const recoveryPanel = document.getElementById("passwordRecoveryOptions");
   const secondaryActions = document.getElementById("authPasswordSecondaryActions");
+  const setupBack = document.getElementById("authSetupBack");
+  if (setupBack) setupBack.hidden = authPurpose !== "register";
 
   if (entryPanel) entryPanel.style.display = "block";
   if (recoveryPanel) recoveryPanel.style.display = "none";
@@ -2595,7 +2618,7 @@ function setAuthMode(mode) {
     if (title) title.textContent = "כמעט סיימנו";
     if (description) {
       description.textContent =
-        "כדי להיכנס בפעמים הבאות, בחרו סיסמה.";
+        "בחרו סיסמה באורך 6 תווים לפחות, והזינו אותה שוב לאימות.";
     }
     if (passwordInput) passwordInput.autocomplete = "new-password";
     if (confirmGroup) confirmGroup.style.display = "block";
@@ -2603,9 +2626,9 @@ function setAuthMode(mode) {
     if (modeNote) {
       modeNote.style.display = "block";
       modeNote.textContent =
-        "לאחר יצירת החשבון יישלח מייל אימות חד־פעמי.";
+        "ההרשמה עדיין לא הושלמה. לאחר יצירת החשבון יישלח מייל אימות חד־פעמי; יש לפתוח את הקישור שבו.";
     }
-    setLoginButtonLabel_("המשך");
+    setLoginButtonLabel_("יצירת חשבון והמשך לאימות מייל");
     setLoginButtonBusy_(false);
     return;
   }
@@ -2876,9 +2899,10 @@ function updateAuthProgress_(stage) {
   const label = document.getElementById("authProgressText");
   const labels = {
     email: "",
-    phone: "אימות זהות",
+    phone: "בדיקת טלפון והמשך להצטרפות",
+    registration: "פרטים ← בחירת סיסמה ← אימות מייל",
     password: "כניסה עם סיסמה",
-    password_setup: "הגדרת סיסמה",
+    password_setup: "בחירת סיסמה · לאחר מכן אימות מייל",
     password_help: "עזרה בכניסה",
     blocked: "מצב גישה",
     verification: "אימות כתובת המייל",
@@ -3202,7 +3226,7 @@ function showAuthPhoneStep_(email, purpose = "email_update") {
   if (phoneDescription) {
     phoneDescription.textContent = isPasswordReset
       ? "המנהל אישר איפוס סיסמה עד 23:59. הזינו את מספר הטלפון שמקושר לחשבון, ולאחר מכן תוכלו ליצור סיסמה חדשה."
-      : "כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שמופיע בספר אנשי הקשר.";
+      : "כתובת המייל אינה מופיעה במערכת. הזינו את מספר הטלפון שלכם, גם אם עדיין אינכם בספר. אם המספר אינו רשום, תוכלו להמשיך לבקשת הצטרפות.";
   }
   if (phoneButton) {
     phoneButton.textContent = isPasswordReset
@@ -6135,20 +6159,32 @@ function updateUserInfoForUser_(user) {
 }
 
 function getMyProfileContact_() {
-  const currentEmail = normalizeEmail(
-    auth && auth.currentUser && auth.currentUser.email
-  );
-  const permissionPhone = normalizePhone(
-    currentUserPermissionData && currentUserPermissionData.phone
-  );
+  const currentEmail = normalizeEmail(auth && auth.currentUser && auth.currentUser.email);
+  const permissionPhone = normalizePhone(currentUserPermissionData && currentUserPermissionData.phone);
+  const emailMatches = contacts.filter(contact => currentEmail && normalizeEmail(contact.email) === currentEmail);
+  if (emailMatches.length) return emailMatches.length === 1 ? emailMatches[0] : null;
+  const phoneMatches = contacts.filter(contact => permissionPhone && normalizePhone(contact.phone) === permissionPhone);
+  return phoneMatches.length === 1 ? phoneMatches[0] : null;
+}
 
-  return contacts.find(contact =>
-    currentEmail &&
-    normalizeEmail(contact.email) === currentEmail
-  ) || contacts.find(contact =>
-    permissionPhone &&
-    normalizePhone(contact.phone) === permissionPhone
-  ) || null;
+async function loadMyProfileSupportLink_(identityChange = false) {
+  const prefix = identityChange ? "myProfileIdentitySupport" : "myProfileSupport";
+  const link = document.getElementById(`${prefix}Link`);
+  const status = document.getElementById(`${prefix}Status`);
+  const originalContact = myProfileContact;
+  link.hidden = true;
+  link.removeAttribute("href");
+  status.textContent = "טוען אפשרות לפנייה למנהל...";
+  try {
+    const result = await requestActiveManagerSupportContact_();
+    if (!document.getElementById("myProfileModal").classList.contains("visible") || myProfileContact !== originalContact) return;
+    if (!result || result.ok !== true || !String(result.whatsappUrl || "").startsWith("https://wa.me/")) throw new Error("Support contact unavailable");
+    link.href = result.whatsappUrl;
+    link.hidden = false;
+    status.textContent = "הקישור פותח שיחה. שום הודעה לא נשלחת אוטומטית.";
+  } catch (error) {
+    status.textContent = "קישור למנהל אינו זמין כרגע. אפשר לחפש את הרשומה בספר, או לנסות שוב מאוחר יותר.";
+  }
 }
 
 const requestModalSessions_ = {};
@@ -6172,11 +6208,18 @@ function openMyProfileModal() {
   }
 
   const contact = getMyProfileContact_();
+  document.getElementById("myProfileIdentitySupportLink").hidden = true;
+  document.getElementById("myProfileIdentitySupportStatus").textContent = "";
+  document.getElementById("myProfileLinkedContent").hidden = !contact;
+  document.getElementById("myProfileMissingContent").hidden = Boolean(contact);
+  document.getElementById("myProfileModalTitle").textContent = contact ? "עדכון הפרטים שלי" : "הפרטים שלי בספר";
   if (!contact) {
-    alert(
-      "לא נמצאה רשומת איש קשר המקושרת לחשבון שלך. " +
-      "אפשר לשלוח דיווח דרך מנהל המערכת."
-    );
+    requestModalSessions_.profile = null;
+    myProfileContact = null;
+    document.getElementById("myProfileMissingIdentity").textContent = normalizeEmail(auth.currentUser.email);
+    document.getElementById("myProfileModal").classList.add("visible");
+    document.body.style.overflow = "hidden";
+    loadMyProfileSupportLink_();
     return;
   }
 
@@ -6213,7 +6256,13 @@ function openMyProfileModal() {
   document.body.style.overflow = "hidden";
 }
 
+function searchForMyProfile_() {
+  closeMyProfileModal();
+  window.setTimeout(() => document.getElementById("searchInput")?.focus(), 0);
+}
+
 function closeMyProfileModal() {
+  if (typeof window !== "undefined" && typeof window.confirmDialogClose_ === "function" && !window.confirmDialogClose_("myProfileModal")) return false;
   requestModalSessions_.profile = null;
   const modal = document.getElementById("myProfileModal");
   if (modal) modal.classList.remove("visible");
@@ -6226,6 +6275,7 @@ async function submitMyProfileUpdate_() {
   const session = requestModalSessions_.profile;
   if (!session || session.busy || session.submitted) return;
   const isCurrent = () => requestModalSessions_.profile === session;
+  const submittedDraft = typeof window !== "undefined" && typeof window.captureDialogDraft_ === "function" ? window.captureDialogDraft_("myProfileModal") : undefined;
   if (!myProfileContact || !auth || !auth.currentUser || !currentUserHasAppAccess) {
     setMyProfileStatus_("לא ניתן לשלוח את הבקשה כרגע.", "error");
     return;
@@ -6286,6 +6336,7 @@ async function submitMyProfileUpdate_() {
 
     session.submitted = true;
     if (!isCurrent()) return;
+    if (typeof window !== "undefined" && typeof window.markDialogSaved_ === "function") window.markDialogSaved_("myProfileModal", submittedDraft);
     setMyProfileStatus_("השינויים נשלחו לאישור מנהל. הפרטים יתעדכנו לאחר האישור.", "success");
     submitButton.textContent = "נשלח לאישור";
     setTimeout(() => { if (isCurrent()) closeMyProfileModal(); }, 1800);
@@ -7099,12 +7150,12 @@ function openAdminPanel() {
 }
 
 function closeAdminPanel() {
+  if (closeAdminEditModal() === false || closeContactAddModal_() === false) return;
   document.getElementById("adminPanel").style.display = "none";
   document.getElementById("app").style.display = "block";
-  closeAdminFocusSheet_();
+  closeAdminFocusSheet_(false);
   closeMonthlyInternsAdmin_();
   resolveAdminConfirmation_(false);
-  closeAdminEditModal();
   closeManagerModal();
   renderCurrentSearchResults();
   window.scrollTo({ top: 0, behavior: "auto" });
@@ -7116,6 +7167,7 @@ function setAdminTab(tabName) {
     ? normalizedTab
     : "attention";
 
+  closeAdminFocusSheet_(false);
   adminActiveTab = requestedTab;
   adminActiveFilter = "all";
   document.getElementById("adminSearchInput").value = "";
@@ -7272,6 +7324,30 @@ function getAdminPendingCounts_() {
   };
 }
 
+function getAdminPendingHomeSummary_(counts) {
+  if (counts.total < 1) return "";
+  if (!counts.unified) {
+    return "יש בקשות שממתינות לטיפול. המספר יוצג לאחר טעינת הרשימה המאוחדת.";
+  }
+  const types = [];
+  if (counts.verificationRequests) types.push("בקשת גישה");
+  if (counts.passwordResetRequests) types.push("איפוס סיסמה");
+  if (counts.contactRequests) {
+    const pending = adminContactAddRequests.filter(request => request.status === "pending");
+    const contactTypes = [...new Set(pending.map(request =>
+      ["self_update", "contact_update"].includes(request.requestType)
+        ? "עדכון פרטים"
+        : request.grantAccessOnApproval === true
+          ? "בקשת הצטרפות"
+          : "הוספת איש קשר"
+    ))];
+    types.push(...(contactTypes.length ? contactTypes : ["בקשת איש קשר"]));
+  }
+  if (counts.contactReports) types.push("דיווח");
+  const countLabel = counts.total === 1 ? "פריט אחד מחכה לך" : `${counts.total} פריטים מחכים לך`;
+  return `${countLabel}${types.length ? ` · ${types.slice(0, 2).join(", ")}${types.length > 2 ? " ועוד" : ""}` : ""}`;
+}
+
 function updateAdminPendingBadges_() {
   const counts = getAdminPendingCounts_();
   const attentionBadge = document.getElementById(
@@ -7297,16 +7373,7 @@ function updateAdminPendingBadges_() {
     homeCard.hidden = !currentUserIsAdmin || !counts.loaded || counts.total < 1;
   }
   if (homeSummary) {
-    const types = [];
-    if (counts.verificationRequests) types.push("בקשת גישה");
-    if (counts.passwordResetRequests) types.push("איפוס סיסמה");
-    if (counts.contactRequests) types.push("עדכון איש קשר");
-    if (counts.contactReports) types.push("דיווח");
-    homeSummary.textContent = counts.total > 0 && !counts.unified
-      ? "יש בקשות שממתינות לטיפול. המספר יוצג לאחר טעינת הרשימה המאוחדת."
-      : counts.total > 0
-      ? `${counts.total} דברים מחכים לך${types.length ? ` · ${types.slice(0, 2).join(", ")}${types.length > 2 ? " ועוד" : ""}` : ""}`
-      : "";
+    homeSummary.textContent = getAdminPendingHomeSummary_(counts);
   }
 
   const headerBadge = document.getElementById("adminHeaderPendingBadge");
@@ -8679,6 +8746,13 @@ async function submitContactAddApprovalToScript_(requestId, values) {
 
 async function approveContactAddRequest_(requestId, editedValues = null) {
   if (!currentUserIsAdmin || !requestId) return;
+  const approvalSession = requestModalSessions_.add;
+  const submittedDraft = typeof window !== "undefined" && typeof window.captureDialogDraft_ === "function" ? window.captureDialogDraft_("contactAddModal") : undefined;
+  const closeApprovedEditor = () => {
+    if (requestModalSessions_.add !== approvalSession || activeContactAddRequestId !== requestId) return;
+    if (typeof window !== "undefined" && typeof window.markDialogSaved_ === "function") window.markDialogSaved_("contactAddModal", submittedDraft);
+    closeContactAddModal_();
+  };
   const request = adminContactAddRequests.find(item => item.docId === requestId);
   if (!request || request.status !== "pending") {
     setAdminStatus("הבקשה כבר טופלה או שאינה זמינה.", "error");
@@ -8749,7 +8823,7 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
       });
 
       clearContactsBundleCache_();
-      closeContactAddModal_();
+      closeApprovedEditor();
       await loadContacts();
       await loadAdminData();
       setAdminStatus(
@@ -8829,7 +8903,7 @@ async function approveContactAddRequest_(requestId, editedValues = null) {
     await completionBatch.commit();
 
     clearContactsBundleCache_();
-    closeContactAddModal_();
+    closeApprovedEditor();
     await loadContacts();
     await loadAdminData();
     setAdminStatus(
@@ -9474,16 +9548,24 @@ function openAdminFocusSheet_(options) {
   sheet.classList.add("visible");
   sheet.setAttribute("aria-hidden", "false");
   document.body.classList.add("directorySheetOpen");
-  const firstAction = sheet.querySelector("button:not(.directorySheetBackdrop):not(.directorySheetClose)");
-  if (firstAction) setTimeout(() => firstAction.focus(), 80);
+  const title = document.getElementById("adminFocusTitle");
+  title.setAttribute("tabindex", "-1");
+  title.focus();
 }
 
-function closeAdminFocusSheet_() {
+function closeAdminFocusSheet_(returnToOrigin = true) {
   const sheet = document.getElementById("adminFocusSheet");
   if (!sheet) return;
+  const origin = adminActiveFocus && adminActiveFocus.type === "person"
+    ? adminActiveFocus.originMetric
+    : "";
+  adminActiveFocus = null;
+  if (returnToOrigin && origin) {
+    openAdminUsageMetric_(origin);
+    return;
+  }
   sheet.classList.remove("visible");
   sheet.setAttribute("aria-hidden", "true");
-  adminActiveFocus = null;
   if (!document.querySelector(".directorySheet.visible")) {
     document.body.classList.remove("directorySheetOpen");
   }
@@ -9778,11 +9860,7 @@ function getAdminUsersActiveToday_() {
 
 function getAdminActiveUserPresentation_(user) {
   const email = normalizeEmail(user && user.email || "");
-  const phone = normalizePhone(user && user.phone || "");
-  const contact = contacts.find(item =>
-    (email && normalizeEmail(item && item.email) === email) ||
-    (phone && normalizePhone(item && item.phone) === phone)
-  ) || null;
+  const contact = resolveAdminPersonContact_("", email);
   return {
     email,
     name: contact
@@ -9810,7 +9888,22 @@ function renderAdminHomeMetrics_() {
   `;
 }
 
-function openAdminUsageMetric_(kind) {
+async function openAdminUsageMetric_(kind) {
+  const focus = { type: "metric", kind: kind === "new" ? "new" : "today" };
+  adminActiveFocus = focus;
+  if (!adminLoadedSections.has("contacts")) {
+    openAdminFocusSheet_({ title: "טוען פרטי משתמשים...", html: "" });
+    try {
+      await loadAdminDataPart_("contacts", loadAdminContactsData_);
+    } catch (error) {
+      if (adminActiveFocus === focus) {
+        closeAdminFocusSheet_(false);
+        setAdminStatus("טעינת פרטי המשתמשים נכשלה. נסו שוב.", "error");
+      }
+      return;
+    }
+    if (adminActiveFocus !== focus) return;
+  }
   if (kind === "new") {
     const users = getAdminNewUsersThisMonth_()
       .sort((a, b) => getAdminRegistrationTimestamp_(b) - getAdminRegistrationTimestamp_(a));
@@ -9820,7 +9913,7 @@ function openAdminUsageMetric_(kind) {
       subtitle: users.length ? `${users.length} משתמשים` : "אין משתמשים חדשים החודש",
       html: users.length
         ? `<div class="adminMetricList">${users.map(user => `
-            <button type="button" onclick="closeAdminFocusSheet_(); openAdminPerson_('', '${escapeJsString(user.email)}')">
+            <button type="button" onclick="openAdminPerson_('', '${escapeJsString(user.email)}', 'new')">
               <strong>${escapeHtml(getAccountDisplayName_(user.email, user.email))}</strong>
               <span>${escapeHtml(formatAdminRelativeTime_(getAdminRegistrationTimestamp_(user)))}</span>
             </button>
@@ -9843,7 +9936,7 @@ function openAdminUsageMetric_(kind) {
           <div class="adminMetricList">${identifiedUsers.map(({ user }) => {
             const identity = getAdminActiveUserPresentation_(user);
             return `
-              <button type="button" onclick="closeAdminFocusSheet_(); openAdminPerson_('', '${escapeJsString(identity.email)}')">
+              <button type="button" onclick="openAdminPerson_('', '${escapeJsString(identity.email)}', 'today')">
                 <strong>${escapeHtml(identity.name)}</strong>
               </button>
             `;
@@ -10074,10 +10167,23 @@ function renderAdminPersonManagement_(contact, user) {
   `;
 }
 
-function openAdminPerson_(contactDocId, userEmail) {
-  const contact = [...adminContacts, ...adminRemovedContacts].find(item =>
-    String(item.docId || "") === String(contactDocId || "")
-  ) || null;
+function resolveAdminPersonContact_(contactDocId, userEmail) {
+  const records = [...adminContacts, ...adminRemovedContacts];
+  const docId = String(contactDocId || "");
+  // Explicit stable IDs take precedence. Never join two people by phone alone.
+  if (docId) {
+    const byId = records.filter(item => String(item.docId || "") === docId);
+    if (byId.length === 1) return byId[0];
+    if (byId.length > 1) return null;
+  }
+  const email = normalizeEmail(userEmail || "");
+  if (!email) return null;
+  const matches = records.filter(item => normalizeEmail(item.email || "") === email);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function openAdminPerson_(contactDocId, userEmail, originMetric = "") {
+  const contact = resolveAdminPersonContact_(contactDocId, userEmail);
   const user = getAllowedUserByEmail(userEmail || (contact && contact.email)) || null;
   if (!contact && !user) {
     setAdminStatus("האדם שבחרתם כבר אינו זמין ברשימה. רעננו את העמוד.", "error");
@@ -10123,24 +10229,24 @@ function openAdminPerson_(contactDocId, userEmail) {
           : "איפוס מאושר עד סוף היום";
   const routineContactAction = contact
     ? contact.deleted
-      ? `<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(); restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לספר</button>`
-      : `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>`
+      ? `<button type="button" class="adminActionBtn primary" onclick="closeAdminFocusSheet_(false); restoreAdminContact('${escapeJsString(contact.docId)}')">החזרה לספר</button>`
+      : `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(false); openAdminEditModal('${escapeJsString(contact.docId)}')">עריכת פרטים</button>`
     : "";
   let passwordAction = "";
   if (user && !isSelf && user.active) {
     if (!passwordRecovery) {
-      passwordAction = `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">עזרה באיפוס סיסמה</button>`;
+      passwordAction = `<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(false); preparePasswordRecoveryForUser_('${escapeJsString(user.email)}')">עזרה באיפוס סיסמה</button>`;
     } else if (passwordRecovery.status === "pending") {
-      passwordAction = '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת בקשת האיפוס</button>';
+      passwordAction = '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(false); setAdminTab(\'attention\')">פתיחת בקשת האיפוס</button>';
     } else if (!["consuming"].includes(passwordRecovery.status)) {
-      passwordAction = `<button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>`;
+      passwordAction = `<button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(false); cancelPreparedPasswordRecoveryForUser_('${escapeJsString(user.email)}')">ביטול אישור האיפוס</button>`;
     }
   }
   const accessActions = [];
   if (hasPendingAccess) {
     accessActions.push(
       `<button type="button" class="adminActionBtn primary" onclick="approveManualAccess_('${escapeJsString(user.email)}', false, true)">${getLinkedJoinRequestForUser_(user) ? "אישור איש קשר וגישה קבועה" : "אישור כניסה קבוע — גם בלי מייל אימות"}</button>`,
-      '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(); setAdminTab(\'attention\')">פתיחת הבקשה המלאה</button>'
+      '<button type="button" class="adminActionBtn secondary" onclick="closeAdminFocusSheet_(false); setAdminTab(\'attention\')">פתיחת הבקשה המלאה</button>'
     );
   } else if (canForceApproveAccess) {
     accessActions.push(
@@ -10148,28 +10254,33 @@ function openAdminPerson_(contactDocId, userEmail) {
     );
   } else if (user && !isSelf) {
     accessActions.push(
-      `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="closeAdminFocusSheet_(); toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>`
+      `<button type="button" class="adminActionBtn ${user.active ? "warning" : "primary"}" onclick="closeAdminFocusSheet_(false); toggleUserAccess('${escapeJsString(user.email)}', ${!user.active})">${user.active ? "חסימת גישה" : "החזרת גישה"}</button>`
     );
   }
 
   const advancedActions = [];
   if (contact && !contact.deleted) {
     advancedActions.push(
-      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(); removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>`
+      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(false); removeAdminContact('${escapeJsString(contact.docId)}')">הסרה מהאפליקציה</button>`
     );
   }
   if (user && !isSelf) {
     advancedActions.push(
-      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(); deleteUserPermission('${escapeJsString(user.email)}')">איפוס מלא של חשבון הכניסה</button>`
+      `<button type="button" class="adminActionBtn danger" onclick="closeAdminFocusSheet_(false); deleteUserPermission('${escapeJsString(user.email)}')">איפוס מלא של חשבון הכניסה</button>`
     );
     if (user.manualApproved) {
       advancedActions.push(
-        `<button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(); revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`
+        `<button type="button" class="adminActionBtn warning" onclick="closeAdminFocusSheet_(false); revokeManualAccess_('${escapeJsString(user.email)}')">ביטול אישור ידני</button>`
       );
     }
   }
 
-  adminActiveFocus = { type: "person", contactDocId, userEmail: email };
+  adminActiveFocus = {
+    type: "person",
+    contactDocId: contact ? contact.docId : "",
+    userEmail: email,
+    originMetric: ["today", "new"].includes(originMetric) ? originMetric : ""
+  };
   openAdminFocusSheet_({
     eyebrow: "ניהול איש הקשר",
     title: displayName,
@@ -10274,6 +10385,7 @@ function renderAdminPeople_() {
           <span>${secondary.map(escapeHtml).join(" · ")}</span>
         </span>
         <span class="adminPersonRowState">
+          ${contact && contact.deleted ? '<span class="adminMiniStatus">הוסר מהספר</span>' : ""}
           <span class="adminMiniStatus ${accessState ? escapeHtml(accessState.badgeClass) : ""}">${accessState ? escapeHtml(accessState.label) : "ללא כניסה"}</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </span>
@@ -10369,7 +10481,7 @@ function renderAdminInternsSystemCard_() {
   const active = adminMonthlyInternsActive;
   const activeCount = getPublishedInternCount_(active);
   const activeLabel = active
-    ? String(active.monthLabel || formatMonthlyInternMonthLabel_(active.monthKey))
+    ? String(formatMonthlyInternMonthLabel_(active.monthKey))
     : "טרם פורסמה רשימה";
   const previousCount = getPublishedInternCount_(adminMonthlyInternsPrevious);
   return `
@@ -10377,9 +10489,10 @@ function renderAdminInternsSystemCard_() {
       <span class="adminSystemFeatureIcon" aria-hidden="true">${getAdminIconSvg_("contact")}</span>
       <div class="adminSystemFeatureContent">
         <div class="adminSystemFeatureHeading">
-          <div><h3>סטאז׳רים החודש</h3><p>${escapeHtml(activeLabel)}${active ? ` · ${escapeHtml(String(activeCount))} ברשימה` : ""}</p></div>
-          ${active ? '<span class="adminMiniStatus">פעיל</span>' : '<span class="adminMiniStatus pending">לא פורסם</span>'}
+          <div><h3>רשימת סטאז׳רים</h3><p>${escapeHtml(activeLabel)}${active ? ` · ${escapeHtml(String(activeCount))} ברשימה` : ""}</p></div>
+          ${active ? '<span class="adminMiniStatus">פורסם</span>' : '<span class="adminMiniStatus pending">לא פורסם</span>'}
         </div>
+        ${active && getMonthlyInternsFreshnessHint_(active.monthKey) ? `<p class="monthlyInternsFreshnessHint">${escapeHtml(getMonthlyInternsFreshnessHint_(active.monthKey))}</p>` : ""}
         <p class="adminSystemFeatureDescription">העלאת Excel יוצרת רשימת חיוג ו־WhatsApp בלבד. היא אינה מוסיפה משתמשים או הרשאות.</p>
         <div class="adminSystemFeatureActions">
           <button type="button" class="adminActionBtn primary" onclick="openMonthlyInternsAdmin_()">ניהול והעלאת Excel</button>
@@ -10868,7 +10981,7 @@ function requestAdminConfirmation_(options = {}) {
   actionButton.className = `adminActionBtn ${options.tone === "warning" ? "warning" : options.tone === "primary" ? "primary" : "danger"}`;
   modal.classList.add("visible");
   modal.setAttribute("aria-hidden", "false");
-  setTimeout(() => actionButton.focus(), 60);
+  // The shared dialog manager focuses the neutral confirmation heading.
   return new Promise(resolve => {
     adminConfirmationResolve = resolve;
   });
@@ -11196,7 +11309,8 @@ function renderMonthlyInternsAdmin_() {
         <p>המערכת תזהה שם, טלפון ומחלקה, ותציג תצוגה מקדימה לפני פרסום.</p>
       </div>
     </div>
-    ${active ? `<div class="internCurrentList"><span>הרשימה הפעילה</span><strong>${escapeHtml(String(active.monthLabel || formatMonthlyInternMonthLabel_(active.monthKey)))}</strong><small>${escapeHtml(String(getPublishedInternCount_(active)))} סטאז׳רים</small></div>` : '<div class="internCurrentList empty"><span>עדיין לא פורסמה רשימה</span></div>'}
+    ${active ? `<div class="internCurrentList"><span>חודש הרשימה שפורסמה</span><strong>${escapeHtml(String(formatMonthlyInternMonthLabel_(active.monthKey)))}</strong><small>${escapeHtml(String(getPublishedInternCount_(active)))} סטאז׳רים</small></div>` : '<div class="internCurrentList empty"><span>עדיין לא פורסמה רשימה</span></div>'}
+    ${active && getMonthlyInternsFreshnessHint_(active.monthKey) ? `<p class="monthlyInternsFreshnessHint">${escapeHtml(getMonthlyInternsFreshnessHint_(active.monthKey))}</p>` : ""}
     ${error ? `<div class="internImportError">${escapeHtml(error)}</div>` : ""}
     <div class="internAccessBoundary"><strong>רשימת תצוגה בלבד</strong><span>הקובץ אינו משנה אנשי קשר, משתמשים, סיסמאות או הרשאות כניסה.</span></div>
     <button type="button" class="adminActionBtn primary internChooseFileBtn" onclick="chooseMonthlyInternsWorkbook_()">העלאת קובץ Excel</button>
@@ -12985,6 +13099,7 @@ function openAdminEditModal(docId) {
 }
 
 function closeAdminEditModal() {
+  if (typeof window !== "undefined" && typeof window.confirmDialogClose_ === "function" && !window.confirmDialogClose_("adminEditModal")) return false;
   adminEditingContact = null;
   const modal = document.getElementById("adminEditModal");
   if (modal) modal.classList.remove("visible");
@@ -13019,6 +13134,9 @@ function buildAdminContactPayload(contact) {
 async function saveAdminContactEdit() {
   if (!currentUserIsAdmin || !adminEditingContact) return;
 
+  const editingContact = adminEditingContact;
+  const submittedDraft = typeof window !== "undefined" && typeof window.captureDialogDraft_ === "function" ? window.captureDialogDraft_("adminEditModal") : undefined;
+  const isCurrentEdit = () => adminEditingContact === editingContact;
   const payload = buildAdminContactPayload(adminEditingContact);
   const originalPhone = normalizePhone(adminEditingContact.phone);
   const newPhone = normalizePhone(payload.phone);
@@ -13077,7 +13195,7 @@ async function saveAdminContactEdit() {
 
   if (phoneChanged) {
     const duplicateContact = adminContacts.find(contact =>
-      contact.docId !== adminEditingContact.docId &&
+      contact.docId !== editingContact.docId &&
       normalizePhone(contact.phone) === newPhone
     );
 
@@ -13097,8 +13215,8 @@ async function saveAdminContactEdit() {
 
   try {
     const batch = firebaseApi.writeBatch(db);
-    const contactRef = firebaseApi.doc(db, "contacts", adminEditingContact.docId);
-    const overrideRef = firebaseApi.doc(db, "contactOverrides", adminEditingContact.docId);
+    const contactRef = firebaseApi.doc(db, "contacts", editingContact.docId);
+    const overrideRef = firebaseApi.doc(db, "contactOverrides", editingContact.docId);
     const actionRef = firebaseApi.doc(firebaseApi.collection(db, "admin_actions"));
     const now = firebaseApi.serverTimestamp();
 
@@ -13123,7 +13241,7 @@ async function saveAdminContactEdit() {
       email: "מייל"
     };
 
-    const originalPayload = contactToFirestorePayload(adminEditingContact);
+    const originalPayload = contactToFirestorePayload(editingContact);
     const changedFields = Object.keys(changedFieldMap).filter(field =>
       String(originalPayload[field] || "").trim() !==
       String(payload[field] || "").trim()
@@ -13131,7 +13249,7 @@ async function saveAdminContactEdit() {
 
     batch.set(actionRef, {
       action: "contact_edit",
-      targetId: adminEditingContact.docId,
+      targetId: editingContact.docId,
       targetEmail: newEmail || "",
       targetPhone: newPhone || "",
       previousPhone: originalPhone || "",
@@ -13214,7 +13332,7 @@ async function saveAdminContactEdit() {
 
     if (emailChanged && oldEmail) {
       const oldEmailUsedElsewhere = adminContacts.some(contact =>
-        contact.docId !== adminEditingContact.docId &&
+        contact.docId !== editingContact.docId &&
         normalizeEmail(contact.email) === oldEmail
       );
 
@@ -13234,22 +13352,25 @@ async function saveAdminContactEdit() {
 
     await batch.commit();
     await updateOptimizedContactBundle_(
-      adminEditingContact.docId,
+      editingContact.docId,
       payload,
       { deleted: false, countDelta: 0 }
     );
-    setAdminEditStatus("השינויים נשמרו.", "success");
+    if (isCurrentEdit()) {
+      if (typeof window !== "undefined" && typeof window.markDialogSaved_ === "function") window.markDialogSaved_("adminEditModal", submittedDraft);
+      setAdminEditStatus("השינויים נשמרו.", "success");
+    }
     await loadContacts();
     await loadAdminData();
-    setTimeout(closeAdminEditModal, 450);
+    setTimeout(() => { if (isCurrentEdit()) closeAdminEditModal(); }, 450);
   } catch (error) {
     console.error("Admin contact save failed", error);
-    setAdminEditStatus(
+    if (isCurrentEdit()) setAdminEditStatus(
       "שמירת השינויים נכשלה. בדקו את כללי Firestore ונסו שוב.",
       "error"
     );
   } finally {
-    saveButton.disabled = false;
+    if (isCurrentEdit()) saveButton.disabled = false;
   }
 }
 
@@ -13869,8 +13990,6 @@ function updateHomeDashboardVisibility_() {
 function clearSearch() {
   const input = document.getElementById("searchInput");
   if (input) input.value = "";
-  selectionMode = false;
-  selectedContactIds.clear();
   updateSearchUI();
   renderCurrentSearchResults();
   if (input) input.focus();
@@ -13906,12 +14025,30 @@ function updateDirectoryListToolbar_() {
   );
 }
 
+function getContactSelectionKey_(contact) {
+  if (!contact) return "";
+  const docId = String(contact.docId || "").trim();
+  return docId ? `doc:${docId}` : `phone:${normalizePhone(contact.phone)}`;
+}
+
+function pruneUnavailableSelections_() {
+  const available = new Set(contacts.map(getContactSelectionKey_));
+  selectedContactIds.forEach(key => {
+    if (!available.has(key)) selectedContactIds.delete(key);
+  });
+}
+
 function updateBulkActions() {
   const selectedCount = selectedContactIds.size;
   const bulkActions = document.getElementById("bulkActions");
   const info = document.getElementById("bulkActionsInfo");
 
-  info.textContent = `נבחרו ${selectedCount} אנשי קשר`;
+  const visibleSelected = currentDisplayedContacts.filter(contact =>
+    selectedContactIds.has(getContactSelectionKey_(contact))
+  ).length;
+  const hiddenSelected = selectedCount - visibleSelected;
+  info.textContent = `נבחרו ${selectedCount} אנשי קשר` +
+    (hiddenSelected > 0 ? ` (${hiddenSelected} מחוץ לתוצאות המוצגות)` : "");
 
   if (selectionMode && selectedCount > 0) {
     bulkActions.classList.add("visible");
@@ -13925,8 +14062,11 @@ function updateBulkActions() {
 function toggleContactSelection(id) {
   if (!selectionMode) return;
 
-  if (selectedContactIds.has(id)) selectedContactIds.delete(id);
-  else selectedContactIds.add(id);
+  const contact = contacts.find(item => item.id === Number(id));
+  if (!contact) return;
+  const key = getContactSelectionKey_(contact);
+  if (selectedContactIds.has(key)) selectedContactIds.delete(key);
+  else selectedContactIds.add(key);
 
   updateBulkActions();
   refreshSelectedCardsUI();
@@ -13935,17 +14075,19 @@ function toggleContactSelection(id) {
 function refreshSelectedCardsUI() {
   document.querySelectorAll(".contact").forEach(card => {
     const id = Number(card.dataset.id);
-    card.classList.toggle("selected", selectionMode && selectedContactIds.has(id));
+    const contact = contacts.find(item => item.id === id);
+    const key = getContactSelectionKey_(contact);
+    card.classList.toggle("selected", selectionMode && selectedContactIds.has(key));
     const button = card.querySelector(".contactRowMain");
     if (button && selectionMode) {
       button.setAttribute(
         "aria-pressed",
-        String(selectedContactIds.has(id))
+        String(selectedContactIds.has(key))
       );
     }
     const indicator = card.querySelector(".contactSelectionIndicator");
     if (indicator) {
-      indicator.classList.toggle("selected", selectedContactIds.has(id));
+      indicator.classList.toggle("selected", selectedContactIds.has(key));
     }
   });
 }
@@ -14146,7 +14288,7 @@ async function downloadSelectedContacts() {
     alert("הורדה מרוכזת זמינה לאחר אישור גישה קבועה.");
     return;
   }
-  const selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
+  const selectedContacts = contacts.filter(c => selectedContactIds.has(getContactSelectionKey_(c)));
 
   if (!selectedContacts.length) {
     alert("לא נבחרו אנשי קשר");
@@ -14269,7 +14411,10 @@ function openContactAddModal_() {
       .sort((left, right) => getTimestampMillis_(right.updatedAt || right.createdAt) - getTimestampMillis_(left.updatedAt || left.createdAt))[0];
     if (!latest) return;
     const presentation = getUserRequestStatusPresentation_(latest.status);
-    setContactAddStatus_(`מצב הבקשה האחרונה: ${presentation.label}.`, presentation.tone === "rejected" ? "error" : presentation.tone === "pending" ? "empty" : "success");
+    const requestName = [latest.firstName, latest.lastName].filter(Boolean).join(" ") || latest.phone || latest.email || "ללא שם";
+    const requestTime = getTimestampMillis_(latest.createdAt);
+    const requestDate = requestTime ? new Date(requestTime).toLocaleDateString("he-IL") : "";
+    setContactAddStatus_(`הבקשה האחרונה עבור ${requestName}${requestDate ? ` (${requestDate})` : ""}: ${presentation.label}.`, presentation.tone === "rejected" ? "error" : presentation.tone === "pending" ? "empty" : "success");
   });
 }
 
@@ -14354,6 +14499,7 @@ function openContactAddRequestForApproval_(requestId, message = "") {
 }
 
 function closeContactAddModal_() {
+  if (typeof window !== "undefined" && typeof window.confirmDialogClose_ === "function" && !window.confirmDialogClose_("contactAddModal")) return false;
   requestModalSessions_.add = null;
   const modal = document.getElementById("contactAddModal");
   if (modal) modal.classList.remove("visible");
@@ -14441,6 +14587,7 @@ async function submitContactAddRequest_() {
   const session = requestModalSessions_.add;
   if (!session || session.busy || session.submitted) return;
   const isCurrent = () => requestModalSessions_.add === session;
+  const submittedDraft = typeof window !== "undefined" && typeof window.captureDialogDraft_ === "function" ? window.captureDialogDraft_("contactAddModal") : undefined;
   const originalContact = activeContactUpdate ? { ...activeContactUpdate } : null;
   const source = contactAddSource;
   const values = getContactAddFormValues_();
@@ -14562,6 +14709,7 @@ async function submitContactAddRequest_() {
     userRequestState.loadedAt = Date.now();
     session.submitted = true;
     if (!isCurrent()) return;
+    if (typeof window !== "undefined" && typeof window.markDialogSaved_ === "function") window.markDialogSaved_("contactAddModal", submittedDraft);
     setContactAddStatus_(
       originalContact
         ? "העדכון נשלח. מצב: ממתין לאישור."
@@ -14652,6 +14800,7 @@ function openMonthlyInternReport_(internId) {
 }
 
 function closeContactReportModal() {
+  if (typeof window !== "undefined" && typeof window.confirmDialogClose_ === "function" && !window.confirmDialogClose_("contactReportModal")) return false;
   requestModalSessions_.report = null;
   const modal = document.getElementById("contactReportModal");
   if (modal) modal.classList.remove("visible");
@@ -14668,6 +14817,7 @@ async function submitContactReport() {
   const session = requestModalSessions_.report;
   if (!session || session.busy || session.submitted) return;
   const isCurrent = () => requestModalSessions_.report === session;
+  const submittedDraft = typeof window !== "undefined" && typeof window.captureDialogDraft_ === "function" ? window.captureDialogDraft_("contactReportModal") : undefined;
   const reportContact = { ...activeReportContact };
   const currentUser = auth.currentUser;
   const internVersion = String(monthlyInternsState.version || "");
@@ -14735,6 +14885,7 @@ async function submitContactReport() {
     userRequestState.loadedAt = Date.now();
     session.submitted = true;
     if (!isCurrent()) return;
+    if (typeof window !== "undefined" && typeof window.markDialogSaved_ === "function") window.markDialogSaved_("contactReportModal", submittedDraft);
     setStatus("contactReportStatus", "הדיווח נשלח. מצב: ממתין לטיפול.", "success");
     setTimeout(() => { if (isCurrent()) closeContactReportModal(); }, 1300);
   } catch (error) {
@@ -15134,10 +15285,6 @@ function openContactDetail_(id) {
   sheet.classList.add("visible");
   sheet.setAttribute("aria-hidden", "false");
   document.body.classList.add("directorySheetOpen");
-  window.setTimeout(() => {
-    const closeButton = sheet.querySelector(".directorySheetClose");
-    if (closeButton) closeButton.focus();
-  }, 0);
 }
 
 function downloadActiveContact_() {
@@ -15240,14 +15387,14 @@ function getLaboratoryGroupedDisplayList_(list) {
 function show(list) {
   currentDisplayedContacts = list;
 
-  if (selectionMode && !canUseMultiSelection()) {
-    selectionMode = false;
-    selectedContactIds.clear();
-  }
+  // Empty filtered results do not cancel selections made in another view.
+  pruneUnavailableSelections_();
 
   updateMainActionButton();
   updateResultsSummary(list);
   updateDirectoryListToolbar_();
+  const emptyActions = document.getElementById("directoryNoResultsActions");
+  if (emptyActions) emptyActions.hidden = true;
 
   if (!list.length) {
     document.getElementById("list").innerHTML = "";
@@ -15257,6 +15404,9 @@ function show(list) {
         "לא נמצאו אנשי קשר. נסו שם, תפקיד או מחלקה.",
         "empty"
       );
+      if (emptyActions) emptyActions.hidden = false;
+      const searchAll = document.getElementById("directorySearchAllBtn");
+      if (searchAll) searchAll.hidden = activeQuickFilter === "all";
     } else {
       setListStatus("", "");
     }
@@ -15285,7 +15435,7 @@ function show(list) {
 
     const cleanPhone = normalizePhone(c.phone).replace("+", "");
     const displayPhone = formatPhoneForDisplay(c.phone);
-    const isSelected = selectionMode && selectedContactIds.has(c.id);
+    const isSelected = selectionMode && selectedContactIds.has(getContactSelectionKey_(c));
     const hideWhatsapp = isNoWhatsappPhone(c.phone);
     const visibleDepartment = getVisibleDepartment_(c);
     const meta = [c.role, visibleDepartment]
@@ -15335,7 +15485,6 @@ function renderCurrentSearchResults() {
   const baseContacts = getQuickFilterContacts();
 
   updateSearchUI();
-  if (selectionMode) selectedContactIds.clear();
 
   if (q.length < 1) {
     if (shouldShowHomeDashboard_()) {

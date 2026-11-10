@@ -47,7 +47,7 @@ function setup() {
     'getRecentContactsCutoff', 'getImportedRecentContactPhones_', 'markRecentContactPhonesImported_',
     'parseContactDate', 'getContactCreationDate', 'getRecentContacts', 'getRecentContactSelectionKey_',
     'escapeVCardValue', 'buildContactVCard', 'saveImportPayload', 'openImportGuide', 'showGuideError',
-    'renderImportGuide', 'downloadAllContacts', 'downloadRecentContacts', 'downloadSelectedContacts'
+    'getContactSelectionKey_', 'renderImportGuide', 'downloadAllContacts', 'downloadRecentContacts', 'downloadSelectedContacts'
   ].map(extract).join('\n'), context);
   return {
     context, storage, elements, opened, alerts,
@@ -173,7 +173,7 @@ const recentPhones = context => Array.from(context.getRecentContacts(), c => c.p
 
   const selected = setup();
   selected.context.contacts = [{ ...contact('0501111111'), id: 1 }];
-  selected.context.selectedContactIds.add(1);
+  selected.context.selectedContactIds.add(selected.context.getContactSelectionKey_(selected.context.contacts.find(c => c.id === 1)));
   await selected.context.downloadSelectedContacts();
   await selected.complete(selected.latestGuide().key);
   assert.equal(selected.storage.has(phonesKey), false, 'Unrelated selected export is unchanged');

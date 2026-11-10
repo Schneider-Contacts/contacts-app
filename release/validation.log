@@ -1,0 +1,78 @@
+Baseline: 1b99b24e708b9b9152f75a795fd4a321aa16ab7c
+UTC validation: 2026-11-10T01:21:19Z
+
+=== tests/access-state-matrix.js ===
+access state matrix: OK
+
+=== tests/admin-approval-session-flow.js ===
+Admin approval session and canceled draft dismissal regressions passed.
+
+=== tests/admin-health-flow.js ===
+admin health flow: OK
+
+=== tests/admin-ux-flow.js ===
+Admin UX identity, neutral focus, metric origin, removal and loading regressions passed.
+
+=== tests/contact-request-state-flow.js ===
+Contact request state regressions passed (synthetic services; no real writes).
+
+=== tests/directory-search-selection-flow.js ===
+Directory search and stable selection flow passed.
+
+=== tests/download-tracking-flow.js ===
+Download tracking flow tests passed
+
+=== tests/email-update-flow.js ===
+email update flow: OK
+
+=== tests/intern-import.test.js ===
+intern import tests: OK
+
+=== tests/join-approval-flow.js ===
+join approval flow: OK
+join approval ordering: OK
+join approval counts: OK
+join approval actions: OK
+
+=== tests/permanent-approval-flow.js ===
+permanent approval flow: OK
+
+=== tests/provisional-access-flow.js ===
+provisional access flow: OK
+
+=== tests/registration-client-flow.js ===
+registration client flow: OK
+
+=== tests/signup-roster-presentation.js ===
+Signup and roster presentation checks passed
+
+=== tests/static-audit.js ===
+static audit: OK
+
+=== tests/verification-email-flow.js ===
+verification email flow: OK
+
+=== Simulated DOM ===
+PASS Contact sheet starts at neutral heading
+PASS Background is inert and hidden
+PASS Tab moves to first available control
+PASS Shift+Tab wraps within dialog
+PASS Programmatic focus cannot escape
+PASS Escape closes sheet and restores background
+PASS Close restores opener and scroll
+PASS Alertdialog is managed and starts at neutral heading
+PASS Lower dialog is inert while confirmation is open
+PASS Escape rejects only top confirmation
+PASS Cancel discard keeps the draft open
+PASS Unsaved draft guards page exit
+PASS Saving old values cannot silently discard newer edits
+PASS Saved draft closes without discard prompt
+PASS Explicit discard closes and unlocks background
+PASS Browser Back closes the current dialog
+PASS Browser Forward does not reopen stale dialog
+PASS Canceled Back preserves unsaved draft
+PASS Confirmed Back dismisses draft without leaving page
+PASS Sheet-to-form dismissal restores original opener
+PASS Repeated open/close leaves no lock or current history marker
+21 simulated DOM dialog checks passed
+Syntax and diff whitespace checks passed
