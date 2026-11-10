@@ -18,9 +18,24 @@
     const query=text=>{input.value=text;input.dispatchEvent(new win.Event('input',{bubbles:true}))};
     const click=id=>doc.getElementById(id).click();
     check(home.hidden&&!dashboard.hidden,`Initial Home at ${width}px`);
+    const searchTop = input.getBoundingClientRect().top;
+    const searchWidth = input.getBoundingClientRect().width;
     query('Alice');
     check(!home.hidden&&dashboard.hidden,`Search exposes Home button at ${width}px`);
-    check(home.getBoundingClientRect().height>=44&&doc.documentElement.scrollWidth<=win.innerWidth,`Home control fits accessible mobile layout at ${width}px`);
+    const buttonRect = home.getBoundingClientRect();
+    check(buttonRect.height>=44&&buttonRect.width>=44&&buttonRect.width<=80&&doc.documentElement.scrollWidth<=win.innerWidth,`Compact Home fits accessible layout at ${width}px`);
+    check(home.closest('.directoryListActions') && home.textContent.trim()==='בית' && home.getAttribute('aria-label')==='חזרה למסך הבית',`Home keeps a visible label and accessible name at ${width}px`);
+    check(input.getBoundingClientRect().top===searchTop&&input.getBoundingClientRect().width===searchWidth,`Search keeps its position and full width at ${width}px`);
+    const card = doc.querySelector('#app .controlsCard');
+    const compactHeight = card.getBoundingClientRect().height;
+    // Compare the previous standalone row using the same DOM, without altering application state.
+    const actions = home.parentElement;
+    card.prepend(home);
+    home.style.marginBottom='8px';
+    const oldHeight=card.getBoundingClientRect().height;
+    actions.prepend(home);home.style.marginBottom='';
+    check(oldHeight-compactHeight>=40,`Home removes at least 40px of sticky height at ${width}px (${Math.round(oldHeight-compactHeight)}px saved)`);
+    home.focus();check(doc.activeElement===home,`Compact Home is keyboard focusable at ${width}px`);
     click('clearSearchBtn');check(home.hidden&&!dashboard.hidden&&!doc.getElementById('list').textContent.trim(),`Clear plain search returns Home at ${width}px`);
     click('labsFilterBtn');doc.querySelector('#activeDirectoryFilter button').click();query('Alice');click('clearSearchBtn');
     check(home.hidden&&!dashboard.hidden,`Clear global search after category browsing returns Home at ${width}px`);
@@ -35,6 +50,8 @@
     home.click();home.click();
     check(home.hidden&&!dashboard.hidden&&!doc.getElementById('bulkActions').classList.contains('visible'),`Home exits selection safely, including repeated click, at ${width}px`);
     query('Alice');check(doc.getElementById('selectionModeBtn').textContent==='המשך בחירה (2)',`Home retains resumable choices at ${width}px`);
+    const homeRect=home.getBoundingClientRect(),selectionRect=doc.getElementById('selectionModeBtn').getBoundingClientRect(),summaryRect=doc.getElementById('resultsSummary').getBoundingClientRect();
+    check(homeRect.right<=win.innerWidth&&homeRect.left>=0&&selectionRect.right<=homeRect.left&&summaryRect.left>=homeRect.right&&doc.documentElement.scrollWidth<=win.innerWidth,`Home, summary and resume selection do not overlap at ${width}px`);
     click('selectionModeBtn');check(doc.querySelector('.contactRowMain').getAttribute('aria-pressed')==='true',`Resumed selection keeps identity at ${width}px`);
     click('clearSearchBtn');click('selectionModeBtn');
     check(home.hidden&&!dashboard.hidden&&!doc.getElementById('list').textContent.trim(),`Finish selection after clear returns Home at ${width}px`);
@@ -43,4 +60,8 @@
   check(errors.length===0,'No browser runtime errors: '+errors.join('; '));
   out.textContent='ALL '+lines.length+' CHECKS PASSED\n'+out.textContent;document.title='PASS: Directory home regression checks';
   frame.style.width='390px';
+  const previewDoc=frame.contentDocument,previewInput=previewDoc.getElementById('searchInput');
+  previewInput.value='Alice';previewInput.dispatchEvent(new frame.contentWindow.Event('input',{bubbles:true}));
+  document.getElementById('summary').textContent='ALL '+lines.length+' CHECKS PASSED';
+  document.getElementById('previewWidth').onchange=event=>{frame.style.width=event.target.value+'px'};
 })().catch(error=>{document.getElementById('results').textContent+='\nFAIL '+error.stack;document.title='FAIL: Directory home regression checks'});

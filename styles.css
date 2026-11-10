@@ -7287,23 +7287,30 @@ body.directorySheetOpen {
 
 .pharmacologyRepairNotice{padding:12px;border:1px solid #b9d8f4;border-radius:12px;background:#f0f7ff;margin:12px 0;text-align:right}.pharmacologyRepairNotice p{margin:8px 0}.pharmacologyRepairNotice ul{margin:8px 0;padding-inline-start:22px}.pharmacologyRepairNotice summary{cursor:pointer;padding:8px 0}.pharmacologyRepairNotice textarea{box-sizing:border-box;width:100%;margin-top:6px}
 
+/* Home shares the existing results row instead of adding a full row above search. */
 #app .directoryHomeBtn {
-  display: flex;
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
   min-height: 44px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  border: 1px solid #c9dbd1;
-  border-radius: 12px;
-  background: #fff;
+  padding: 6px 8px;
+  margin: 0;
+  border: 1px solid #d7e5dd;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
   color: #176b4e;
   font: inherit;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
 }
 #app .directoryHomeBtn[hidden] { display: none; }
-#app .directoryHomeBtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+#app .directoryHomeBtn svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #app .directoryHomeBtn:hover { background: #f0f7f3; }
 #app .directoryHomeBtn:focus-visible { outline: 3px solid #24845e; outline-offset: 3px; }

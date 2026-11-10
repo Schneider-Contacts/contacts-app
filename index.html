@@ -406,7 +406,6 @@
 
 
 <div class="controlsCard">
-  <button type="button" id="directoryHomeBtn" class="directoryHomeBtn" onclick="returnToHome_()" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>חזרה למסך הבית</span></button>
   <div class="searchWrap">
     <label class="srOnly" for="searchInput">חיפוש בספר אנשי הקשר</label>
     <span class="searchIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></svg></span>
@@ -443,6 +442,7 @@
   <div class="directoryListToolbar" hidden>
     <div id="resultsSummary" class="resultsSummary" aria-live="polite"></div>
     <div class="directoryListActions">
+      <button type="button" id="directoryHomeBtn" class="directoryHomeBtn" onclick="returnToHome_()" aria-label="חזרה למסך הבית" title="חזרה למסך הבית" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v11h5v-6h4v6h5V9"/></svg><span>בית</span></button>
       <button type="button" id="selectionModeBtn" class="directoryToolbarBtn" onclick="toggleSelectionMode_()" hidden>בחירה</button>
     </div>
   </div>
